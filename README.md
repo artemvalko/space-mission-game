@@ -1,22 +1,22 @@
 # Mission Control — Space Mission Design Game
 
-**Design a real space mission. Stay on budget. Get the science.**
+**▶ Play it live: https://artemvalko.github.io/space-mission-game/**
 
-Pick a mission (spot forest fires, relay calls from the Moon, photograph the first galaxies…), answer
-one simple question per step to build your satellite, launch it — and watch what happens. Every
-choice costs money, weight, power or data, and every outcome is shown with an animation and explained
-in one sentence. Play solo or as a team of 2–4 on one screen.
+Mission Control is an educational browser game: you design a real space mission (a fire-spotting satellite, a lunar relay, a deep-space telescope, a Mars orbiter…), launch it and operate it — while managing mass, power, budget, data and time. Every choice is a trade-off, every outcome is animated and explained in plain English. Play solo or as a team of 2–4 on one screen. Built for a hackathon with plain HTML, CSS and JavaScript — no build step, no libraries.
 
-## Run it
+## How to run locally
 ```bash
+git clone https://github.com/artemvalko/space-mission-game.git
 cd space-mission-game
-python3 -m http.server
+python3 -m http.server 8000
 # open http://localhost:8000
 ```
-No install, no build, no internet needed — plain HTML, CSS and JavaScript modules.
 
-- Self-test: `http://localhost:8000/js/engine/resources.test.html`
-- All animations in one place (for demos): `http://localhost:8000/animations.html`
+## Controls & flow
+- **Mouse / touch**: click cards to choose; hover a card to preview what changes; **Why?** buttons and dotted words explain terms.
+- **Keyboard**: Tab to move, Enter/Space to choose, Esc closes pop-ups.
+- **Flow**: Start → Pick a mission → Size → Science tools → Power → Talking to Earth → (Normal: Brains & steering) → Orbit → Rocket → Final check & 🚀 Launch → Mission (decide on events; Pause / 1× / 4× / Skip ▶▶) → Results.
+- 🔊 in the top bar mutes sound.
 
 ## How to play
 1. **Start** — Play solo or as a team (names + roles), Easy or Normal. "How to play" explains it in 30 seconds.

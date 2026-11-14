@@ -17,6 +17,13 @@ python3 -m http.server        # then open http://localhost:8000
 - Animation debug page: `/animations.html` — plays every scene in isolation with real sample data.
 - No build step, no npm, no libraries, no external assets. Vanilla ES modules.
 
+## Git workflow (follow for every change)
+- Repo: https://github.com/artemvalko/space-mission-game · Live: https://artemvalko.github.io/space-mission-game/ (GitHub Pages from `main` root — every push redeploys).
+- After every finished change: run `tools/run-tests.sh` (headless self-test). **Never commit if it fails.**
+  Then `git add -A && git commit -m "<short clear message>" && git push`.
+- Before any big change: `git tag v1-before-<name> && git push origin v1-before-<name>` so we can roll back.
+- Keep paths relative (the site lives under `/space-mission-game/`).
+
 ## Hard rules
 1. **One state object.** All game state lives in the store (`js/state/`); it changes ONLY via
    `dispatch(action)`. The store deep-freezes state (mutation throws).
