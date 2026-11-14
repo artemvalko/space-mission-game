@@ -1,0 +1,17 @@
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Tooling
+node_modules/
+__pycache__/
+*.log
+*.tmp
+
+# Dev/test artifacts (headless driver pages, screenshots, scratch output)
+_*.html
+screenshots/
+scratch/
+tmp/
+*.out

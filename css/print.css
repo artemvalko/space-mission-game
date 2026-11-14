@@ -1,0 +1,11 @@
+/* Mission report print stylesheet (Results → "Print / Save as PDF"). */
+@media print {
+  :root { --bg: #fff; --panel: #fff; --panel-2: #f3f5f9; --text: #000; --text-2: #222; --muted: #555; --line: #ccc; }
+  body { background: #fff !important; color: #000; }
+  .topbar, .goal-strip, .step-list, .sidebar, .nav-bar, .no-print, .why-btn, .question-phase, .owner-badge { display: none !important; }
+  .layout { display: block; padding: 0; }
+  .panel, .results-hero { border: 1px solid #ccc; break-inside: avoid; }
+  .print-only { display: block !important; font-weight: 700; font-size: 1.2rem; margin-bottom: 8px; }
+  .gauge-bar { border: 1px solid #999; }
+  a { color: #000; }
+}

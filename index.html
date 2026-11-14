@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mission Control</title>
+  <meta name="description" content="Design a real space mission. Stay on budget. Get the science.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%233fa9f5'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%23e6edf7' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/print.css">
+  <!-- modulepreload:start (all JS modules — parallel fetch; keep in sync when adding modules) -->
+  <link rel="modulepreload" href="js/data/bundles.js">
+  <link rel="modulepreload" href="js/data/components.js">
+  <link rel="modulepreload" href="js/data/events.js">
+  <link rel="modulepreload" href="js/data/glossary.js">
+  <link rel="modulepreload" href="js/data/groundStations.js">
+  <link rel="modulepreload" href="js/data/instruments.js">
+  <link rel="modulepreload" href="js/data/launchers.js">
+  <link rel="modulepreload" href="js/data/orbits.js">
+  <link rel="modulepreload" href="js/data/realMissions.js">
+  <link rel="modulepreload" href="js/data/roles.js">
+  <link rel="modulepreload" href="js/data/scenarios.js">
+  <link rel="modulepreload" href="js/engine/achievements.js">
+  <link rel="modulepreload" href="js/engine/advisor.js">
+  <link rel="modulepreload" href="js/engine/attempt.js">
+  <link rel="modulepreload" href="js/engine/costs.js">
+  <link rel="modulepreload" href="js/engine/explain.js">
+  <link rel="modulepreload" href="js/engine/goals.js">
+  <link rel="modulepreload" href="js/engine/matching.js">
+  <link rel="modulepreload" href="js/engine/objectives.js">
+  <link rel="modulepreload" href="js/engine/outcome.js">
+  <link rel="modulepreload" href="js/engine/resources.js">
+  <link rel="modulepreload" href="js/engine/roleGoals.js">
+  <link rel="modulepreload" href="js/engine/scoring.js">
+  <link rel="modulepreload" href="js/engine/simulation.js">
+  <link rel="modulepreload" href="js/engine/validation.js">
+  <link rel="modulepreload" href="js/main.js">
+  <link rel="modulepreload" href="js/state/actions.js">
+  <link rel="modulepreload" href="js/state/initialState.js">
+  <link rel="modulepreload" href="js/state/reducer.js">
+  <link rel="modulepreload" href="js/state/store.js">
+  <link rel="modulepreload" href="js/ui/animations/balanceScale.js">
+  <link rel="modulepreload" href="js/ui/animations/cardFlip.js">
+  <link rel="modulepreload" href="js/ui/animations/core.js">
+  <link rel="modulepreload" href="js/ui/animations/countdown.js">
+  <link rel="modulepreload" href="js/ui/animations/debris.js">
+  <link rel="modulepreload" href="js/ui/animations/discovery.js">
+  <link rel="modulepreload" href="js/ui/animations/endOfLife.js">
+  <link rel="modulepreload" href="js/ui/animations/goConsole.js">
+  <link rel="modulepreload" href="js/ui/animations/groundTrack.js">
+  <link rel="modulepreload" href="js/ui/animations/hardwareFailure.js">
+  <link rel="modulepreload" href="js/ui/animations/index.js">
+  <link rel="modulepreload" href="js/ui/animations/instrumentView.js">
+  <link rel="modulepreload" href="js/ui/animations/launchFailure.js">
+  <link rel="modulepreload" href="js/ui/animations/launchSuccess.js">
+  <link rel="modulepreload" href="js/ui/animations/missionLost.js">
+  <link rel="modulepreload" href="js/ui/animations/missionPartial.js">
+  <link rel="modulepreload" href="js/ui/animations/missionSuccess.js">
+  <link rel="modulepreload" href="js/ui/animations/montage.js">
+  <link rel="modulepreload" href="js/ui/animations/orbitView.js">
+  <link rel="modulepreload" href="js/ui/animations/patch.js">
+  <link rel="modulepreload" href="js/ui/animations/solarFlare.js">
+  <link rel="modulepreload" href="js/ui/animations/tooHeavy.js">
+  <link rel="modulepreload" href="js/ui/card.js">
+  <link rel="modulepreload" href="js/ui/dom.js">
+  <link rel="modulepreload" href="js/ui/gallery.js">
+  <link rel="modulepreload" href="js/ui/goalStrip.js">
+  <link rel="modulepreload" href="js/ui/router.js">
+  <link rel="modulepreload" href="js/ui/satellite.js">
+  <link rel="modulepreload" href="js/ui/screens/brains.js">
+  <link rel="modulepreload" href="js/ui/screens/common.js">
+  <link rel="modulepreload" href="js/ui/screens/comms.js">
+  <link rel="modulepreload" href="js/ui/screens/finalCheck.js">
+  <link rel="modulepreload" href="js/ui/screens/operations.js">
+  <link rel="modulepreload" href="js/ui/screens/orbit.js">
+  <link rel="modulepreload" href="js/ui/screens/pickMission.js">
+  <link rel="modulepreload" href="js/ui/screens/power.js">
+  <link rel="modulepreload" href="js/ui/screens/results.js">
+  <link rel="modulepreload" href="js/ui/screens/rocket.js">
+  <link rel="modulepreload" href="js/ui/screens/science.js">
+  <link rel="modulepreload" href="js/ui/screens/size.js">
+  <link rel="modulepreload" href="js/ui/screens/start.js">
+  <link rel="modulepreload" href="js/ui/sidebar.js">
+  <link rel="modulepreload" href="js/ui/sound.js">
+  <link rel="modulepreload" href="js/ui/steps.js">
+  <link rel="modulepreload" href="js/ui/storage.js">
+  <link rel="modulepreload" href="js/ui/tooltip.js">
+  <link rel="modulepreload" href="js/ui/view.js">
+  <link rel="modulepreload" href="js/utils/format.js">
+  <link rel="modulepreload" href="js/utils/random.js">
+  <link rel="modulepreload" href="js/utils/share.js">
+  <!-- modulepreload:end -->
+</head>
+<body data-screen="start">
+  <header class="topbar">
+    <button class="brand" type="button" id="brand" aria-label="Back to the start screen">
+      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
+        <circle cx="16" cy="16" r="7" fill="var(--accent)"/>
+        <ellipse cx="16" cy="16" rx="14" ry="5" fill="none" stroke="var(--text)" stroke-width="2" transform="rotate(-20 16 16)"/>
+      </svg>
+      <span class="brand-name">Mission Control</span>
+    </button>
+    <div id="header-actions" class="header-actions"></div>
+  </header>
+
+  <section id="goal-strip" class="goal-strip" aria-label="Mission goal"></section>
+  <nav id="step-list" class="step-list" aria-label="Steps"></nav>
+
+  <div class="layout">
+    <main id="screen" class="main"></main>
+    <aside id="sidebar" class="sidebar" aria-label="Your satellite and gauges"></aside>
+  </div>
+
+  <noscript>This game needs JavaScript. Serve the folder with <code>python3 -m http.server</code>.</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

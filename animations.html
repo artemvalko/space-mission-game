@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Animation Scenes</title>
+  <meta name="description" content="Debug page: play every Mission Control animation scene in isolation.">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <!-- modulepreload:start (all JS modules — parallel fetch; keep in sync when adding modules) -->
+  <link rel="modulepreload" href="js/data/bundles.js">
+  <link rel="modulepreload" href="js/data/components.js">
+  <link rel="modulepreload" href="js/data/events.js">
+  <link rel="modulepreload" href="js/data/glossary.js">
+  <link rel="modulepreload" href="js/data/groundStations.js">
+  <link rel="modulepreload" href="js/data/instruments.js">
+  <link rel="modulepreload" href="js/data/launchers.js">
+  <link rel="modulepreload" href="js/data/orbits.js">
+  <link rel="modulepreload" href="js/data/realMissions.js">
+  <link rel="modulepreload" href="js/data/roles.js">
+  <link rel="modulepreload" href="js/data/scenarios.js">
+  <link rel="modulepreload" href="js/engine/achievements.js">
+  <link rel="modulepreload" href="js/engine/advisor.js">
+  <link rel="modulepreload" href="js/engine/attempt.js">
+  <link rel="modulepreload" href="js/engine/costs.js">
+  <link rel="modulepreload" href="js/engine/explain.js">
+  <link rel="modulepreload" href="js/engine/goals.js">
+  <link rel="modulepreload" href="js/engine/matching.js">
+  <link rel="modulepreload" href="js/engine/objectives.js">
+  <link rel="modulepreload" href="js/engine/outcome.js">
+  <link rel="modulepreload" href="js/engine/resources.js">
+  <link rel="modulepreload" href="js/engine/roleGoals.js">
+  <link rel="modulepreload" href="js/engine/scoring.js">
+  <link rel="modulepreload" href="js/engine/simulation.js">
+  <link rel="modulepreload" href="js/engine/validation.js">
+  <link rel="modulepreload" href="js/main.js">
+  <link rel="modulepreload" href="js/state/actions.js">
+  <link rel="modulepreload" href="js/state/initialState.js">
+  <link rel="modulepreload" href="js/state/reducer.js">
+  <link rel="modulepreload" href="js/state/store.js">
+  <link rel="modulepreload" href="js/ui/animations/balanceScale.js">
+  <link rel="modulepreload" href="js/ui/animations/cardFlip.js">
+  <link rel="modulepreload" href="js/ui/animations/core.js">
+  <link rel="modulepreload" href="js/ui/animations/countdown.js">
+  <link rel="modulepreload" href="js/ui/animations/debris.js">
+  <link rel="modulepreload" href="js/ui/animations/discovery.js">
+  <link rel="modulepreload" href="js/ui/animations/endOfLife.js">
+  <link rel="modulepreload" href="js/ui/animations/goConsole.js">
+  <link rel="modulepreload" href="js/ui/animations/groundTrack.js">
+  <link rel="modulepreload" href="js/ui/animations/hardwareFailure.js">
+  <link rel="modulepreload" href="js/ui/animations/index.js">
+  <link rel="modulepreload" href="js/ui/animations/instrumentView.js">
+  <link rel="modulepreload" href="js/ui/animations/launchFailure.js">
+  <link rel="modulepreload" href="js/ui/animations/launchSuccess.js">
+  <link rel="modulepreload" href="js/ui/animations/missionLost.js">
+  <link rel="modulepreload" href="js/ui/animations/missionPartial.js">
+  <link rel="modulepreload" href="js/ui/animations/missionSuccess.js">
+  <link rel="modulepreload" href="js/ui/animations/montage.js">
+  <link rel="modulepreload" href="js/ui/animations/orbitView.js">
+  <link rel="modulepreload" href="js/ui/animations/patch.js">
+  <link rel="modulepreload" href="js/ui/animations/solarFlare.js">
+  <link rel="modulepreload" href="js/ui/animations/tooHeavy.js">
+  <link rel="modulepreload" href="js/ui/card.js">
+  <link rel="modulepreload" href="js/ui/dom.js">
+  <link rel="modulepreload" href="js/ui/gallery.js">
+  <link rel="modulepreload" href="js/ui/goalStrip.js">
+  <link rel="modulepreload" href="js/ui/router.js">
+  <link rel="modulepreload" href="js/ui/satellite.js">
+  <link rel="modulepreload" href="js/ui/screens/brains.js">
+  <link rel="modulepreload" href="js/ui/screens/common.js">
+  <link rel="modulepreload" href="js/ui/screens/comms.js">
+  <link rel="modulepreload" href="js/ui/screens/finalCheck.js">
+  <link rel="modulepreload" href="js/ui/screens/operations.js">
+  <link rel="modulepreload" href="js/ui/screens/orbit.js">
+  <link rel="modulepreload" href="js/ui/screens/pickMission.js">
+  <link rel="modulepreload" href="js/ui/screens/power.js">
+  <link rel="modulepreload" href="js/ui/screens/results.js">
+  <link rel="modulepreload" href="js/ui/screens/rocket.js">
+  <link rel="modulepreload" href="js/ui/screens/science.js">
+  <link rel="modulepreload" href="js/ui/screens/size.js">
+  <link rel="modulepreload" href="js/ui/screens/start.js">
+  <link rel="modulepreload" href="js/ui/sidebar.js">
+  <link rel="modulepreload" href="js/ui/sound.js">
+  <link rel="modulepreload" href="js/ui/steps.js">
+  <link rel="modulepreload" href="js/ui/storage.js">
+  <link rel="modulepreload" href="js/ui/tooltip.js">
+  <link rel="modulepreload" href="js/ui/view.js">
+  <link rel="modulepreload" href="js/utils/format.js">
+  <link rel="modulepreload" href="js/utils/random.js">
+  <link rel="modulepreload" href="js/utils/share.js">
+  <!-- modulepreload:end -->
+</head>
+<body data-screen="animations">
+  <div class="anim-debug">
+    <header>
+      <h1>Animation scenes</h1>
+      <p class="muted">Every scene from <code>js/ui/animations/</code>, played with real sample designs and simulations. Each has Skip ▶▶; with <em>prefers-reduced-motion</em> you see the final frame + caption.</p>
+    </header>
+    <div id="groups"></div>
+    <div id="stage"></div>
+    <p id="status" class="muted" aria-live="polite">Pick a scene.</p>
+  </div>
+
+  <script type="module">
+    import { h } from './js/ui/dom.js';
+    import { createInitialState } from './js/state/initialState.js';
+    import { reducer } from './js/state/reducer.js';
+    import * as A from './js/state/actions.js';
+    import { runSimulation } from './js/engine/simulation.js';
+    import { describeOutcome } from './js/engine/outcome.js';
+    import * as S from './js/ui/animations/index.js';
+    import { getLauncher } from './js/data/launchers.js';
+
+    // ── Sample designs (built with real actions so the reducer/bundles run)
+    const design = (scenario, structure, instruments, orbit, launcher, ground, extra = []) => {
+      let st = reducer(createInitialState(), A.setDifficulty('easy'));
+      st = [A.selectScenario(scenario), A.selectComponent('structure', structure), A.selectPowerPack('small'),
+        A.selectComponent('comms', 'com_xband'), A.selectGround(ground), A.selectOrbit(orbit), A.selectLauncher(launcher),
+        ...instruments.map(A.addInstrument), ...extra].reduce(reducer, st);
+      return st;
+    };
+    const wildfire = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera'], 'sso', 'lv_sparrow', 'gs_global');
+    const overflow = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera', 'ins_hires'], 'sso', 'lv_sparrow', 'gs_single', [A.selectPowerPack('medium')]);
+    const powerTight = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera', 'ins_hires'], 'sso', 'lv_sparrow', 'gs_global');
+    const powerDead = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera', 'ins_sar'], 'sso', 'lv_kestrel', 'gs_global');
+    const marsBad = design('mars_orbiter', 'str_honeycomb', ['ins_spectrometer'], 'mars', 'lv_leviathan', 'gs_dsn', [A.selectPowerPack('large')]);
+    const marsGood = design('mars_orbiter', 'str_honeycomb', ['ins_spectrometer', 'ins_camera'], 'mars', 'lv_leviathan', 'gs_dsn', [A.selectPowerPack('large'), A.selectComponent('comms', 'com_hga')]);
+    const lunar = design('lunar_relay', 'str_honeycomb', ['ins_relay'], 'lunar', 'lv_kestrel', 'gs_dsn', [A.selectPowerPack('medium'), A.selectComponent('comms', 'com_hga')]);
+    const orbitDesign = (o, l = 'lv_leviathan', g = 'gs_dsn') => design('sandbox', 'str_honeycomb', ['ins_camera'], o, l, g, [A.selectPowerPack('medium'), A.selectComponent('comms', 'com_hga')]);
+
+    const simOf = (st, want = () => true) => { for (let sd = 1; sd < 3000; sd++) { const r = runSimulation(st, sd, [], { autoChoice: 0 }); if (want(r)) return r; } return runSimulation(st, 1, [], { autoChoice: 0 }); };
+    const heavy = reducer(wildfire, A.selectLauncher('lv_rideshare'));
+    const heavySim = simOf(heavy, (r) => r.outcome === 'too_heavy');
+    const failSim = simOf(wildfire, (r) => r.outcome === 'launch_failure');
+    const stage = document.getElementById('stage');
+    const status = document.getElementById('status');
+    const launcherOf = (st) => getLauncher(st.design.launcherId);
+    const orbitScene = (st, label) => async () => {
+      const sim = simOf(st, (r) => r.reachedOrbit);
+      stage.__orbitView = null;
+      await S.orbitView(stage, { state: st, sim, toMonth: Math.min(sim.summary.monthsOperated, 18) });
+      return label;
+    };
+    const ev = (scene, extra = {}) => async () => {
+      await S.orbitView(stage, { state: wildfire, sim: simOf(wildfire, (r) => r.reachedOrbit), toMonth: 0 });
+      const v = S.getOrbitView(stage);
+      const p = v.satPos();
+      await scene(v.overlay, { x: p.x, y: p.y, state: wildfire, phase: 'intro', ...extra });
+      await scene(v.overlay, { x: p.x, y: p.y, state: wildfire, phase: 'outcome', choiceIndex: extra.choiceIndex ?? 0, caption: extra.caption ?? 'Outcome caption from the chosen option.', ...extra });
+    };
+
+    const GROUPS = {
+      'Launch': {
+        '1 Countdown & liftoff': () => S.countdown(stage, { launcher: launcherOf(wildfire), caption: 'Liftoff!', hold: true }),
+        '2 Launch success': () => S.launchSuccess(stage, { state: wildfire, caption: '✓ In orbit! The Small rocket delivered your satellite.' }),
+        '3 Launch failure': () => S.launchFailure(stage, { launcher: launcherOf(wildfire), caption: describeOutcome(wildfire, failSim).caption, hold: [{ label: '🔁 Try again', value: 'retry' }, { label: 'See results', value: 'results', primary: false }] }),
+        '4a Too heavy': () => S.tooHeavy(stage, { launcher: launcherOf(heavy), reason: 'too_heavy', caption: describeOutcome(heavy, heavySim).caption }),
+        '4b Wrong orbit (thrusters)': () => S.tooHeavy(stage, { launcher: launcherOf(lunar), reason: 'wrong_orbit', caption: 'Your thrusters could only push 150 m/s, but around the Moon needs 1,000 m/s.' }),
+      },
+      'Operations': {
+        '5 LEO': orbitScene(orbitDesign('leo', 'lv_sparrow', 'gs_global')),
+        '5 SSO': orbitScene(wildfire),
+        '5 GEO': orbitScene(orbitDesign('geo', 'lv_kestrel', 'gs_single')),
+        '5 HEO (Molniya)': orbitScene(orbitDesign('heo', 'lv_kestrel', 'gs_single')),
+        '5 L2 halo': orbitScene(orbitDesign('l2')),
+        '5 Moon (transfer + orbit)': orbitScene(lunar),
+        '5 Mars (transfer + orbit)': orbitScene(marsGood),
+        '6 Power problem (tight → safe mode)': orbitScene(powerTight),
+        '6b Power dead (stays dark)': async () => { const sim = simOf(powerDead, (r) => r.reachedOrbit); stage.__orbitView = null; await S.orbitView(stage, { state: powerDead, sim, toMonth: 1 }); },
+        '7 Data overflow': orbitScene(overflow),
+        '8 Comms loss (no signal)': async () => { const sim = simOf(marsBad, (r) => r.reachedOrbit); stage.__orbitView = null; await S.orbitView(stage, { state: marsBad, sim, toMonth: 1 }); },
+      },
+      'Events': {
+        '9 Solar flare (safe mode)': ev(S.solarFlare, { choiceIndex: 0 }),
+        '9b Solar flare (keep observing)': ev(S.solarFlare, { choiceIndex: 1 }),
+        '10 Debris (dodge)': ev(S.debris, { choiceIndex: 0 }),
+        '10b Debris (accept risk)': ev(S.debris, { choiceIndex: 1 }),
+        '11 Hardware failure': ev(S.hardwareFailure, { itemId: 'ins_thermal', choiceIndex: 0 }),
+        '12 Budget cut': ev(S.EVENT_SCENES.budget_cut, { front: 'The agency cut your budget.', back: '−10% science' }),
+        '12b Launch delay': ev(S.EVENT_SCENES.launch_delay, { front: 'A sensor shows a strange reading.', back: '+3 mo delay · +$5M cost' }),
+        '13 Discovery': ev(S.discovery, { bonus: '+25% science' }),
+      },
+      'Before launch & design screens': {
+        'P1 Instrument views (all)': async () => {
+          for (const id of ['ins_cubecam', 'ins_camera', 'ins_hires', 'ins_thermal', 'ins_sar', 'ins_spectrometer', 'ins_gamma', 'ins_magnetometer', 'ins_uv_telescope', 'ins_ir_telescope', 'ins_relay']) {
+            await S.instrumentView(stage, { instrumentId: id, label: id });
+          }
+        },
+        'P1 Balance scale (fits → too heavy)': async () => {
+          await S.balanceScale(stage, { massKg: 188, capacityKg: 400, fromAngle: 0, rocketName: 'Small rocket' });
+          await S.balanceScale(stage, { massKg: 188, capacityKg: 20, fromAngle: -9, rocketName: 'Ride-share seat' });
+        },
+        'P1 Go/No-Go console': () => S.goConsole(stage, { roles: [
+          { icon: '★', name: 'Mission Director', who: 'Ada', vote: 'go' }, { icon: '⚙', name: 'Systems Engineer', who: 'Ben', vote: 'go' },
+          { icon: '✦', name: 'Lead Scientist', who: 'Cy', vote: 'nogo', reason: 'Not enough science' }, { icon: '↗', name: 'Flight Dynamics', who: 'Dee', vote: 'go' }], caption: 'Not everyone agreed — the majority said GO.' }),
+        'P1 Factory-to-pad montage': () => S.montage(stage, { state: wildfire, devMonths: 20 }),
+      },
+      'Maps & end of life (P2)': {
+        'P2 Ground track LEO': () => S.groundTrack(stage, { orbitId: 'leo' }),
+        'P2 Ground track SSO': () => S.groundTrack(stage, { orbitId: 'sso' }),
+        'P2 Ground track GEO': () => S.groundTrack(stage, { orbitId: 'geo', groundId: 'gs_single' }),
+        'P2 Ground track HEO (Molniya)': () => S.groundTrack(stage, { orbitId: 'heo' }),
+        'P2 Ground track far (Mars)': () => S.groundTrack(stage, { orbitId: 'mars' }),
+        'P2 Ground stations map': () => S.groundTrack(stage, { orbitId: 'sso', groundId: 'gs_global', mode: 'stations' }),
+        'P2 End of life: deorbit (LEO)': () => S.endOfLife(stage, { orbitId: 'leo' }),
+        'P2 End of life: graveyard (GEO)': () => S.endOfLife(stage, { orbitId: 'geo' }),
+        'P2 End of life: farewell (Mars)': () => S.endOfLife(stage, { orbitId: 'mars' }),
+      },
+      'Mission end': {
+        '14 Success': () => S.missionSuccess(stage, { name: 'Wildfire Watch', team: 'Team Rocket', orbitId: 'sso', grade: 'A', caption: 'Mission accomplished! Every goal was met.' }),
+        '15 Partial': () => S.missionPartial(stage, { name: 'Red Planet Orbiter', team: 'Solo', orbitId: 'mars', grade: 'C', missed: ['Science target', 'On budget'], caption: 'Your satellite worked, but missed: science target, on budget.' }),
+        '16 Lost': () => S.missionLost(stage, { state: marsBad, cause: 'comms', caption: describeOutcome(marsBad, simOf(marsBad, (r) => r.outcome === 'lost')).caption, tip: 'Far from Earth, use the big dish antenna and the giant deep-space dishes.' }),
+      },
+    };
+
+    const run = async (name, fn) => {
+      status.textContent = `Playing: ${name}…`;
+      const v = await fn();
+      status.textContent = `Done: ${name}${typeof v === 'string' && v !== 'done' ? ` (${v})` : ''}`;
+    };
+    document.getElementById('groups').replaceChildren(...Object.entries(GROUPS).map(([g, scenes]) => h('section', {}, [
+      h('h2', {}, g),
+      h('div', { class: 'anim-debug-buttons' }, Object.entries(scenes).map(([name, fn]) => h('button', { class: 'btn btn-small', type: 'button', 'data-demo': name, onClick: () => run(name, fn) }, name))),
+    ])));
+    window.__DEMOS = Object.assign({}, ...Object.values(GROUPS));
+    window.__runDemo = (name) => run(name, window.__DEMOS[name]);
+  </script>
+</body>
+</html>

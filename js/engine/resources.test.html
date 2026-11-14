@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resources Self-Test</title>
+  <style>
+    :root { color-scheme: dark; --bg: #070b14; --text: #e6edf7; --muted: #8a9bb8; --ok: #3ddc84; --bad: #ff5c5c; --border: #22314f; }
+    body { margin: 0; padding: 20px 16px; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, sans-serif; }
+    h1 { margin: 0 0 4px; } h2 { margin: 28px 0 8px; font-size: 1.1rem; }
+    .summary { font-size: 1.2rem; font-weight: 700; margin: 10px 0 20px; }
+    .pass { color: var(--ok); } .fail { color: var(--bad); }
+    table { border-collapse: collapse; width: 100%; max-width: 1100px; margin-bottom: 8px; }
+    th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 500; }
+    td.num { font-family: ui-monospace, Menlo, monospace; white-space: nowrap; }
+    ul { margin: 4px 0; padding-left: 20px; } li { margin: 2px 0; }
+    .muted { color: var(--muted); }
+    .wrap { overflow-x: auto; }
+  </style>
+  <!-- modulepreload:start (all JS modules — parallel fetch; keep in sync when adding modules) -->
+  <link rel="modulepreload" href="../../js/data/bundles.js">
+  <link rel="modulepreload" href="../../js/data/components.js">
+  <link rel="modulepreload" href="../../js/data/events.js">
+  <link rel="modulepreload" href="../../js/data/glossary.js">
+  <link rel="modulepreload" href="../../js/data/groundStations.js">
+  <link rel="modulepreload" href="../../js/data/instruments.js">
+  <link rel="modulepreload" href="../../js/data/launchers.js">
+  <link rel="modulepreload" href="../../js/data/orbits.js">
+  <link rel="modulepreload" href="../../js/data/realMissions.js">
+  <link rel="modulepreload" href="../../js/data/roles.js">
+  <link rel="modulepreload" href="../../js/data/scenarios.js">
+  <link rel="modulepreload" href="../../js/engine/achievements.js">
+  <link rel="modulepreload" href="../../js/engine/advisor.js">
+  <link rel="modulepreload" href="../../js/engine/attempt.js">
+  <link rel="modulepreload" href="../../js/engine/costs.js">
+  <link rel="modulepreload" href="../../js/engine/explain.js">
+  <link rel="modulepreload" href="../../js/engine/goals.js">
+  <link rel="modulepreload" href="../../js/engine/matching.js">
+  <link rel="modulepreload" href="../../js/engine/objectives.js">
+  <link rel="modulepreload" href="../../js/engine/outcome.js">
+  <link rel="modulepreload" href="../../js/engine/resources.js">
+  <link rel="modulepreload" href="../../js/engine/roleGoals.js">
+  <link rel="modulepreload" href="../../js/engine/scoring.js">
+  <link rel="modulepreload" href="../../js/engine/simulation.js">
+  <link rel="modulepreload" href="../../js/engine/validation.js">
+  <link rel="modulepreload" href="../../js/main.js">
+  <link rel="modulepreload" href="../../js/state/actions.js">
+  <link rel="modulepreload" href="../../js/state/initialState.js">
+  <link rel="modulepreload" href="../../js/state/reducer.js">
+  <link rel="modulepreload" href="../../js/state/store.js">
+  <link rel="modulepreload" href="../../js/ui/animations/balanceScale.js">
+  <link rel="modulepreload" href="../../js/ui/animations/cardFlip.js">
+  <link rel="modulepreload" href="../../js/ui/animations/core.js">
+  <link rel="modulepreload" href="../../js/ui/animations/countdown.js">
+  <link rel="modulepreload" href="../../js/ui/animations/debris.js">
+  <link rel="modulepreload" href="../../js/ui/animations/discovery.js">
+  <link rel="modulepreload" href="../../js/ui/animations/endOfLife.js">
+  <link rel="modulepreload" href="../../js/ui/animations/goConsole.js">
+  <link rel="modulepreload" href="../../js/ui/animations/groundTrack.js">
+  <link rel="modulepreload" href="../../js/ui/animations/hardwareFailure.js">
+  <link rel="modulepreload" href="../../js/ui/animations/index.js">
+  <link rel="modulepreload" href="../../js/ui/animations/instrumentView.js">
+  <link rel="modulepreload" href="../../js/ui/animations/launchFailure.js">
+  <link rel="modulepreload" href="../../js/ui/animations/launchSuccess.js">
+  <link rel="modulepreload" href="../../js/ui/animations/missionLost.js">
+  <link rel="modulepreload" href="../../js/ui/animations/missionPartial.js">
+  <link rel="modulepreload" href="../../js/ui/animations/missionSuccess.js">
+  <link rel="modulepreload" href="../../js/ui/animations/montage.js">
+  <link rel="modulepreload" href="../../js/ui/animations/orbitView.js">
+  <link rel="modulepreload" href="../../js/ui/animations/patch.js">
+  <link rel="modulepreload" href="../../js/ui/animations/solarFlare.js">
+  <link rel="modulepreload" href="../../js/ui/animations/tooHeavy.js">
+  <link rel="modulepreload" href="../../js/ui/card.js">
+  <link rel="modulepreload" href="../../js/ui/dom.js">
+  <link rel="modulepreload" href="../../js/ui/gallery.js">
+  <link rel="modulepreload" href="../../js/ui/goalStrip.js">
+  <link rel="modulepreload" href="../../js/ui/router.js">
+  <link rel="modulepreload" href="../../js/ui/satellite.js">
+  <link rel="modulepreload" href="../../js/ui/screens/brains.js">
+  <link rel="modulepreload" href="../../js/ui/screens/common.js">
+  <link rel="modulepreload" href="../../js/ui/screens/comms.js">
+  <link rel="modulepreload" href="../../js/ui/screens/finalCheck.js">
+  <link rel="modulepreload" href="../../js/ui/screens/operations.js">
+  <link rel="modulepreload" href="../../js/ui/screens/orbit.js">
+  <link rel="modulepreload" href="../../js/ui/screens/pickMission.js">
+  <link rel="modulepreload" href="../../js/ui/screens/power.js">
+  <link rel="modulepreload" href="../../js/ui/screens/results.js">
+  <link rel="modulepreload" href="../../js/ui/screens/rocket.js">
+  <link rel="modulepreload" href="../../js/ui/screens/science.js">
+  <link rel="modulepreload" href="../../js/ui/screens/size.js">
+  <link rel="modulepreload" href="../../js/ui/screens/start.js">
+  <link rel="modulepreload" href="../../js/ui/sidebar.js">
+  <link rel="modulepreload" href="../../js/ui/sound.js">
+  <link rel="modulepreload" href="../../js/ui/steps.js">
+  <link rel="modulepreload" href="../../js/ui/storage.js">
+  <link rel="modulepreload" href="../../js/ui/tooltip.js">
+  <link rel="modulepreload" href="../../js/ui/view.js">
+  <link rel="modulepreload" href="../../js/utils/format.js">
+  <link rel="modulepreload" href="../../js/utils/random.js">
+  <link rel="modulepreload" href="../../js/utils/share.js">
+  <!-- modulepreload:end -->
+</head>
+<body>
+  <h1>computeResources — self-test</h1>
+  <p class="muted">Serve the project root with <code>python3 -m http.server</code> and open <code>/js/engine/resources.test.html</code>. Expected values are hand-computed from the data files and the formulas in CLAUDE.md.</p>
+  <div id="summary" class="summary">Running…</div>
+  <div id="out"></div>
+
+  <script type="module">
+    import { computeResources } from './resources.js';
+    import { validateDesign, hasBlockingErrors } from './validation.js';
+    import { runSimulation } from './simulation.js';
+    import { scoreMission } from './scoring.js';
+    import { describeOutcome } from './outcome.js';
+    import { marginQuality, weightsFor, gradeFor } from './scoring.js';
+    import { evaluateRoleGoals, voteStatus } from './roleGoals.js';
+    import { attemptRecord } from './attempt.js';
+    import { encodeDesign, decodeDesign } from '../utils/share.js';
+    import { earnedBadges, BADGES } from './achievements.js';
+    import { trackPoints } from '../ui/animations/groundTrack.js';
+    import { scaleAngle } from '../ui/animations/balanceScale.js';
+    import { endOfLifeKind } from '../ui/animations/endOfLife.js';
+    import { createInitialState } from '../state/initialState.js';
+    import { reducer } from '../state/reducer.js';
+    import * as A from '../state/actions.js';
+    import { advise } from './advisor.js';
+    import { goalChecklist } from './goals.js';
+    import { canLaunch } from './validation.js';
+
+    const out = document.getElementById('out');
+    const tick = () => new Promise((r) => setTimeout(r, 0)); // yield so the page stays responsive
+    let pass = 0, fail = 0;
+    const el = (tag, html) => Object.assign(document.createElement(tag), { innerHTML: html });
+
+    function makeState(scenarioId, components, instrumentIds, orbitId, launcherId, groundId) {
+      const s = createInitialState();
+      return { ...s, scenarioId, design: { components, instrumentIds, orbitId, launcherId, groundId } };
+    }
+
+    const WILDFIRE_BUS = {
+      structure: 'str_compact', power: 'pwr_body_solar', battery: 'bat_small', comms: 'com_xband',
+      computer: 'cpu_basic', adcs: 'adcs_rw', propulsion: 'prop_coldgas',
+    };
+    const MARS_BUS = {
+      structure: 'str_honeycomb', power: 'pwr_deploy_solar', battery: 'bat_small', comms: 'com_xband',
+      computer: 'cpu_basic', adcs: 'adcs_fine', propulsion: 'prop_hydrazine',
+    };
+    const CUBE_BUS = {
+      structure: 'str_cube_6u', power: 'pwr_cube_solar', battery: 'bat_cube', comms: 'com_cube_sband',
+      computer: 'cpu_cube', adcs: 'adcs_cube', propulsion: 'prop_cube',
+    };
+
+    const SAMPLES = [
+      {
+        title: 'Sample 1 — Wildfire Watch, sensible small SSO satellite, single ground station',
+        state: makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera'], 'sso', 'lv_sparrow', 'gs_single'),
+        expect: {
+          'mass.dry': 162, 'mass.propellant': 1.62, 'mass.margin': 24.3, 'mass.used': 187.92, 'mass.available': 400, 'mass.status': 'ok',
+          'power.used': 170, 'power.available': 201, 'power.status': 'caution',
+          'battery.used': 93.5, 'battery.available': 300, 'battery.status': 'ok',
+          'data.used': 30, 'data.contactHours': 2, 'data.available': 45, 'data.lostFraction': 0,
+          'budget.ops': 3, 'budget.used': 71, 'budget.available': 150,
+          'time.used': 20, 'time.available': 30,
+          'lifetime.value': 8, 'science.value': 97.175,
+          'health.value': 0.981667, 'health.failuresPerYear': 0.146667, 'launch.value': 0.94,
+        },
+        blocking: false,
+      },
+      {
+        title: 'Sample 2 — Red Planet Orbiter, overloaded, small rocket, no deep-space ground',
+        state: makeState('mars_orbiter', MARS_BUS, ['ins_sar', 'ins_hires', 'ins_spectrometer'], 'mars', 'lv_sparrow', 'gs_global'),
+        expect: {
+          'mass.dry': 457, 'mass.propellant': 100.54, 'mass.used': 626.09, 'mass.status': 'blocked',
+          'power.used': 675, 'power.available': 335.4, 'power.status': 'over',
+          'battery.used': 450, 'battery.available': 300, 'battery.status': 'over',
+          'data.used': 165, 'data.available': 0, 'data.status': 'blocked', 'data.lostFraction': 1, 'data.deepSpaceProblem': true,
+          'budget.used': 196, 'time.used': 32, 'lifetime.value': 9, 'science.value': 0,
+          'health.value': 0.9725, 'health.stress': 0.6, 'health.failuresPerYear': 0.82,
+        },
+        blocking: true,
+        errorMatch: /can't reach Around Mars at all/,
+      },
+      {
+        title: 'Sample 3 — Wildfire Watch, everything bolted on (over budget / late / overloaded)',
+        state: makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera', 'ins_sar'], 'sso', 'lv_leviathan', 'gs_single'),
+        expect: {
+          'mass.used': 292.32, 'mass.payload.used': 125, 'mass.payload.ok': false,
+          'power.used': 570, 'power.status': 'over', 'battery.used': 313.5, 'battery.status': 'over',
+          'data.used': 110, 'data.lostFraction': 0.590909,
+          'budget.used': 251, 'budget.status': 'over', 'time.used': 32, 'time.status': 'over',
+          'science.value': 82.5648, 'health.value': 0.9785, 'health.failuresPerYear': 0.772,
+          'launch.value': 0.96,
+        },
+        blocking: true,
+      },
+      {
+        title: 'Sample 4 — CubeSat Classroom, 6U, single ground station (data bottleneck)',
+        state: makeState('cubesat_classroom', CUBE_BUS, ['ins_cubecam'], 'leo', 'lv_rideshare', 'gs_single'),
+        expect: {
+          'mass.dry': 5.5, 'mass.used': 6.3525, 'mass.available': 24, 'mass.payload.available': 4,
+          'power.used': 19, 'power.available': 24.8, 'battery.used': 11.4, 'battery.available': 48,
+          'data.used': 2, 'data.contactHours': 1.5, 'data.available': 1.35, 'data.lostFraction': 0.325, 'data.status': 'over',
+          'budget.used': 4.2, 'budget.available': 8, 'time.used': 14, 'lifetime.value': 5.5,
+          'health.value': 0.9525, 'health.failuresPerYear': 0.38, 'launch.value': 0.95,
+          'science.value': 19.305, 'science.ok': false,
+        },
+        blocking: false,
+      },
+      {
+        title: 'Sample 5 — same CubeSat with a Global Station Network',
+        state: makeState('cubesat_classroom', CUBE_BUS, ['ins_cubecam'], 'leo', 'lv_rideshare', 'gs_global'),
+        expect: {
+          'data.contactHours': 4.5, 'data.available': 4.05, 'data.lostFraction': 0, 'data.status': 'ok',
+          'budget.ops': 3, 'budget.used': 6.2, 'science.value': 28.6, 'science.ok': true,
+        },
+        blocking: false,
+      },
+      {
+        title: 'Sample 6 — Mars with a deep-space ground segment + high-gain antenna',
+        state: makeState('mars_orbiter', { ...MARS_BUS, comms: 'com_hga' }, ['ins_sar', 'ins_hires', 'ins_spectrometer'], 'mars', 'lv_kestrel', 'gs_dsn'),
+        expect: { 'data.contactHours': 10, 'data.available': 1.35, 'data.status': 'over', 'data.deepSpaceProblem': false, 'budget.ops': 24 },
+        blocking: false,
+      },
+      {
+        title: 'Sample 7 — CubeSat with a full-size battery + an incompatible telescope',
+        state: makeState('cubesat_classroom', { ...CUBE_BUS, battery: 'bat_small' }, ['ins_cubecam', 'ins_uv_telescope'], 'leo', 'lv_rideshare', 'gs_global'),
+        expect: { 'mass.payload.ok': false },
+        blocking: true,
+        errorMatch: /Small battery is too big for a CubeSat[\s\S]*Small UV telescope doesn't help this mission|Small UV telescope doesn't help this mission[\s\S]*Small battery is too big for a CubeSat/,
+      },
+    ];
+
+    const get = (obj, path) => path.split('.').reduce((o, k) => o?.[k], obj);
+    const close = (a, b) => typeof b === 'number' ? Math.abs(a - b) <= Math.max(0.01, Math.abs(b) * 1e-4) : a === b;
+    const fmt = (v) => typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v);
+
+    for (const sample of SAMPLES) {
+      const res = computeResources(sample.state);
+      const issues = validateDesign(sample.state, res);
+      out.append(el('h2', sample.title));
+
+      const rows = Object.entries(sample.expect).map(([path, exp]) => {
+        const got = get(res, path);
+        const ok = close(got, exp);
+        ok ? pass++ : fail++;
+        return `<tr><td>${path}</td><td class="num">${fmt(exp)}</td><td class="num">${fmt(got)}</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</td></tr>`;
+      });
+      const blockOk = hasBlockingErrors(issues) === sample.blocking;
+      blockOk ? pass++ : fail++;
+      if (sample.errorMatch) {
+        const text = issues.filter((i) => i.severity === 'error').map((i) => i.message).join('\n');
+        const ok = sample.errorMatch.test(text);
+        ok ? pass++ : fail++;
+        rows.push(`<tr><td>blocking messages match</td><td class="num">${sample.errorMatch.source.slice(0, 40)}…</td><td class="num">${text.split('\n').length} errors</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</td></tr>`);
+      }
+      rows.push(`<tr><td>has blocking errors</td><td class="num">${sample.blocking}</td><td class="num">${hasBlockingErrors(issues)}</td><td class="${blockOk ? 'pass' : 'fail'}">${blockOk ? 'PASS' : 'FAIL'}</td></tr>`);
+      out.append(el('div', `<div class="wrap"><table><thead><tr><th>Value</th><th>Expected</th><th>Got</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`));
+
+      out.append(el('div', `<strong>Explanations</strong><ul>${
+        ['mass', 'power', 'battery', 'data', 'budget', 'time', 'lifetime', 'health', 'launch', 'science']
+          .map((k) => `<li><strong>${k}</strong>: ${res[k].explanation}</li>`).join('')}</ul>`));
+      out.append(el('div', `<strong>Validation (${issues.length})</strong><ul>${
+        issues.map((i) => `<li><span class="${i.severity === 'error' || i.severity === 'warning' ? 'fail' : 'muted'}">[${i.severity}]</span> ${i.message}</li>`).join('')}</ul>`));
+    }
+
+    // ── Phase 1: friendly validation, advisor, Easy bundles
+    await tick();
+    out.append(el('h2', 'Guided flow (Phase 1)'));
+    const check1 = (label, ok, detail = '') => {
+      ok ? pass++ : fail++;
+      out.append(el('p', `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span> — ${label} <span class="muted">${detail}</span>`));
+    };
+    const run = (state, ...actions) => actions.reduce((s, a) => reducer(s, a), state);
+    {
+      const s0 = createInitialState();
+      check1('no mission → advisor says pick a mission', advise(s0).step === 'pickMission', advise(s0).text);
+      const fresh = run(s0, A.selectScenario('wildfire'));
+      const issues = validateDesign(fresh);
+      const red = issues.filter((i) => ['error', 'warning', 'caution'].includes(i.severity));
+      check1('fresh mission shows zero red (only "to do")', red.length === 0 && issues.every((i) => ['todo', 'info'].includes(i.severity)), `${issues.length} to-dos`);
+      check1('fresh mission cannot launch yet', !canLaunch(issues));
+      check1('advisor on a fresh mission is friendly (tone ok)', advise(fresh).tone === 'ok', advise(fresh).text);
+      check1('goal chips are neutral on a fresh mission', goalChecklist(fresh).every((c) => c.status === 'todo'), goalChecklist(fresh).map((c) => c.label).join(', '));
+
+      const easy = run(s0, A.setDifficulty('easy'), A.selectScenario('wildfire'), A.selectComponent('structure', 'str_compact'), A.selectOrbit('sso'));
+      const ec = easy.design.components;
+      check1('Easy standard kit fills computer + pointing + thrusters', ec.computer === 'cpu_basic' && ec.adcs === 'adcs_rw' && ec.propulsion === 'prop_coldgas', JSON.stringify([ec.computer, ec.adcs, ec.propulsion]));
+      const toMars = run(easy, A.selectOrbit('mars'));
+      check1('Easy kit picks thrusters strong enough for the orbit', toMars.design.components.propulsion === 'prop_biprop', toMars.design.components.propulsion);
+      const packed = run(easy, A.selectPowerPack('medium'));
+      check1('power pack sets power + battery', packed.design.components.power === 'pwr_deploy_solar' && packed.design.components.battery === 'bat_medium');
+      const shrunk = run(packed, A.selectComponent('structure', 'str_cube_6u'));
+      const sc = shrunk.design.components;
+      check1('switching to a CubeSat swaps bundles to CubeSat parts', sc.power === 'pwr_cube_solar' && sc.battery === 'bat_cube' && sc.computer === 'cpu_cube' && shrunk.design.powerPack === 'small', JSON.stringify(sc));
+      const normal = run(s0, A.setDifficulty('normal'), A.selectScenario('wildfire'), A.selectComponent('structure', 'str_compact'), A.selectComponent('comms', 'com_xband'), A.selectComponent('structure', 'str_cube_6u'));
+      check1('Normal: switching frame size clears parts that no longer fit (to do, not error)', normal.design.components.comms === null && !validateDesign(normal).some((i) => i.severity === 'error'));
+      const classroom = run(s0, A.setDifficulty('easy'), A.selectScenario('cubesat_classroom'));
+      check1('Easy CubeSat Classroom starts with a 6U CubeSat', classroom.design.components.structure === 'str_cube_6u');
+      const heavy = run(easy, A.addInstrument('ins_thermal'), A.selectLauncher('lv_rideshare'));
+      const adv = advise(heavy);
+      check1('advisor points a too-heavy design to the Rocket step', adv.tone === 'bad' && adv.step === 'rocket' && /too heavy/.test(adv.text), adv.text);
+    }
+
+    // ── Simulation checks
+    const check = (label, ok, detail) => {
+      ok ? pass++ : fail++;
+      out.append(el('p', `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span> — ${label} <span class="muted">${detail}</span>`));
+    };
+    await tick();
+    out.append(el('h2', 'Simulation'));
+
+    // Determinism: same state + seed + decisions → identical output.
+    const a = JSON.stringify(runSimulation(SAMPLES[0].state, 42, [], { autoChoice: 0 }));
+    const b = JSON.stringify(runSimulation(SAMPLES[0].state, 42, [], { autoChoice: 0 }));
+    check('runSimulation is deterministic', a === b, '(seed 42, twice)');
+
+    // Pause/replay: answering pending events one by one equals auto-resolving them.
+    let seedWithEvents = 1;
+    while (!runSimulation(SAMPLES[3].state, seedWithEvents).pending || !runSimulation(SAMPLES[3].state, seedWithEvents).launched) seedWithEvents++;
+    let sim = runSimulation(SAMPLES[3].state, seedWithEvents);
+    let steps = 0;
+    while (sim.pending && steps < 50) { sim = runSimulation(SAMPLES[3].state, seedWithEvents, [...sim.decisions, 0]); steps++; }
+    const auto = runSimulation(SAMPLES[3].state, seedWithEvents, [], { autoChoice: 0 });
+    check('step-by-step decisions replay identically to auto-resolve', JSON.stringify(sim) === JSON.stringify({ ...auto, decisions: sim.decisions }) && sim.complete,
+      `(seed ${seedWithEvents}, ${steps} decisions)`);
+
+    // Monte Carlo: launch uses only the launcher; health drives failure events.
+    async function monteCarlo(state, runs = 1000) {
+      let launched = 0, success = 0, failures = 0, ops = 0;
+      for (let seed = 1; seed <= runs; seed++) {
+        if (seed % 100 === 0) await tick();
+        const r = runSimulation(state, seed, [], { autoChoice: 0 });
+        if (r.launched) launched++;
+        if (r.reachedOrbit) { ops++; failures += r.summary.hardwareFailures; }
+        if (r.outcome === 'success') success++;
+      }
+      return { launch: launched / runs, success: success / runs, failuresPerMission: failures / Math.max(1, ops) };
+    }
+    const sensible = await monteCarlo(SAMPLES[0].state);
+    const sloppy = await monteCarlo(makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera', 'ins_hires'], 'sso', 'lv_sparrow', 'gs_global'));
+    const cube = await monteCarlo(SAMPLES[4].state);
+    const f = (x) => x.toFixed(3);
+    check('launch rate ≈ launcher reliability (Sparrow-1 94%)', Math.abs(sensible.launch - 0.94) < 0.02, `(${f(sensible.launch)})`);
+    check('sensible Wildfire design succeeds ≥ 90%', sensible.success >= 0.9, `(${f(sensible.success)}, ${f(sensible.failuresPerMission)} hw failures/mission)`);
+    check('sloppy design (power over, extra advanced camera) suffers more hardware failures per year', (sloppy.failuresPerMission / 8) > 2 * (sensible.failuresPerMission / 8),
+      `(sloppy ${f(sloppy.failuresPerMission)} vs sensible ${f(sensible.failuresPerMission)} per 8-yr mission)`);
+    check('cheap CubeSat parts fail more often per year than flight-proven parts', cube.failuresPerMission / 5.5 > sensible.failuresPerMission / 8,
+      `(CubeSat ${f(cube.failuresPerMission / 5.5)}/yr vs ${f(sensible.failuresPerMission / 8)}/yr)`);
+
+    // ── Phase 2: explicit outcomes + failure causes
+    await tick();
+    out.append(el('h2', 'Outcomes (Phase 2)'));
+    const firstLaunched = (state) => { for (let sd = 1; sd < 500; sd++) { const r = runSimulation(state, sd, [], { autoChoice: 0 }); if (r.launched) return r; } return null; };
+    const firstFailed = (state) => { for (let sd = 1; sd < 500; sd++) { const r = runSimulation(state, sd, [], { autoChoice: 0 }); if (r.launched === false) return { r, sd }; } return null; };
+    {
+      const heavy = firstLaunched(SAMPLES[5].state);
+      check('too heavy for the rocket → outcome too_heavy (mass)', heavy.outcome === 'too_heavy' && heavy.failureCause === 'mass' && !heavy.reachedOrbit, heavy.outcome);
+      check('too-heavy caption explains with engine numbers', /couldn't lift 658 kg — it was built for 500 kg/.test(describeOutcome(SAMPLES[5].state, heavy).caption), describeOutcome(SAMPLES[5].state, heavy).caption);
+      const weakState = makeState('lunar_relay', { ...WILDFIRE_BUS, structure: 'str_honeycomb', comms: 'com_hga' }, ['ins_relay'], 'lunar', 'lv_kestrel', 'gs_dsn');
+      const weak = firstLaunched(weakState);
+      check('thrusters too weak → outcome wrong_orbit (thrusters)', weak.outcome === 'wrong_orbit' && weak.failureCause === 'thrusters', weak.outcome);
+      const powerState = makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera', 'ins_sar'], 'sso', 'lv_kestrel', 'gs_global');
+      const pw = firstLaunched(powerState);
+      check('big power deficit → lost (power) in month 1', pw.outcome === 'lost' && pw.failureCause === 'power' && pw.summary.monthsOperated === 1, `${pw.outcome}/${pw.failureCause}`);
+      const commsState = makeState('mars_orbiter', { ...MARS_BUS, propulsion: 'prop_biprop', power: 'pwr_rtg' }, ['ins_spectrometer'], 'mars', 'lv_leviathan', 'gs_dsn');
+      const cm = firstLaunched(commsState);
+      check('near-Earth radio at Mars → lost (comms)', cm.outcome === 'lost' && cm.failureCause === 'comms', `${cm.outcome}/${cm.failureCause}`);
+      check('comms caption explains why', /radio was far too weak for deep space/.test(describeOutcome(commsState, cm).caption), describeOutcome(commsState, cm).caption);
+      const failed = firstFailed(SAMPLES[0].state);
+      check('launch reliability roll → launch_failure (launch)', failed.r.outcome === 'launch_failure' && failed.r.failureCause === 'launch', `seed ${failed.sd}`);
+      let st = { ...SAMPLES[0].state, simulation: failed.r };
+      st = reducer(st, A.relaunch(failed.sd + 1000));
+      check('relaunch after a failure costs a new rocket + half the hardware', st.relaunches === 1 && Math.abs(st.simulation.summary.extraCostM - (15 + 53 * 0.5)) < 0.01, `${st.simulation.summary.extraCostM}`);
+      const ok = firstLaunched(SAMPLES[0].state);
+      check('sensible design completes as success or partial (never pending)', ['success', 'partial'].includes(ok.outcome) && ok.complete, ok.outcome);
+      const ignore = (ev) => (ev.id === 'hardware_failure' ? 2 : 0);
+      let lostHw = 0;
+      for (let sd = 1; sd <= 300; sd++) { const r = runSimulation(SAMPLES[4].state, sd, [], { autoChoice: ignore }); if (r.failureCause === 'hardware') { lostHw++; if (r.summary.finalHealth >= 0.85) lostHw = -999; } }
+      check('ignoring hardware failures can lose a cheap CubeSat (health < 85%)', lostHw > 0, `${lostHw} of 300 runs lost`);
+      const pend = runSimulation(SAMPLES[3].state, seedWithEvents);
+      check('pending run reports outcome "pending"', pend.outcome === 'pending');
+    }
+
+    // ── Phase 3: scoring, role goals, votes, saving/sharing
+    await tick();
+    out.append(el('h2', 'Scoring & teamwork (Phase 3)'));
+    {
+      const near = (a, b) => Math.abs(a - b) < 1e-9;
+      check('margin curve: 20% best, 0% risky, over = 0, 60% wasteful', near(marginQuality(0.2), 1) && near(marginQuality(0), 0.3) && near(marginQuality(-0.1), 0) && near(marginQuality(0.6), 0.5) && near(marginQuality(0.1), 1), '');
+      const wt = weightsFor('team'); const ws = weightsFor('solo');
+      const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+      check('team weights 35/25/15/15/10 sum to 1', near(sum(wt), 1) && near(wt.science, 0.35) && near(wt.teamwork, 0.1));
+      check('solo redistributes teamwork proportionally', near(sum(ws), 1) && ws.teamwork === 0 && near(ws.science, 0.35 / 0.9));
+      check('grades: 905 success → S; 905 partial → A; 340 → F', gradeFor(905, 'success') === 'S' && gradeFor(905, 'partial') === 'A' && gradeFor(340, 'lost') === 'F' && gradeFor(700, 'success') === 'B');
+
+      const okSim = firstLaunched(SAMPLES[0].state);
+      const sc = scoreMission(SAMPLES[0].state, okSim);
+      check('score total is 0–1000 and equals the sum of parts', sc.total >= 0 && sc.total <= 1000 && sc.total === sc.parts.reduce((a, p) => a + p.points, 0), `${sc.total} ${sc.grade}`);
+      check('solo score has 4 parts (no teamwork)', sc.parts.length === 4 && !sc.parts.some((p) => p.id === 'teamwork'));
+      check('sensible Wildfire scores grade B or better', ['S', 'A', 'B'].includes(sc.grade), `${sc.grade} (${sc.parts.map((p) => `${p.id} ${p.points}/${p.max}`).join(', ')})`);
+      check('insights have numbers; at most 3 tips', [...sc.insights.good, ...sc.insights.bad].every((t) => /\d/.test(t)) && sc.tips.length <= 3, `${sc.insights.good.length} good / ${sc.insights.bad.length} bad`);
+      const failSc = scoreMission(SAMPLES[0].state, firstFailed(SAMPLES[0].state).r);
+      check('launch failure: no science or survivability, grade D or F', failSc.parts.find((p) => p.id === 'science').points === 0 && failSc.parts.find((p) => p.id === 'survivability').points === 0 && ['D', 'F'].includes(failSc.grade), `${failSc.total} ${failSc.grade}`);
+      const goals = evaluateRoleGoals(SAMPLES[0].state);
+      check('sensible Wildfire meets all 4 role goals (live)', goals.length === 4 && goals.every((g) => g.met), goals.map((g) => `${g.roleId}:${g.met}`).join(' '));
+      const heavyGoals = evaluateRoleGoals(SAMPLES[2].state);
+      check('overloaded design fails the engineer and director goals', !heavyGoals.find((g) => g.roleId === 'engineer').met && !heavyGoals.find((g) => g.roleId === 'director').met);
+
+      let team = { ...SAMPLES[0].state, mode: 'team', players: [{ name: 'A', roleId: 'director' }, { name: 'B', roleId: 'engineer' }, { name: 'C', roleId: 'scientist' }, { name: 'D', roleId: 'flight' }] };
+      team = run(team, A.castVote('director', 'go'), A.castVote('engineer', 'go'));
+      check('team of 4: 2 Go is not a majority — launch is refused', !voteStatus(team).majority && reducer(team, A.runSimulation(1)) === team);
+      const noReason = run(team, A.castVote('scientist', 'nogo'));
+      check('a No-Go without a reason is ignored', noReason.votes.scientist === undefined);
+      team = run(team, A.castVote('scientist', 'nogo', 'science'), A.castVote('flight', 'go'));
+      check('3 Go + 1 reasoned No-Go → majority, launch allowed', voteStatus(team).majority && team.voteReasons.scientist === 'science' && reducer(team, A.runSimulation(1)).simulation != null);
+      const allGo = run(team, A.castVote('scientist', 'go'));
+      const teamSim = firstLaunched(allGo);
+      const ts = scoreMission(allGo, teamSim);
+      check('team score has a teamwork part with the unanimous bonus', ts.parts.some((p) => p.id === 'teamwork') && ts.votes.unanimous && ts.parts.find((p) => p.id === 'teamwork').points === 100, ts.parts.map((p) => `${p.id} ${p.points}`).join(', '));
+
+      const hash = encodeDesign(SAMPLES[0].state);
+      const dec = decodeDesign('#' + hash);
+      const loaded = reducer(createInitialState(), A.loadDesign(dec));
+      check('share link round-trips the design', JSON.stringify(loaded.design.components) === JSON.stringify(SAMPLES[0].state.design.components) && loaded.design.orbitId === 'sso' && loaded.screen === 'finalCheck', hash.slice(0, 40) + '…');
+      const bad = reducer(createInitialState(), A.loadDesign({ scenarioId: 'wildfire', design: { components: { structure: 'nope', power: 'str_compact' }, instrumentIds: ['ins_camera', 'zzz'], orbitId: 'pluto' } }));
+      check('loading a tampered link drops unknown ids', bad.design.components.structure === null && bad.design.components.power === null && bad.design.instrumentIds.join() === 'ins_camera' && bad.design.orbitId === null);
+      check('garbage hash decodes to null', decodeDesign('#d=%%%') === null && decodeDesign('') === null);
+      const rec = attemptRecord({ ...SAMPLES[0].state, simulation: okSim, score: sc }, 1700000000000);
+      check('attempt record has score, grade, team and summary', rec.total === sc.total && rec.grade === sc.grade && rec.team === 'Player 1' && rec.summary.spent > 0 && typeof rec.key === 'string');
+    }
+
+    // ── Phase 4: badges + pure animation helpers
+    await tick();
+    out.append(el('h2', 'Fun extras (Phase 4)'));
+    {
+      const okSim = firstLaunched(SAMPLES[0].state);
+      const sc = scoreMission(SAMPLES[0].state, okSim);
+      const b = earnedBadges(SAMPLES[0].state, sc, okSim);
+      const get = (id) => b.find((x) => x.id === id);
+      check('5 badges evaluated', b.length === BADGES.length && BADGES.length === 5);
+      check('Wildfire design: Penny Pincher + Zero Data Lost + Featherweight; no Perfect Team in solo', get('penny').earned && get('zero_data').earned && get('featherweight').earned && !get('perfect_team').earned, b.filter((x) => x.earned).map((x) => x.id).join(','));
+      const failSim = firstFailed(SAMPLES[0].state).r;
+      check('a failed launch earns no badges', earnedBadges(SAMPLES[0].state, scoreMission(SAMPLES[0].state, failSim), failSim).every((x) => !x.earned));
+      const sso = trackPoints('sso'); const leo = trackPoints('leo');
+      const maxLat = (pts) => Math.max(...pts.map((p) => Math.abs(p[1])));
+      check('ground tracks: SSO reaches the poles (>80°), LEO stays below 52°', maxLat(sso) > 80 && maxLat(leo) <= 51.7 && maxLat(leo) > 50, `${maxLat(sso).toFixed(1)}° / ${maxLat(leo).toFixed(1)}°`);
+      const heo = trackPoints('heo');
+      const north = heo.filter((p) => p[1] > 40).length / heo.length;
+      check('Molniya track spends most of its time over the far north', north > 0.6, `${Math.round(north * 100)}% of points above 40°N`);
+      check('balance scale: fits → tilts to the rocket side, over → slams to the satellite side', scaleAngle(188, 400) < 0 && scaleAngle(500, 400) === 16 && scaleAngle(100, null) === 0);
+      check('end of life: LEO deorbits, GEO goes to the graveyard, Mars says goodbye', endOfLifeKind('leo') === 'deorbit' && endOfLifeKind('geo') === 'graveyard' && endOfLifeKind('mars') === 'farewell');
+    }
+
+    const summary = document.getElementById('summary');
+    summary.textContent = `${pass} passed, ${fail} failed`;
+    summary.className = `summary ${fail ? 'fail' : 'pass'}`;
+    document.title = fail ? `FAIL (${fail}) — Resources Self-Test` : 'PASS — Resources Self-Test';
+  </script>
+</body>
+</html>

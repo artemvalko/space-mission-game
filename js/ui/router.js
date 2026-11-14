@@ -1,0 +1,80 @@
+// Screen switching driven by state.screen: step list (✓ done / ● current / ○ to do),
+// question header (+ team owner badge), the screen itself, and Back / Next.
+
+import { mount, h } from './dom.js';
+import { goToScreen } from '../state/actions.js';
+import { ROLES } from '../data/roles.js';
+import { STEPS, getStep, visibleSteps, isReachable, nextStep, prevStep } from './steps.js';
+
+import * as start from './screens/start.js';
+import * as pickMission from './screens/pickMission.js';
+import * as size from './screens/size.js';
+import * as science from './screens/science.js';
+import * as power from './screens/power.js';
+import * as comms from './screens/comms.js';
+import * as brains from './screens/brains.js';
+import * as orbit from './screens/orbit.js';
+import * as rocket from './screens/rocket.js';
+import * as finalCheck from './screens/finalCheck.js';
+import * as operations from './screens/operations.js';
+import * as results from './screens/results.js';
+
+const MODULES = { start, pickMission, size, science, power, comms, brains, orbit, rocket, finalCheck, operations, results };
+
+export function renderStepList(container, state, dispatch) {
+  const steps = visibleSteps(state);
+  const currentIdx = STEPS.findIndex((s) => s.id === state.screen);
+  container.replaceChildren(h('ol', { class: 'steps' }, steps.map((st) => {
+    const idx = STEPS.findIndex((s) => s.id === st.id);
+    const current = st.id === state.screen;
+    const done = !current && st.answered?.(state) && (idx < currentIdx || st.id !== 'results');
+    const mark = current ? '●' : done ? '✓' : '○';
+    return h('li', { class: ['step', current && 'current', done && 'done'] },
+      h('button', {
+        type: 'button', key: `step-${st.id}`, disabled: !isReachable(st.id, state),
+        'aria-current': current ? 'step' : null,
+        onClick: () => dispatch(goToScreen(st.id)),
+      }, [h('span', { class: 'step-mark', 'aria-hidden': 'true' }, mark), ` ${st.label}`]));
+  })));
+}
+
+function ownerBadge(state, step) {
+  if (state.mode !== 'team' || !step.owner) return null;
+  const role = ROLES.find((r) => r.id === step.owner);
+  const players = state.players.filter((p) => p.roleId === step.owner).map((p) => p.name);
+  return h('div', { class: 'owner-badge' }, players.length
+    ? `👤 ${players.join(' & ')} (${role.name}) decides this — others can advise.`
+    : `👥 Nobody is the ${role.name} — decide this together.`);
+}
+
+function navBar(state, dispatch) {
+  const step = getStep(state.screen);
+  const prev = prevStep(state);
+  const next = nextStep(state);
+  const showNext = next && state.screen !== 'finalCheck';
+  const blocked = step.answered && !step.answered(state);
+  return h('div', { class: 'nav-bar' }, [
+    prev
+      ? h('button', { class: 'btn btn-ghost', type: 'button', key: 'nav-back', onClick: () => dispatch(goToScreen(prev.id)) }, `← Back`)
+      : h('span'),
+    showNext && h('button', {
+      class: 'btn btn-primary btn-big', type: 'button', key: 'nav-next', disabled: blocked || !isReachable(next.id, state),
+      onClick: () => dispatch(goToScreen(next.id)),
+    }, `Next: ${next.verb} →`),
+  ]);
+}
+
+export function renderRouter(container, state, dispatch) {
+  const mod = MODULES[state.screen] ?? start;
+  const step = getStep(state.screen);
+  const screenEl = h('section', { class: `screen screen-${state.screen}` });
+  if (step.question && state.screen !== 'start') {
+    mount(screenEl, h('header', { class: 'question' }, [
+      h('div', { class: 'question-phase' }, `Step ${visibleSteps(state).findIndex((s) => s.id === step.id) + 1} · NASA phase: ${step.phase}`),
+      h('h1', {}, step.question),
+      ownerBadge(state, step),
+    ]));
+  }
+  mod.render(screenEl, state, dispatch);
+  container.replaceChildren(screenEl, state.screen === 'start' ? h('span') : navBar(state, dispatch));
+}
