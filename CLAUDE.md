@@ -287,7 +287,7 @@ Over the model budget is a `warning` (objective fails), not a gate.
   (mass margin [large bus: within 700 kg], power margin, budget left — skipped if launch is RFQ) ·
   Survivability 15% · Teamwork 10% (solo redistributes) · + **Sustainability** bonus up to 40 (debris 15 · atmosphere 15 ·
   ground 10 from the chosen retirement; no option gets 40; "best possible for your orbit" shown; extending the mission
-  costs debris points). NO-GO runs → F.
+  costs debris points). NO-GO runs → F. Goal NOT MET (dependency matrix) → total capped at 640 (grade C at most).
 - Role goals: Director = model budget + schedule + licence & disposal; Engineer = mass/power margins ≥10%
   + thermal; Scientist = all KPIs; Flight = recommended orbit + rocket reaches it + working link.
 

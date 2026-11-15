@@ -14,7 +14,7 @@
 import { CATEGORY_PLAIN, isCubeSat } from '../data/components.js';
 import { ROLE_INFO } from '../data/instruments.js';
 import { computeResources, getSelection, payloadNeeds } from './resources.js';
-import { evaluateDependencies } from './dependencies.js';
+import { evaluateDependencies, itemName } from './dependencies.js';
 import { getComponent } from '../data/components.js';
 import { getInstrument } from '../data/instruments.js';
 import { kg, num, pct, money, watts } from '../utils/format.js';
@@ -290,6 +290,16 @@ export function validateDesign(state, resources = computeResources(state)) {
   }
   if (eol?.needsAdcs && !components.adcs && !included.has('adcs')) {
     add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', eol.deorbitThruster ? 'The thruster needs a pointing system to aim it.' : 'Turning broadside needs a pointing system.', eol.why, 'Add an ADCS.');
+  }
+
+  // ── Goal (dependency matrix): a physically valid build for the wrong goal can fly, but THIS goal is not met
+  //    (like the budget: not a hard gate — an objective fails). PARTLY = a caution.
+  if (deps.verdict === 'not_met' || deps.verdict === 'partly') {
+    const r = deps.goal.find((x) => x.result === 'missing' || x.result === 'wrong') ?? deps.goal.find((x) => x.result === 'partly');
+    const STEP = { payload: 'science', timing: 'science', calibration: 'science', orbit: 'orbit', ground: 'comms', downlink: 'comms', platform: 'size' };
+    add(deps.verdict === 'not_met' ? 'warning' : 'caution', null, 'goal', STEP[r.category] ?? 'science',
+      deps.verdict === 'not_met' ? `Goal not met: needs ${itemName(r.satisfiedBy[0])}.` : `Goal partly met: ${itemName(r.items[0])} only partly fits.`,
+      `Goal "${sel.variant?.label}": ${r.reason}`, r.satisfiedBy.length ? `Choose ${r.satisfiedBy.slice(0, 2).map((id) => itemName(id)).join(' or ')}.` : '');
   }
 
   // ── Budget (not a hard gate: the mission objective "on budget" will fail)

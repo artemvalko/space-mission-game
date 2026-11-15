@@ -107,7 +107,7 @@ export function goalObjective(sel) {
   if (!v) return null;
   const deps = evaluateDependencies(sel);
   const VERDICT_WHY = { met: 'This design has what the goal needs.', todo: 'Not chosen yet.' };
-  return { id: 'goal', icon: v.icon, label: `Meets the goal: ${v.label}`, met: deps.verdict === 'met', verdict: deps.verdict,
+  return { id: 'goal', icon: v.icon, label: `${v.label} (goal)`, met: deps.verdict === 'met', verdict: deps.verdict,
     why: deps.reasons.length ? deps.reasons.join(' ') : VERDICT_WHY[deps.verdict] ?? '' };
 }
 

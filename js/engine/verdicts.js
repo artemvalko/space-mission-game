@@ -81,6 +81,6 @@ export const VERDICT_QUESTIONS = { engineering: 'Could it fly?', objective: 'Did
 /** Tone of a verdict word: ok | tight | bad. */
 export function verdictTone(word) {
   if (['GO', 'MET', 'FUNDED'].includes(word)) return 'ok';
-  if (['CONDITIONAL', 'PARTLY', 'ESTIMATED', 'UNCERTAIN', 'TODO'].includes(word)) return 'tight';
+  if (['CONDITIONAL', 'CONDITIONAL GO', 'PARTLY', 'ESTIMATED', 'UNCERTAIN', 'TODO'].includes(word)) return 'tight';
   return 'bad';
 }

@@ -122,7 +122,7 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
       disabledReason: `${whyNot}`,
       delta: selected || whyNot ? null : `If chosen: ${previewDelta(state, selectComponent(category, c.id), before)}`,
       // Why? micro-format (≤5 lines): what / why here (dependency matrix) / what it changes / better alternative / data level.
-      why: () => whyCard(c, { scenarioId: sid, variantId: state.design.variantId, whyNot, change: whyNot ? '' : previewDelta(state, selectComponent(category, c.id), before),
+      why: () => whyCard(c, { scenarioId: sid, variantId: state.design.variantId, whyNot, change: whyNot || selected ? '' : previewDelta(state, selectComponent(category, c.id), before),
         unverified: c.mass == null && !c.massClassOf && c.formFactor !== 'any' && !c.reference }),
       onSelect: () => dispatch(selectComponent(category, c.id)),
     });

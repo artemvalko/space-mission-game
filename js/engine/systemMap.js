@@ -35,7 +35,9 @@ export function systemMap(state, res = computeResources(state)) {
 
   // Payload
   const needs = payloadNeeds(sel);
-  const wrongPayload = deps.mission.some((r) => r.status === 'incompatible' && r.result === 'wrong');
+  const wrongPayload = deps.mission.some((r) => r.status === 'incompatible' && r.result === 'wrong')
+    // …or it flies but cannot do THIS goal (e.g. a radiometer for "rain inside storms")
+    || deps.goal.some((r) => ['payload', 'timing'].includes(r.category) && (r.result === 'missing' || r.result === 'wrong'));
   const payload = reference ? 'included'
     : !sel.instruments.length ? 'missing'
       : wrongPayload || needs.missing.length ? 'wrong'

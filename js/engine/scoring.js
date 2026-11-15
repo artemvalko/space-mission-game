@@ -20,6 +20,7 @@ import { money, pct, kg, watts } from '../utils/format.js';
 
 export const WEIGHTS = { science: 0.35, objectives: 0.25, efficiency: 0.15, survivability: 0.15, teamwork: 0.10 };
 export const DISPOSAL_BONUS = 40; // Sustainability: debris 15 + atmosphere 15 + ground 10 (no option gets all 40)
+export const GOAL_NOT_MET_MAX = 640; // grade C at most when the chosen goal is NOT MET
 export const GRADES = [['S', 900], ['A', 800], ['B', 650], ['C', 500], ['D', 350], ['F', 0]];
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -130,6 +131,9 @@ export function scoreMission(state, sim) {
       : `No valid retirement plan. Best possible for your orbit: ${planet.best}/40.` });
   let total = Math.max(0, Math.min(1000, parts.reduce((a, p) => a + p.points, 0)));
   if (sim.noGo) total = Math.min(total, 340); // a NO-GO design is a failed mission
+  // The goal decides success (CLARITY P0.1): a design that flies but does NOT meet the chosen goal is at best a C.
+  const goal = objectives.find((o) => o.id === 'goal');
+  if (goal?.verdict === 'not_met') total = Math.min(total, GOAL_NOT_MET_MAX);
 
   const stats = { retireAfterLoss: retire, planetScore: sustain, planetBest: planet.best, atmosphereKg: planet.atmosphereKg, retire: planet.strategyId, spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives),
     variantFit: fit.value, variantId: fit.variant?.id ?? null, budgetUncertain: !!res.budget.uncertain, unknownPrices: res.budget.unknownItems ?? [] };

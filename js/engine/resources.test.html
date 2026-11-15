@@ -150,7 +150,7 @@
     import { MISSION_DEPENDENCIES, RULE_STATUS, EVIDENCE_LEVELS, rulesFor } from '../data/missionDependencies.js';
     import { evaluateDependencies, matrixWhyNot, dependencyLine, rulesForItem } from './dependencies.js';
     import { matrixMarkdown } from '../../tools/matrix-doc.mjs';
-    import { missionVerdicts } from './verdicts.js';
+    import { missionVerdicts, verdictTone } from './verdicts.js';
     import { systemMap, SYSTEM_BLOCKS } from './systemMap.js';
     import { whyCard } from './explain.js';
     import { GLOSSARY } from '../data/glossary.js';
@@ -765,6 +765,9 @@
       const tv = V(variant(make(W), 'rain_inside'));
       check('rain_inside + TEMPEST-D only: flies (GO/CONDITIONAL), objective NOT MET, reason + fix name the radar', ['GO', 'CONDITIONAL'].includes(tv.engineering) && tv.objective === 'NOT MET'
         && tv.reasons.some((r) => /choose a radar/.test(r)) && tv.fixes.some((f) => /RainCube radar/.test(f)), `${tv.engineering}/${tv.objective} · ${tv.reasons.join(' | ')} · ${tv.fixes.join(' | ')}`);
+      const tScore = scoreMission(variant(make(W), 'rain_inside'), sim(variant(make(W), 'rain_inside')));
+      check('verdict tones: CONDITIONAL GO is amber, NOT MET / OVER / NO-GO red, GO / MET / FUNDED green', verdictTone('CONDITIONAL GO') === 'tight' && verdictTone('NOT MET') === 'bad' && verdictTone('OVER') === 'bad' && verdictTone('NO-GO') === 'bad' && ['GO', 'MET', 'FUNDED'].every((x) => verdictTone(x) === 'ok'));
+      check('goal NOT MET caps the grade at C (not "a lower score only")', tScore.total <= 640 && ['C', 'D', 'F'].includes(tScore.grade) && tScore.outcome === 'partial', `${tScore.total} ${tScore.grade}`);
       check('phone_chips + LoRa → objective NOT MET', V(variant(make(C, (d) => ({ ...d, instrumentIds: ['iot_lora', 'ant_iot_deploy'] })), 'phone_chips')).objective === 'NOT MET');
       check('licensed + generic SDR → objective NOT MET', V(variant(make(C), 'licensed')).objective === 'NOT MET');
       const nv = V(make(N));
@@ -843,6 +846,7 @@
       const mc = map(make(C));
       check('research IoT build: payload/TT&C/downlink/ground/launch chosen; bus unverified (no published sizes)', ['payload', 'ttc', 'downlink', 'ground', 'launch'].every((k) => mc[k] === 'chosen') && mc.bus === 'unverified', JSON.stringify(mc));
       check('navigation: downlink "not needed" (broadcast through the L-band payload)', map(make(N)).downlink === 'not_needed');
+      check('payload that flies but misses THIS goal → payload block "wrong" (radiometer for rain_inside)', map(variant(make(W), 'rain_inside')).payload === 'wrong' && map(make(W)).payload === 'chosen');
       check('wrong ground → ground block "wrong"', map(make(W, (d) => ({ ...d, groundId: 'gs_iot_gateways' }))).ground === 'wrong');
       const rmap = map(ref(C, 'ref_sateliot_6u'));
       check('reference build: payload, bus, TT&C and downlink shown as "included"', ['payload', 'bus', 'ttc', 'downlink'].every((k) => rmap[k] === 'included'), JSON.stringify(rmap));

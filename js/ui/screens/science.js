@@ -82,7 +82,7 @@ export function render(container, state, dispatch) {
       delta: `${selected ? 'If removed' : 'If added'}: ${previewDelta(state, action, before)}`,
       whyTitle: whyNot ? `Why not the ${ins.plainName.toLowerCase()}?` : ins.plainName,
       // Why? micro-format (≤5 lines): what / why this goal (dependency matrix) / what it changes / better alternative / data level.
-      why: () => whyCard(ins, { scenarioId: scenario?.id, variantId: state.design.variantId, change: previewDelta(state, action, before),
+      why: () => whyCard(ins, { scenarioId: scenario?.id, variantId: state.design.variantId, change: `${selected ? 'If removed: ' : ''}${previewDelta(state, action, before)}`,
         unverified: ins.mass == null && !ins.massClassOf && ins.formFactor !== 'any' && !ins.flewOn }),
       onSelect: () => dispatch(action),
     });

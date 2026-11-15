@@ -72,7 +72,7 @@ function build(container, dispatch) {
     const b = e.target.closest('[data-sys-step]');
     if (b && !e.target.closest('.term')) dispatch(goToScreen(b.dataset.sysStep));
   });
-  container.replaceChildren(pic, advisor, gaugeList, sysMap, details);
+  container.replaceChildren(pic, sysMap, advisor, gaugeList, details);
   advisorFix.addEventListener('click', () => { if (advisorFix.dataset.step) dispatch(goToScreen(advisorFix.dataset.step)); });
   return { container, pic, gauges, advisor, advisorText, advisorFix, detailsList, changeLine, sysMap };
 }
