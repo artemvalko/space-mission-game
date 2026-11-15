@@ -46,10 +46,11 @@ export function systemMap(state, res = computeResources(state)) {
   // Bus: required bus categories (an OBC with GNSS replaces the position sensor)
   const busCats = scenario.requiredBus.filter((c) => BUS_CATS.includes(c) && !(c === 'sensors' && components.computer?.providesGnss));
   const busOpen = open(busCats);
-  const unverifiedBus = ['mass', 'power', 'battery'].some((k) => res[k].validity === 'unverified') || res.mass.volume?.validity === 'unverified';
+  const unverifiedBus = ['mass', 'power', 'battery'].some((k) => res[k].validity === 'unverified') || !!res.mass.volume?.critical;
   const failedBus = ['mass', 'power', 'battery'].some((k) => res[k].validity === 'fail') || res.mass.volume?.validity === 'fail';
   const bus = !components.structure ? 'missing' : reference ? (failedBus ? 'wrong' : 'included')
     : bad(busCats) || failedBus ? 'wrong' : busOpen.length ? 'missing' : unverifiedBus ? 'unverified' : 'chosen';
+  const busNote = res.mass.volume?.validity === 'unverified' && !res.mass.volume.critical ? `Not verified: ${res.mass.volume.unknownParts.length} parts have no published size.` : '';
 
   // TT&C
   const ttc = included.has('comms') ? 'included' : left.has('comms') ? 'wrong' : components.comms ? 'chosen' : 'missing';
@@ -72,7 +73,7 @@ export function systemMap(state, res = computeResources(state)) {
   const state0 = { payload, bus, ttc, downlink: dl, ground, launch };
   const note = {
     payload: reference ? `Included in ${components.structure.plainName}.` : sel.instruments.map((i) => i.plainName).join(', '),
-    bus: reference ? 'Included: the real satellite\'s own bus.' : busOpen.length ? `Still open: ${busOpen.length} part${busOpen.length > 1 ? 's' : ''}.` : '',
+    bus: reference ? 'Included: the real satellite\'s own bus.' : busNote && !busOpen.length ? busNote : busOpen.length ? `Still open: ${busOpen.length} part${busOpen.length > 1 ? 's' : ''}.` : '',
     ttc: components.comms?.plainName ?? (included.has('comms') ? 'Included.' : ''),
     downlink: !needsDl ? 'Not needed: navigation broadcasts through its L-band payload.' : components.downlink?.plainName ?? (included.has('downlink') ? 'Included.' : ''),
     ground: sel.ground?.plainName ?? '',

@@ -199,9 +199,12 @@ function computeMass(sel) {
   const volParts = [...items, ...afterReserve, ...(sailPart ? [sailPart] : [])].filter((it) => it !== structure && it.mass !== 0);
   const knownUnits = round(volParts.reduce((a, it) => a + (it.volumeU ?? 0), 0));
   const noSize = volParts.filter((it) => it.volumeU == null);
+  // CRITICAL = the mission's own measuring instrument has no published size (it drives the layout).
+  // Non-critical = bus boards, radios and small payload electronics: noted, never downgrade GO.
+  const critSize = noSize.filter((it) => instruments.includes(it) && it.sensor && it.category === 'service_payload');
   const units = structure?.units ?? null;
   const volValidity = !structure || units == null ? 'n/a' : knownUnits > units + 1e-9 ? 'fail' : noSize.length ? 'unverified' : 'pass';
-  const volume = { used: knownUnits, available: units, ok: volValidity !== 'fail', validity: volValidity, unknownParts: noSize.map((it) => it.plainName),
+  const volume = { used: knownUnits, available: units, ok: volValidity !== 'fail', validity: volValidity, critical: volValidity === 'unverified' && critSize.length > 0, unknownParts: noSize.map((it) => it.plainName), criticalParts: critSize.map((it) => it.plainName),
     explanation: volValidity === 'unverified' ? `Volume not verified: ${noSize.length} part${noSize.length > 1 ? 's have' : ' has'} no published size (never counted as 0U).${knownUnits ? ` Known: ${num(knownUnits)}U of ${num(units)}U.` : ''}`
       : volValidity === 'fail' ? `Parts with a published size already need ${num(knownUnits)}U; the frame has ${num(units)}U.`
         : volValidity === 'pass' ? (reference ? `Whole real satellite: ${num(units)}U.` : `${num(knownUnits)}U of ${num(units)}U.`) : '' };
@@ -240,7 +243,7 @@ function computeMass(sel) {
   const overNow = blocked || (status !== 'unknown' && available != null && total > available + 1e-9);
   const validity = !structure ? 'n/a' : overNow ? 'fail' : cannotVerify.length ? 'unverified' : 'pass';
   return bar('mass', 'Mass', 'kg', total, available, explanation, {
-    status, blocked, validity, parts, reserve, reserveFraction, propellant, limit, capacity, reaches, unknown: unknown.map((u) => u.id),
+    status, blocked, validity, critical: validity === 'unverified', parts, reserve, reserveFraction, propellant, limit, capacity, reaches, unknown: unknown.map((u) => u.id),
     cannotVerify, estimated: estimated.map((u) => u.id), reference: !!reference, sail: sail ? { id: sail.id, name: sail.name, massKg: sail.massKg } : null, sailMisfit: !!sailPart && !sail, tooSmallFor,
     dry: parts - propellant, volume, misfits: misfits.map((m) => m.id),
     payload: { used: payloadUnits, available: structure?.units ?? null, ok: volume.ok },
@@ -316,7 +319,7 @@ function computeBattery(sel, load) {
   if (left.has('battery')) status = 'over';
   else if (battery && needWh == null && orbit) status = 'unknown'; // unknown eclipse: never a silent "ok"
   const validity = left.has('battery') ? 'fail' : !battery || !orbit ? 'n/a' : needWh == null ? 'unverified' : needWh > usable + 1e-9 ? 'fail' : 'pass';
-  return bar('battery', 'Battery', 'Wh', needWh, usable, explanation, { needWh, usable, status, missing: left.has('battery'), validity });
+  return bar('battery', 'Battery', 'Wh', needWh, usable, explanation, { needWh, usable, status, missing: left.has('battery'), validity, critical: validity === 'unverified' });
 }
 
 // ─── Data (§8.4) ─────────────────────────────────────────────────────────────
@@ -376,7 +379,7 @@ function computeData(sel) {
     if (unmeasured && !groundBlocked) status = chainOk ? 'unknown' : 'over';
     const over = groundBlocked || status === 'over' || (status == null && generated > 0 && downlink != null && downlink < generated);
     const validity = over ? 'fail' : unmeasured && chainOk ? 'unverified' : generated > 0 && downlink != null ? 'pass' : 'n/a';
-    return bar('data', 'Data', 'GB/day', generated, downlink, explanation, { ...base, status, validity, blocked: groundBlocked, generated, downlink, lostFraction, chainOk, rateUnknown: generated == null, unmeasured,
+    return bar('data', 'Data', 'GB/day', generated, downlink, explanation, { ...base, status, validity, critical: validity === 'unverified', blocked: groundBlocked, generated, downlink, lostFraction, chainOk, rateUnknown: generated == null, unmeasured,
       deliveredFraction: generated > 0 && downlink != null ? Math.min(1, downlink / generated) : null });
   }
 

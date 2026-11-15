@@ -49,7 +49,9 @@ export function validateDesign(state, resources = computeResources(state)) {
   const out = [];
   const add = (severity, gate, resource, step, message, why = '', fix = '', alternative = null, extra = {}) =>
     out.push({ severity, gate, resource, step, message, why, fix, alternative, ...extra });
-  const unverified = (gate, resource, step, message, why, fix = '', alternative = null) => add('caution', gate, resource, step, message, why, fix, alternative, { unverified: true });
+  // critical: true → CONDITIONAL GO (caution); false → a "not verified" note (info) that never downgrades GO.
+  const unverified = (gate, resource, step, message, why, fix = '', alternative = null, critical = true) =>
+    add(critical ? 'caution' : 'info', gate, resource, step, message, why, fix, alternative, { unverified: true, critical });
   const sel = getSelection(state);
   const { orbit, launcher, deployer, ground, scenario, components, instruments, left, prep, reference, included } = sel;
 
@@ -127,9 +129,10 @@ export function validateDesign(state, resources = computeResources(state)) {
         `They are built for a ${cube ? 'large satellite' : 'CubeSat'}. CubeSat parts and large-satellite parts are not interchangeable.`, 'Use the parts made for your frame size.');
     }
     if (mass.volume.validity === 'unverified') {
+      const vc = mass.volume.critical;
       unverified('spacecraft_size_mass_volume_compatible', 'mass', 'size', `Volume not verified: ${mass.volume.unknownParts.length} part${mass.volume.unknownParts.length > 1 ? 's have' : ' has'} no published size.`,
         `${mass.volume.explanation} Mass fitting does not prove that everything fits inside (research §3.2).${scenario.id === 'mission_weather_mw' ? ' TEMPEST-D fitted a 4U radiometer + 2U bus in a 6U (S07).' : ''}`,
-        'A reference build (a whole real satellite) has a known size.');
+        'A reference build (a whole real satellite) has a known size.', null, vc);
     }
     if (!mass.volume.ok) {
       add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'size', `Payload needs ${mass.volume.used}U but the ${plain(structure)} has only ${mass.volume.available}U.`,
@@ -326,8 +329,8 @@ export const canLaunch = (issues) => !issues.some((i) => i.severity === 'error' 
 export function gateStatus(issues) {
   return GATES.map((g) => {
     const mine = issues.filter((i) => i.gate === g.id);
-    const status = mine.some((i) => i.severity === 'error') ? 'fail' : mine.some((i) => i.severity === 'todo') ? 'todo' : mine.some((i) => i.unverified) ? 'unverified' : 'pass';
-    return { ...g, status, issues: mine.filter((i) => i.severity === 'error' || i.severity === 'todo' || i.unverified) };
+    const status = mine.some((i) => i.severity === 'error') ? 'fail' : mine.some((i) => i.severity === 'todo') ? 'todo' : mine.some((i) => i.unverified && i.critical) ? 'unverified' : 'pass';
+    return { ...g, status, issues: mine.filter((i) => i.severity === 'error' || i.severity === 'todo' || (i.unverified && i.critical)) };
   });
 }
 
@@ -337,7 +340,8 @@ export function gateStatus(issues) {
  */
 export function engineeringVerdict(issues) {
   const errors = issues.filter((i) => i.severity === 'error');
-  const unverifiedItems = issues.filter((i) => i.unverified);
+  const unverifiedItems = issues.filter((i) => i.unverified && i.critical);
+  const notes = issues.filter((i) => i.unverified && !i.critical);
   const verdict = errors.length ? 'NO-GO' : issues.some((i) => i.severity === 'todo') ? 'TODO' : unverifiedItems.length ? 'CONDITIONAL' : 'GO';
-  return { verdict, errors, unverified: unverifiedItems };
+  return { verdict, errors, unverified: unverifiedItems, notes };
 }

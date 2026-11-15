@@ -774,8 +774,14 @@
       check('one GNSS satellite → node MET, constellation not claimed (honest limit shown)', nv.objective === 'MET' && nv.limits.some((l) => /≠ 3D positioning/.test(l.text)));
       for (const sid of [C, W, N]) {
         const v = V(make(sid));
-        check(`${sid} research build: objective MET, program FUNDED; engineering CONDITIONAL (unknown size/eclipse is never a silent GO)`, v.objective === 'MET' && v.program === 'FUNDED' && v.engineering === 'CONDITIONAL' && v.unverified.length > 0, `${v.engineering}/${v.objective}/${v.program} · ${v.unverified.join(' | ')}`);
+        const wantGo = sid !== N;
+        check(`${sid} research build: objective MET, program FUNDED; ${wantGo ? 'GO with a small "no published size" note (non-critical)' : 'CONDITIONAL (MEO eclipse unknown, critical)'}`,
+          v.objective === 'MET' && v.program === 'FUNDED' && (wantGo ? v.engineering === 'GO' && v.unverified.length === 0 && v.notes.some((n) => /parts? ha(s|ve) no published size/.test(n)) : v.engineering === 'CONDITIONAL' && v.unverified.length > 0),
+          `${v.engineering}/${v.objective}/${v.program} · ${v.unverified.join(' | ')} · ${v.notes.join(' | ')}`);
       }
+      const critVol = validateDesign(make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_gnss_ro'] }))).find((i) => i.unverified && /Volume/.test(i.message));
+      check('critical: a measuring instrument with no published size (GNSS-RO) → CONDITIONAL; each validity check carries critical true|false',
+        !!critVol && critVol.critical === true && computeResources(make(W)).mass.volume.critical === false && computeResources(make(N)).battery.critical === true && computeResources(make(W)).mass.critical === false);
       const trv = V(ref(W, 'ref_tropics_3u'));
       check('reference build with a public total mass and size: full GO (price not public → program UNCERTAIN)', trv.engineering === 'GO' && trv.program === 'UNCERTAIN', `${trv.engineering}/${trv.program} ${trv.unverified.join(' | ')}`);
       const ng = make(C, (d) => ({ ...d, orbitId: 'geo' }));
@@ -844,7 +850,7 @@
       const fresh = run(createInitialState(), A.selectScenario(W));
       check('fresh mission: every block "missing" (hollow), never red', Object.values(map(fresh)).every((x) => x === 'missing'), JSON.stringify(map(fresh)));
       const mc = map(make(C));
-      check('research IoT build: payload/TT&C/downlink/ground/launch chosen; bus unverified (no published sizes)', ['payload', 'ttc', 'downlink', 'ground', 'launch'].every((k) => mc[k] === 'chosen') && mc.bus === 'unverified', JSON.stringify(mc));
+      check('research IoT build: all six blocks chosen; bus keeps a small "not verified" note (non-critical)', Object.values(mc).every((k) => k === 'chosen') && /no published size/.test(systemMap(make(C)).find((b) => b.id === 'bus').note), JSON.stringify(mc));
       check('navigation: downlink "not needed" (broadcast through the L-band payload)', map(make(N)).downlink === 'not_needed');
       check('payload that flies but misses THIS goal → payload block "wrong" (radiometer for rain_inside)', map(variant(make(W), 'rain_inside')).payload === 'wrong' && map(make(W)).payload === 'chosen');
       check('wrong ground → ground block "wrong"', map(make(W, (d) => ({ ...d, groundId: 'gs_iot_gateways' }))).ground === 'wrong');

@@ -11,7 +11,7 @@ export function advise(state, issues = validateDesign(state, computeResources(st
   if (!state.scenarioId) return { tone: 'ok', text: 'Welcome! Pick a mission to begin.', step: 'pickMission' };
 
   for (const severity of PRIORITY) {
-    const issue = severity === 'unverified' ? issues.find((i) => i.unverified)
+    const issue = severity === 'unverified' ? issues.find((i) => i.unverified && i.critical)
       : issues.find((i) => i.severity === severity && !(severity === 'caution' && i.unverified));
     if (!issue) continue;
     if (severity === 'todo') {

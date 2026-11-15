@@ -69,6 +69,7 @@ export function missionVerdicts(state, sim = null, res = computeResources(state)
   return {
     engineering, objective, program, disposal,
     unverified: eng.unverified.map((i) => i.message),
+    notes: eng.notes.map((i) => i.message),
     goal: sel.variant ? { id: sel.variant.id, label: sel.variant.label } : null,
     limits: deps.limits,
     reasons,
