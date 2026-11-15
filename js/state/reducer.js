@@ -5,7 +5,7 @@ import { emptyDesign } from './initialState.js';
 import { ROLES } from '../data/roles.js';
 import { COMPONENT_CATEGORIES, NONE, getComponent } from '../data/components.js';
 import { getScenario } from '../data/scenarios.js';
-import { applyBundles, getPowerPack, getKit } from '../data/bundles.js';
+import { applyBundles, getPowerPack, getKit, INCLUDED_IN_REFERENCE } from '../data/bundles.js';
 import { getInstrument } from '../data/instruments.js';
 import { getOrbit } from '../data/orbits.js';
 import { getLauncher, getDeployer } from '../data/launchers.js';
@@ -134,6 +134,8 @@ export function reducer(state, action) {
       if (!COMPONENT_CATEGORIES.includes(action.category)) return state;
       if (action.componentId !== null && !validComponent(action.category, action.componentId)) return state;
       if (action.category === 'structure') return withDesign(state, changeStructure(state.design, action.componentId));
+      // A reference build already carries this system ("included"): it cannot be bought a second time.
+      if (getComponent(state.design.components.structure)?.reference && INCLUDED_IN_REFERENCE.includes(action.category)) return state;
       // Picking a single power/bus part by hand turns the matching bundle off.
       const design = { ...state.design, components: { ...state.design.components, [action.category]: action.componentId } };
       if (action.category === 'power' || action.category === 'battery') design.powerPack = null;
@@ -149,11 +151,15 @@ export function reducer(state, action) {
       if (action.kit !== null && !getKit(action.kit)) return state;
       return withDesign(state, { ...state.design, kit: action.kit });
 
-    case T.ADD_INSTRUMENT:
+    case T.ADD_INSTRUMENT: {
       if (state.design.instrumentIds.includes(action.instrumentId)) return state;
+      // A reference build carries its own payload: only add-ons that really flew on it can be added.
+      const refId = getComponent(state.design.components.structure)?.reference ? state.design.components.structure : null;
+      if (refId && getInstrument(action.instrumentId)?.flewOn !== refId) return state;
       return withDesign(state, {
         ...state.design, instrumentIds: [...state.design.instrumentIds, action.instrumentId],
       });
+    }
 
     case T.REMOVE_INSTRUMENT:
       return withDesign(state, {

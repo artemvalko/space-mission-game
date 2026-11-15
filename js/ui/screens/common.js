@@ -7,7 +7,7 @@ import { choiceCard, levels, previewDelta, priceCell } from '../card.js';
 import { cheapestOf } from '../../engine/resources.js';
 import { CATEGORY_PLAIN, NONE, getComponent, componentsByCategory, costFor } from '../../data/components.js';
 import { getScenario } from '../../data/scenarios.js';
-import { whyComponent } from '../../engine/explain.js';
+import { whyComponent, whyCard } from '../../engine/explain.js';
 import { selectComponent } from '../../state/actions.js';
 import { kg, money, watts, wh } from '../../utils/format.js';
 import { rerender } from '../view.js';
@@ -93,7 +93,13 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
   const sid = state.scenarioId;
   const scenario = getScenario(sid);
   const options = optionsFor(state, category);
-  const meterLevels = meterDefs.map((m) => levels(options.map((c) => m.value(c) ?? 0), { log: m.log !== false }));
+  // Unknown values (price not public) never count as 0: they get an empty meter with a "not public" tooltip.
+  const meterLevels = meterDefs.map((m) => {
+    const vals = options.map((c) => m.value(c) ?? null);
+    const known = levels(vals.filter((v) => v != null), { log: m.log !== false });
+    let k = 0;
+    return vals.map((v) => (v == null ? 0 : known[k++]));
+  });
   const info = CATEGORY_PLAIN[category];
   const card = (c, i) => {
     const selected = state.design.components[category] === c.id;
@@ -107,7 +113,7 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
       oneLiner: c.oneLiner,
       whatFor: c.why,
       badges: own ? [c.status === 'recommended' ? 'Recommended' : 'Research build'] : [],
-      meters: meterDefs.map((m, k) => ({ label: m.label, icon: m.icon, level: meterLevels[k][i] })),
+      meters: meterDefs.map((m, k) => ({ label: m.label, icon: m.icon, level: meterLevels[k][i], text: meterLevels[k][i] === 0 ? `${m.label}: not public (?)` : undefined })),
       details: partDetails(c, sid),
       data: c,
       selected,
@@ -115,7 +121,9 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
       warn: !!whyNot && selected,
       disabledReason: `${whyNot}`,
       delta: selected || whyNot ? null : `If chosen: ${previewDelta(state, selectComponent(category, c.id), before)}`,
-      why: `${whyNot ? `${whyNot} ` : ''}${whyComponent(c, sid)}`,
+      // Why? micro-format (≤5 lines): what / why here (dependency matrix) / what it changes / better alternative / data level.
+      why: () => whyCard(c, { scenarioId: sid, variantId: state.design.variantId, whyNot, change: whyNot ? '' : previewDelta(state, selectComponent(category, c.id), before),
+        unverified: c.mass == null && !c.massClassOf && c.formFactor !== 'any' && !c.reference }),
       onSelect: () => dispatch(selectComponent(category, c.id)),
     });
   };

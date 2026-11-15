@@ -1,6 +1,7 @@
 // Step 4 — Power: solar array + battery, with the eclipse explanation (research §3.3, §5.4, §8.2).
 // Easy: one bundled power pack (sum of its research parts). Normal: array + battery separately.
 
+import { priceOf } from '../../engine/resources.js';
 import { mount, h } from '../dom.js';
 import { icon } from '../icons.js';
 import { term, infoTerm } from '../tooltip.js';
@@ -68,7 +69,7 @@ export function render(container, state, dispatch) {
     componentCards(state, dispatch, 'power', [
       { label: 'Power', icon: 'power', value: (c) => c.arrayW },
       { label: 'Mass', icon: 'weight', value: (c) => c.mass },
-      { label: 'Cost', icon: 'money', value: (c) => c.cost },
+      { label: 'Cost', icon: 'money', value: (c) => priceOf(c).value },
     ], before, { max: 4 }),
     subQuestion('Battery', 'battery'),
     componentCards(state, dispatch, 'battery', [

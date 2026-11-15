@@ -29,34 +29,36 @@ const LEVEL_TAG = { fact: 'FACT', catalog: 'CATALOG', model: 'ESTIMATE', reporte
  * @param item     part / payload / ground station
  * @param ctx      { scenarioId, variantId, change: string (formatDelta), unverified?: boolean }
  */
-export function whyCard(item, { scenarioId = null, variantId = null, change = '', unverified = false } = {}) {
+export function whyCard(item, { scenarioId = null, variantId = null, change = '', unverified = false, whyNot = '' } = {}) {
   const lines = [`What is it? ${item.about ?? item.oneLiner ?? item.why ?? ''}`.trim()];
+  let note = ''; // "Not the payload: …" for bus parts that only LOOK like the mission payload (TT&C, sun sensors)
+  let better = null;
   if (scenarioId) {
     const r = rulesForItem(scenarioId, variantId, item.id);
     const wrong = r.wrong[0];
-    const lookAlike = r.notASubstitute[0];
+    const lookAlike = r.notASubstitute.find((x) => x.scope === 'goal') ?? r.notASubstitute[0];
     const fits = r.satisfies.find((x) => x.scope === 'goal') ?? r.satisfies.find((x) => x.status !== 'optional') ?? r.satisfies[0];
-    const part = r.partly[0];
-    const needs = r.needs.map((x) => x.whyRequired);
-    if (wrong) lines.push(`Why not here? ${cap(wrong.whyNotById?.[item.id] ?? wrong.whyAlternatives)}`);
-    else if (lookAlike && !fits) lines.push(`Why not here? ${lookAlike.whyAlternatives}`);
+    const part = r.partly.find((x) => x.scope === 'goal') ?? r.partly[0];
+    const isPayload = ['service_payload', 'timing', 'calibration'].includes(item.category);
+    if (whyNot) lines.push(`Why not here? ${cap(whyNot)}`);
+    else if (wrong) lines.push(`Why not here? ${cap(wrong.whyNotById?.[item.id] ?? wrong.whyAlternatives)}`);
+    else if (lookAlike && isPayload && !(fits?.scope === 'goal')) { lines.push(`Why not here? ${cap(lookAlike.whyNotById?.[item.id] ?? lookAlike.whyAlternatives)}`); better = lookAlike; }
     else if (fits) lines.push(`Why this goal? ${fits.whyRequired}`);
-    else if (part) lines.push(`Why this goal? Only partly: ${part.whyAlternatives || part.whyRequired}`);
+    else if (part) { lines.push(`Why this goal? Only partly: ${part.whyAlternatives || part.whyRequired}`); better = part; }
     else if (item.why) lines.push(`Why this mission? ${item.why}`);
-    if (change) lines.push(`What does it change? ${change}${needs.length ? `. ${needs[0]}` : '.'}`);
-    else if (needs.length) lines.push(`What does it change? ${needs[0]}`);
-    const better = wrong ? null : lookAlike && !fits ? lookAlike : part && !fits ? part : null;
-    if (better?.satisfiedBy.length) lines.push(`Better alternative: ${better.satisfiedBy.slice(0, 2).map(itemName).join(' or ')}.`);
-    else if (wrong) {
-      const own = rulesFor(scenarioId, variantId).find((x) => x.scope === 'goal' && x.category === 'payload') ?? rulesFor(scenarioId, variantId).find((x) => x.scope === 'mission' && x.category === (getInstrumentCategory(item)));
-      if (own?.satisfiedBy.length) lines.push(`Better alternative: ${own.satisfiedBy.slice(0, 2).map(itemName).join(' or ')}.`);
-    }
+    if (lookAlike && !isPayload) note = `Not the payload: ${lookAlike.whyAlternatives}`;
+    const needs = r.needs.map((x) => x.whyRequired);
+    if (change || needs.length) lines.push(`What does it change? ${[change, needs[0]].filter(Boolean).join('. ')}${/[.!?]$/.test(needs[0] ?? change) ? '' : '.'}`);
+    if (!better && (wrong || whyNot)) better = rulesFor(scenarioId, variantId).find((x) => x.scope === 'goal' && x.category === 'payload' && isPayload)
+      ?? rulesFor(scenarioId, variantId).find((x) => x.status !== 'incompatible' && x.category === categoryOf(item) && x.satisfiedBy.length);
+    if (better?.satisfiedBy.length) lines.push(`Better alternative: ${better.satisfiedBy.filter((id) => id !== item.id).slice(0, 2).map(itemName).join(' or ')}.`);
+    else if (note) lines.push(note);
   }
   lines.push(`Data: ${unverified ? 'UNVERIFIED (not public — never guessed)' : LEVEL_TAG[item.dataKind] ?? 'ESTIMATE'}${item.sources?.length ? ` (${item.sources.slice(0, 3).join(', ')})` : ''}.`);
   return lines.slice(0, 5);
 }
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-const getInstrumentCategory = (item) => (item.category === 'service_payload' ? 'payload' : item.category === 'timing' ? 'timing' : item.category === 'calibration' ? 'calibration' : item.serves ? 'ground' : item.category);
+const categoryOf = (item) => (item.category === 'service_payload' ? 'payload' : item.serves ? 'ground' : item.altitudeText ? 'orbit' : item.category);
 
 export function whyInstrument(ins, scenario) {
   const own = scenario && ins.missions.includes(scenario.id);

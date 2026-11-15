@@ -11,6 +11,8 @@ import { computeResources } from '../engine/resources.js';
 import { validateDesign } from '../engine/validation.js';
 import { advise } from '../engine/advisor.js';
 import { formatDelta } from '../engine/explain.js';
+import { systemMap } from '../engine/systemMap.js';
+import { dependencyLine } from '../engine/dependencies.js';
 import { goToScreen } from '../state/actions.js';
 import { getStep } from './steps.js';
 import { kg, watts, money, gbDay, months, pct, num, wh } from '../utils/format.js';
@@ -29,6 +31,16 @@ let lastDesignKey = null;
 let lastChange = '';
 const lastStatus = {};
 let lastAdvice = '';
+let prevDesign = null;
+
+/** Ids newly chosen between two designs (payloads first, then parts, orbit, ground). */
+function addedIds(before, after) {
+  if (!before) return [];
+  const ins = after.instrumentIds.filter((id) => !before.instrumentIds.includes(id));
+  const parts = Object.entries(after.components).filter(([k, v]) => v && v !== 'none' && before.components[k] !== v).map(([, v]) => v);
+  const other = ['orbitId', 'groundId'].filter((k) => after[k] && after[k] !== before[k]).map((k) => after[k]);
+  return [...ins, ...parts, ...other];
+}
 
 function build(container, dispatch) {
   const gauges = {};
@@ -54,9 +66,15 @@ function build(container, dispatch) {
   const detailsList = h('dl', { class: 'details-list' });
   const details = h('details', { class: 'drawer' }, [h('summary', {}, 'Details'), detailsList]);
   const pic = h('div', { class: 'sat-frame' });
-  container.replaceChildren(pic, advisor, gaugeList, details);
+  // System map (CLARITY P1.3): Payload · Bus · TT&C · Downlink · Ground · Launch & end of life.
+  const sysMap = h('ol', { class: 'sysmap', 'aria-label': 'Satellite architecture' });
+  sysMap.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-sys-step]');
+    if (b && !e.target.closest('.term')) dispatch(goToScreen(b.dataset.sysStep));
+  });
+  container.replaceChildren(pic, advisor, gaugeList, sysMap, details);
   advisorFix.addEventListener('click', () => { if (advisorFix.dataset.step) dispatch(goToScreen(advisorFix.dataset.step)); });
-  return { container, pic, gauges, advisor, advisorText, advisorFix, detailsList, changeLine };
+  return { container, pic, gauges, advisor, advisorText, advisorFix, detailsList, changeLine, sysMap };
 }
 
 function gaugeView(res) {
@@ -97,9 +115,12 @@ export function renderSidebar(container, state, dispatch) {
       const margin = b.usable != null && b.needWh ? ` · battery margin ${pct(b.usable / b.needWh)}` : '';
       const burst = getComponent(state.design.components.eol)?.firePowerW && res.power.consumption != null && getComponent(state.design.components.eol).firePowerW > res.power.consumption
         ? ` · fires at ${getComponent(state.design.components.eol).firePowerW} W > ${Math.round(res.power.consumption)} W average: bursts on battery` : '';
-      lastChange = delta === 'no change' ? '' : `Change: ${delta}${margin}${burst}`;
+      // + the new requirement from the dependency matrix (≤ 12 words), e.g. "RainCube radar → needs deployable wings + science downlink".
+      const dep = addedIds(prevDesign, state.design).map((id) => dependencyLine(state.scenarioId, state.design.variantId, id)).find(Boolean) ?? '';
+      lastChange = delta === 'no change' && !dep ? '' : [delta === 'no change' ? '' : `Change: ${delta}${margin}${burst}`, dep].filter(Boolean).join(' · ');
     } else lastChange = '';
     prevRes = res;
+    prevDesign = state.design;
     lastDesignKey = designKey;
   }
   els.changeLine.textContent = lastChange;
@@ -124,6 +145,8 @@ export function renderSidebar(container, state, dispatch) {
     }
     lastStatus[g.key] = status;
   }
+
+  renderSystemMap(state, res);
 
   const a = advise(state, issues);
   els.advisor.className = `advisor advisor-${a.tone}`;
@@ -151,6 +174,31 @@ export function renderSidebar(container, state, dispatch) {
     ...row('Battery in shadow', res.battery.usable == null ? '—' : res.battery.needWh == null ? `${wh(res.battery.usable)} usable` : `${num(res.battery.needWh, 2)} of ${wh(res.battery.usable)} usable`, res.battery.status === 'unknown' ? null : res.battery.status, 'eclipse'),
     ...row('Launch', res.launch.reaches == null ? '—' : res.launch.reaches ? 'reaches your orbit' : 'cannot reach your orbit', res.launch.reaches == null ? null : res.launch.reaches ? 'ok' : 'over'),
   ]);
+}
+
+const SYS_STATE = { chosen: ['pass', 'chosen'], included: ['pass', 'included'], missing: ['todo', 'not chosen yet'], wrong: ['fail', 'does not fit'], unverified: ['unverified', 'unverified'], not_needed: ['na', 'not needed'] };
+const SYS_SHORT = { 'TT&C radio': 'TT&C', 'Launch & end of life': 'Launch' };
+
+/** The 6-block architecture map: state dot + label; role on hover/focus; current step highlighted; click = jump. */
+function renderSystemMap(state, res) {
+  const blocks = state.scenarioId ? systemMap(state, res) : [];
+  els.sysMap.hidden = !blocks.length;
+  els.sysMap.replaceChildren(...blocks.map((b) => {
+    const [dot, word] = SYS_STATE[b.state];
+    const here = b.steps.includes(state.screen);
+    const tip = `${b.label}: ${b.role} ${b.note ? `(${b.note}) ` : ''}— ${word}.`;
+    return h('li', { class: ['sysmap-row', here && 'is-here', `sys-${b.state}`] }, [
+      h('button', { class: 'sysmap-block', type: 'button', key: `sys-${b.id}`, 'data-sys-step': b.step, title: tip, 'aria-label': tip }, [
+        h('span', { class: `status-dot dot-${dot}`, 'aria-hidden': 'true' }),
+        icon(b.icon, 13),
+        h('span', { class: 'sysmap-label' }, SYS_SHORT[b.label] ?? b.label),
+        h('span', { class: 'sysmap-role' }, b.role),
+      ]),
+      term(b.glossary, icon('info', 12)),
+      // Weather: a mission sensor (radiometer, radar) is not an engineering sensor (sun, orbit, GNSS).
+      b.id === 'payload' && state.scenarioId === 'mission_weather_mw' && term('sensor', icon('eye', 12)),
+    ]);
+  }));
 }
 
 /** Reset change-tracking (e.g. on a new mission) so nothing shakes on first render. */

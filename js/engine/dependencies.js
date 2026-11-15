@@ -118,6 +118,7 @@ export function dependencyLine(scenarioId, variantId, itemId) {
   const needs = r.needs.map((x) => CAP_SHORT[x.capability] ?? x.capability.replace(/_/g, ' '));
   if (r.notASubstitute.some((x) => x.scope === 'goal')) return `${itemName(itemId)}: wrong for this goal`;
   if (r.wrong.length) return `${itemName(itemId)}: not for this mission`;
+  if (r.partly.some((x) => x.scope === 'goal') && !r.satisfies.some((x) => x.scope === 'goal')) return `${itemName(itemId)}: only partly fits this goal`;
   const ins = getInstrument(itemId);
   if (ins && ['service_payload', 'timing'].includes(ins.category)) {
     // Every payload needs the mission's data path home.

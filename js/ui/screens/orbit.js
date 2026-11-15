@@ -7,7 +7,7 @@ import { choiceCard, previewDelta } from '../card.js';
 import { ORBITS, PLAYABLE_ORBITS } from '../../data/orbits.js';
 import { getScenario, variantOf } from '../../data/scenarios.js';
 import { computeResources } from '../../engine/resources.js';
-import { whyOrbit } from '../../engine/explain.js';
+import { whyCard } from '../../engine/explain.js';
 import { selectOrbit } from '../../state/actions.js';
 import { pct } from '../../utils/format.js';
 import { groundTrack } from '../animations/groundTrack.js';
@@ -88,7 +88,8 @@ export function render(container, state, dispatch) {
       selected,
       warn: !allowed,
       delta: selected ? null : `If chosen: ${previewDelta(state, selectOrbit(o.id), before)}`,
-      why: whyOrbit(o, scenario),
+      why: () => whyCard(o, { scenarioId: scenario?.id, variantId: state.design.variantId, whyNot: allowed ? '' : scenario?.orbitWhy[o.id] ?? 'Wrong for this mission.',
+        change: selected ? '' : previewDelta(state, selectOrbit(o.id), before) }),
       onSelect: () => dispatch(selectOrbit(o.id)),
     });
     const hover = () => { if (trackShown !== o.id) { const box = document.querySelector('.map-box'); if (box) showTrack(box, o.id, state.design.groundId); } };

@@ -1,15 +1,16 @@
 // Step 5 — Talking to Earth: the control radio (TT&C), the mission downlink and the ground segment.
 // "Controlling the satellite" and "doing the mission" are different radios (research §7.1).
 
+import { priceOf } from '../../engine/resources.js';
 import { mount, h } from '../dom.js';
 import { icon } from '../icons.js';
 import { term, infoTerm } from '../tooltip.js';
-import { choiceCard, previewDelta } from '../card.js';
+import { choiceCard, previewDelta, priceCell } from '../card.js';
 import { GROUND_STATIONS } from '../../data/groundStations.js';
 import { matrixWhyNot } from '../../engine/dependencies.js';
 import { getScenario } from '../../data/scenarios.js';
 import { computeResources } from '../../engine/resources.js';
-import { whyGround, GROUND_WHY } from '../../engine/explain.js';
+import { whyCard } from '../../engine/explain.js';
 import { selectGround } from '../../state/actions.js';
 import { money } from '../../utils/format.js';
 import { groundTrack } from '../animations/groundTrack.js';
@@ -42,11 +43,11 @@ export function render(container, state, dispatch) {
         disabledReason: 'Not built for this mission.',
         warn: wrong,
         badges: g.missions.includes(scenario?.id) ? ['Research build'] : [],
-        details: [['Model cost', money(g.cost)], ...(g.contactHoursPerDay ? [['Contact (example)', `${g.contactHoursPerDay} h/day`]] : [])],
+        details: [['Model cost', priceCell(g, scenario?.id)], ['Contact time', g.contactHoursPerDay ? `${g.contactHoursPerDay} h/day (example)` : 'not public — data link unverified']],
         data: g,
         selected,
         delta: selected ? null : `If chosen: ${previewDelta(state, selectGround(g.id), before2)}`,
-        why: wrong ? `${whyNot} ${GROUND_WHY}` : `${GROUND_WHY} ${whyGround(g)}`,
+        why: () => whyCard(g, { scenarioId: scenario?.id, variantId: state.design.variantId, whyNot, change: selected ? '' : previewDelta(state, selectGround(g.id), before2) }),
         onSelect: () => dispatch(selectGround(g.id)),
       });
   };
@@ -56,7 +57,7 @@ export function render(container, state, dispatch) {
     !fixedRadios && subQuestion('Control radio', 'comms'),
     !fixedRadios && componentCards(state, dispatch, 'comms', [
       { label: 'Mass', icon: 'weight', value: (c) => c.mass },
-      { label: 'Cost', icon: 'money', value: (c) => c.cost },
+      { label: 'Cost', icon: 'money', value: (c) => priceOf(c).value },
     ], before, { max: 2, compare: false }),
     needsDownlink && !fixedRadios && subQuestion('Mission downlink', 'downlink'),
     needsDownlink && !fixedRadios && componentCards(state, dispatch, 'downlink', [

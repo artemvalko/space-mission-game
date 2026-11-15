@@ -2,6 +2,7 @@
 // Thermal + cables + sensors are one "included" line (no real alternatives in our data); the end-of-life
 // choice is on Launch prep. Normal only; Easy uses the standard kit. Navigation: fixed inside the platform.
 
+import { priceOf } from '../../engine/resources.js';
 import { mount, h } from '../dom.js';
 import { icon } from '../icons.js';
 import { setKit } from '../../state/actions.js';
@@ -14,7 +15,7 @@ import { getComponent } from '../../data/components.js';
 
 const MASS_COST = [
   { label: 'Mass', icon: 'weight', value: (c) => c.mass },
-  { label: 'Cost', icon: 'money', value: (c) => c.cost },
+  { label: 'Cost', icon: 'money', value: (c) => priceOf(c).value },
 ];
 
 export function render(container, state, dispatch) {

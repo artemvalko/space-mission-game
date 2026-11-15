@@ -26,6 +26,30 @@ import { newMission, goToScreen } from '../../state/actions.js';
 import { encodeDesign } from '../../utils/share.js';
 import { money, num, pct, signed } from '../../utils/format.js';
 import { rerender } from '../view.js';
+import { missionVerdicts, VERDICT_QUESTIONS, verdictTone } from '../../engine/verdicts.js';
+import { HONEST_LIMITS } from '../../data/missionDependencies.js';
+
+/** CLARITY P1.5: three independent verdicts first (Could it fly? / Did it meet the goal? / Affordable & responsible?),
+ *  then the top 3 reasons with numbers and 1–2 fixes. Everything else stays folded below. */
+function verdictsPanel(state, sim) {
+  const v = missionVerdicts(state, sim);
+  const DOT = { ok: 'pass', tight: 'unverified', bad: 'fail' };
+  const line = (key, word, extra) => h('li', { class: `verdict verdict-${verdictTone(word)}` }, [
+    h('span', { class: `status-dot dot-${DOT[verdictTone(word)]}`, 'aria-hidden': 'true' }),
+    h('span', { class: 'verdict-q' }, VERDICT_QUESTIONS[key]), ' ',
+    h('strong', { class: 'verdict-word' }, word),
+    extra && h('span', { class: 'muted small' }, ` ${extra}`),
+  ]);
+  return h('section', { class: 'panel verdicts' }, [
+    h('ul', { class: 'verdict-list' }, [
+      line('engineering', v.engineering === 'CONDITIONAL' ? 'CONDITIONAL GO' : v.engineering, v.engineering === 'CONDITIONAL' ? `(${v.unverified.length} unverified)` : ''),
+      line('objective', v.objective, v.goal ? `(${v.goal.label})` : ''),
+      line('program', v.program, v.disposal === 'responsible' ? '· safe retirement' : '· no safe retirement'),
+    ]),
+    v.reasons.length > 0 && h('ol', { class: 'verdict-reasons' }, v.reasons.map((r) => h('li', {}, r))),
+    v.fixes.length > 0 && h('p', { class: 'step-hint' }, [icon('bulb', 14), ` Fix: ${v.fixes.join(' ')}`]),
+  ]);
+}
 
 let shareUrl = null; // view-only
 
@@ -159,6 +183,8 @@ function lessonCard(state) {
     h('p', {}, claim.text),
     h('p', { class: 'small' }, [h('strong', {}, `"${claim.id === 'global_3d_fix' ? 'One satellite gives everyone a 3D position' : claim.id === 'global_24_7' ? 'One satellite gives 24/7 worldwide service' : 'One short mission proves a climate trend'}" — `), check.why]),
     extra && h('p', { class: 'small' }, [h('strong', {}, '"Every tropical storm, every hour" — '), extra.why]),
+    // Other honest limits for this mission + goal (dependency matrix), e.g. "GTO ≠ MEO", "TROPICS-type ≠ frequent revisit".
+    ...(HONEST_LIMITS[sc.id] ?? []).filter((l) => l.id !== claim.id && (!l.variants || l.variants.includes(state.design.variantId))).map((l) => h('p', { class: 'small' }, l.text)),
     box,
   ]);
 }
@@ -278,11 +304,6 @@ function fold(el) {
 }
 
 /** Top 3 insights (problems first) in one list. */
-function topInsights(score) {
-  const items = [...score.insights.bad.map((t) => ['warning', t, 'bad']), ...score.insights.good.map((t) => ['check', t, 'good'])].slice(0, 3);
-  return items.length ? h('ul', { class: 'insights insights-icons' }, items.map(([i, t, c]) => h('li', { class: `ins-${c}` }, [icon(i, 14), h('span', {}, t)]))) : null;
-}
-
 function actions(state, dispatch) {
   const share = () => {
     shareUrl = `${location.origin}${location.pathname}#${encodeDesign(state)}`;
@@ -313,9 +334,8 @@ export function render(container, state, dispatch) {
     h('div', { class: 'print-only print-title' }, `Mission report — ${getScenario(state.scenarioId).name} — ${teamNameOf(state)} — ${new Date().toLocaleDateString()}`),
     header(state, score, d),
     score.noGo && h('p', { class: 'step-hint', title: 'It was only simulated to show what physics would do. Real missions never launch with a failed hard gate.' }, 'NO-GO design: recorded as a failed mission.'),
+    verdictsPanel(state, sim),
     breakdown(score),
-    topInsights(score),
-    (score.tips[0] ?? (!score.success && d.tip)) && h('p', { class: 'step-hint' }, [icon('bulb', 14), ' ', score.tips[0] ?? d.tip]),
     heritageStrip(state),
     score.stats.budgetUncertain && h('p', { class: 'small muted', title: score.stats.unknownPrices.join(', ') }, `${score.stats.unknownPrices.length} price${score.stats.unknownPrices.length > 1 ? 's' : ''} not public: real engineers would request a quote (RFQ).`),
     lessonCard(state),
@@ -324,7 +344,7 @@ export function render(container, state, dispatch) {
     fold(objectivesPanel(score, state)),
     fold(badgesPanel(state, score, sim)),
     fold(wellHurt(score)),
-    score.tips.length > 1 && fold(h('section', { class: 'panel tips' }, [h('h2', {}, 'More tips'), h('ol', {}, score.tips.map((t) => h('li', {}, t)))])),
+    (score.tips.length > 0 || d.tip) && fold(h('section', { class: 'panel tips' }, [h('h2', {}, 'More tips'), h('ol', {}, (score.tips.length ? score.tips : [d.tip]).map((t) => h('li', {}, t)))])),
     fold(eventsPanel(sim, state)),
     fold(renderGallery(state)),
     fold(realMissions(state)),
