@@ -15,18 +15,17 @@ export function renderGoalStrip(container, state) {
   }
   const chips = goalChecklist(state);
   container.replaceChildren(
-    h('div', { class: 'goal-main' }, [
+    h('div', { class: 'goal-main', title: `Mission goal: ${scenario.objective}` }, [
       h('span', { class: 'goal-icon', 'aria-hidden': 'true' }, scenario.icon),
-      h('div', {}, [
-        h('div', { class: 'goal-label' }, `Mission goal · ${scenario.name}`),
-        h('div', { class: 'goal-text' }, scenario.oneLiner),
-      ]),
+      h('div', { class: 'goal-text' }, scenario.name),
     ]),
     h('ul', { class: 'goal-chips', 'aria-label': 'Goal checklist' }, chips.map((c) => {
       const pop = c.status === 'ok' && lastChip[c.id] && lastChip[c.id] !== 'ok';
       lastChip[c.id] = c.status;
-      return h('li', { class: ['chip', `chip-${c.status}`, pop && 'pop'], title: c.hint }, [
-        h('span', { 'aria-hidden': 'true' }, c.icon), ` ${c.label} `,
+      // Icon chips: only numbers (budget, months) stay as text; the rest is in the tooltip.
+      const showLabel = ['money', 'time', 'lifetime'].includes(c.id);
+      return h('li', { class: ['chip', `chip-${c.status}`, pop && 'pop'], title: `${c.label}: ${c.hint}`, 'aria-label': `${c.label} ${c.status}` }, [
+        h('span', { 'aria-hidden': 'true' }, c.icon), showLabel ? ` ${c.label} ` : ' ',
         h('span', { class: 'chip-mark', 'aria-label': c.status }, MARK[c.status]),
       ]);
     })),

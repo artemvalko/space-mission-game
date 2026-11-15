@@ -66,7 +66,7 @@ function insidePanel(l) {
   if (!l) return null;
   const fam = ROCKET_FAMILY[l.family];
   return h('details', { class: 'panel', key: 'inside-rocket' }, [
-    h('summary', {}, h('strong', {}, `🔧 What's inside this rocket? (${fam.name})`)),
+    h('summary', {}, h('strong', {}, `🔧 Inside ${fam.name}`)),
     h('p', { class: 'small muted' }, [fam.facts, ' ', sourceLinks(fam.sources)]),
     fam.noParts ? null : h('table', { class: 'rocket-parts' }, [
       h('thead', {}, h('tr', {}, [h('th', {}, 'Part'), h('th', {}, fam.name)])),
@@ -87,8 +87,7 @@ export function render(container, state, dispatch) {
     h('div', { class: 'weigh-in' }, [
       h('span', { class: 'weigh-icon', 'aria-hidden': 'true' }, '⚖️'),
       h('div', {}, [
-        h('div', { class: 'weigh-big' }, `Your satellite: ${kg(mass)}`),
-        h('div', { class: 'muted' }, `${before.mass.reserveFraction ? 'Parts + 15% design reserve. ' : 'Launch mass incl. the satellite\'s own propellant. '}${orbit ? `Going to: ${orbit.plainName} — the mass must fit at THAT orbit.` : 'Pick an orbit to see what each rocket can lift there.'}`),
+        h('div', { class: 'weigh-big', title: `${kg(mass)}: ${before.mass.reserveFraction ? 'parts + 15% design reserve.' : 'launch mass incl. the satellite\'s own propellant.'} The mass must fit at THAT orbit.` }, `→ ${orbit ? orbit.plainName.split(' (')[0] : '?'}`),
       ]),
     ]),
     scaleBox(state, before),
@@ -105,8 +104,9 @@ export function render(container, state, dispatch) {
         title: l.plainName,
         realTerm: l.name,
         art: rocketArt(l, { wobble: selected && (tooSmall || cannotReach) }),
-        oneLiner: cannotReach ? `✗ ${l.deliversTo ? `Delivers to ${l.deliversTo} — not ${orbit.plainName}.` : `Does not deliver to ${orbit.plainName}.`}`
-          : capacity != null ? `${tooSmall ? '✗' : '✓'} Up to ${kg(capacity)} to this orbit (headline). ${l.oneLiner}` : `${orbit ? '✓ Reaches this orbit. ' : ''}${l.oneLiner}`,
+        oneLiner: cannotReach ? (l.deliversTo ? '✗ Stops at GTO.' : "✗ Can't reach your orbit.")
+          : tooSmall ? `✗ Only ${kg(capacity)} there.` : orbit ? `✓ ${l.oneLiner}` : l.oneLiner,
+        whatFor: `${l.description} ${l.headline}`,
         warn: cannotReach || tooSmall,
         badges: [`${ct.icon} ${ct.label}`, ...(cannotReach ? ["Can't reach"] : tooSmall ? ['Too small'] : overkill ? ['Overkill'] : [])],
         details: [['Price', priceText(l, mass)], ...Object.entries(l.capacityKg).map(([oid, c]) => [`To ${getOrbit(oid)?.plainName ?? oid}`, c == null ? 'reaches; no single published number' : `${kg(c)} (headline)`]),
@@ -119,7 +119,7 @@ export function render(container, state, dispatch) {
       });
     })),
     insidePanel(getLauncher(state.design.launcherId)),
-    h('div', { class: 'subq' }, [h('h2', {}, '🔩 Dispenser / adapter'), h('span', { class: 'subq-real' }, ['Real term: ', term('deployer', 'Deployer / payload adapter'), ' · What is it for? Holds the satellite during launch and releases it in orbit.'])]),
+    h('div', { class: 'subq' }, h('h2', { title: 'Holds the satellite during launch and releases it in orbit.' }, ['🔩 Adapter ', term('deployer', 'ⓘ')])),
     h('div', { class: 'choices' }, DEPLOYERS.map((d) => {
       const selected = state.design.deployerId === d.id;
       const wrongSize = structure && d.formFactor !== structure.formFactor;
@@ -130,7 +130,7 @@ export function render(container, state, dispatch) {
         icon: d.icon,
         title: d.plainName,
         realTerm: d.name,
-        oneLiner: wrongSize ? `✗ Made for ${d.formFactor === 'cubesat' ? 'CubeSats' : 'large satellites'} — not your frame.` : wrongRocket ? `✗ ${l.plainName} does not use it.` : d.oneLiner,
+        oneLiner: wrongSize ? '✗ Wrong size for your frame.' : wrongRocket ? '✗ Not used by this rocket.' : d.oneLiner,
         whatFor: d.description,
         warn: wrongSize || wrongRocket,
         details: [['Model cost', d.cost ? money(d.cost) : d.costNote], ...(d.formFactor === 'cubesat' && structure?.maxMassKg ? [['Mass limit for your frame', kg(structure.maxMassKg)]] : [])],

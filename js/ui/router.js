@@ -30,12 +30,13 @@ export function renderStepList(container, state, dispatch) {
     const current = st.id === state.screen;
     const done = !current && st.answered?.(state) && (idx < currentIdx || st.id !== 'results');
     const mark = current ? '●' : done ? '✓' : '○';
+    // Only the current step shows its name; the others are icons (name in the tooltip).
     return h('li', { class: ['step', current && 'current', done && 'done'] },
       h('button', {
         type: 'button', key: `step-${st.id}`, disabled: !isReachable(st.id, state),
-        'aria-current': current ? 'step' : null,
+        'aria-current': current ? 'step' : null, title: st.label, 'aria-label': `${st.label}${done ? ' (done)' : ''}`,
         onClick: () => dispatch(goToScreen(st.id)),
-      }, [h('span', { class: 'step-mark', 'aria-hidden': 'true' }, mark), ` ${st.label}`]));
+      }, [h('span', { class: 'step-mark', 'aria-hidden': 'true' }, mark), ' ', h('span', { class: 'step-short', 'aria-hidden': 'true' }, st.icon), current ? ` ${st.label}` : '']));
   })));
 }
 
@@ -44,8 +45,8 @@ function ownerBadge(state, step) {
   const role = ROLES.find((r) => r.id === step.owner);
   const players = state.players.filter((p) => p.roleId === step.owner).map((p) => p.name);
   return h('div', { class: 'owner-badge' }, players.length
-    ? `👤 ${players.join(' & ')} (${role.name}) decides this — others can advise.`
-    : `👥 Nobody is the ${role.name} — decide this together.`);
+    ? `👤 ${players.join(' & ')} decides`
+    : `👥 Decide together`);
 }
 
 function navBar(state, dispatch) {
@@ -56,12 +57,13 @@ function navBar(state, dispatch) {
   const blocked = step.answered && !step.answered(state);
   return h('div', { class: 'nav-bar' }, [
     prev
-      ? h('button', { class: 'btn btn-ghost', type: 'button', key: 'nav-back', onClick: () => dispatch(goToScreen(prev.id)) }, `← Back`)
+      ? h('button', { class: 'btn btn-ghost', type: 'button', key: 'nav-back', title: `Back: ${prev.label}`, onClick: () => dispatch(goToScreen(prev.id)) }, '← Back')
       : h('span'),
     showNext && h('button', {
       class: 'btn btn-primary btn-big', type: 'button', key: 'nav-next', disabled: blocked || !isReachable(next.id, state),
       onClick: () => dispatch(goToScreen(next.id)),
-    }, `Next: ${next.verb} →`),
+      title: `Next: ${next.verb}`,
+    }, 'Next →'),
   ]);
 }
 
@@ -70,8 +72,7 @@ export function renderRouter(container, state, dispatch) {
   const step = getStep(state.screen);
   const screenEl = h('section', { class: `screen screen-${state.screen}` });
   if (step.question && state.screen !== 'start') {
-    mount(screenEl, h('header', { class: 'question' }, [
-      h('div', { class: 'question-phase' }, `Step ${visibleSteps(state).findIndex((s) => s.id === step.id) + 1} · NASA phase: ${step.phase}`),
+    mount(screenEl, h('header', { class: 'question', title: `Step ${visibleSteps(state).findIndex((s) => s.id === step.id) + 1} · NASA phase: ${step.phase}` }, [
       h('h1', {}, step.question),
       ownerBadge(state, step),
     ]));

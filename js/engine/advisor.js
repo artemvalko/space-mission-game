@@ -16,11 +16,11 @@ export function advise(state, issues = validateDesign(state, computeResources(st
       // Prefer the to-do for the step the player is on, else the first one.
       const here = issues.find((i) => i.severity === 'todo' && i.step === state.screen) ?? issue;
       const doneSomething = issues.filter((i) => i.severity === 'todo').length < 7;
-      return { tone: 'ok', text: `${doneSomething ? 'Looking good! Next: ' : ''}${lowerFirst(here.message, doneSomething)}`, step: here.step };
+      return { tone: 'ok', text: `${doneSomething ? 'Next: ' : ''}${lowerFirst(here.message, doneSomething)}`, step: here.step };
     }
     return { tone: severity === 'caution' ? 'tight' : 'bad', text: issue.message, step: issue.step, why: issue.why };
   }
-  return { tone: 'ok', text: 'All systems go! Head to the Final check and launch.', step: 'finalCheck' };
+  return { tone: 'ok', text: 'All systems go! Launch from the Final check.', step: 'finalCheck' };
 }
 
 const lowerFirst = (s, lower) => (lower ? s.charAt(0).toLowerCase() + s.slice(1) : s);

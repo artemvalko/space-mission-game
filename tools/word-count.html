@@ -1,0 +1,66 @@
+<!doctype html>
+<!-- Visible-word counter for every screen (playtest "too much text" budget).
+     Serve the project root and open /tools/word-count.html — or run tools/word-count.sh (headless).
+     State: comms mission, Easy, solo; the correct research build is filled in. Visible words =
+     words in document.body.innerText (closed <details>, hidden and display:none content excluded). -->
+<html lang="en"><head><meta charset="utf-8"><title>WORDS running</title>
+<style>body{font:14px system-ui;background:#070b14;color:#e6edf7}table{border-collapse:collapse}td,th{padding:3px 10px;border-bottom:1px solid #22314f;text-align:right}</style>
+</head><body><pre id="log"></pre>
+<script type="module">
+  const log = (m) => { document.getElementById('log').textContent += m + '\n'; };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const errors = [];
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'width:1400px;height:900px';
+  document.body.append(frame);
+  await new Promise((r) => { frame.onload = r; frame.src = '../index.html'; });
+  const w = frame.contentWindow;
+  w.__animTimerFrames = true;
+  w.addEventListener('error', (e) => errors.push(`${e.message} @${e.filename}:${e.lineno}`));
+  w.addEventListener('unhandledrejection', (e) => errors.push(`REJ ${e.reason?.stack ?? e.reason}`));
+  await sleep(300);
+  // Import inside the game's own realm so actions are plain objects of that realm.
+  const A = await w.eval(`import('${new URL('js/state/actions.js', w.location.href).href}')`);
+  const store = w.__store;
+  const d = (a) => store.dispatch(a);
+  const DUMP = new URLSearchParams(location.search).has('dump');
+  const words = () => {
+    const t = w.document.body.innerText;
+    if (DUMP) log(`\n===== ${store.getState().screen}\n${t}`);
+    return (t.match(/\S*[A-Za-z0-9]\S*/g) ?? []).length;
+  };
+  const count = async (screen) => { d(A.goToScreen(screen)); await sleep(250); return words(); };
+
+  const rows = [];
+  try {
+  rows.push(['start', await count('start')]);
+  d(A.setMode('solo'));
+  d(A.goToScreen('pickMission')); d(A.selectScenario('mission_comms_iot'));
+  rows.push(['mission', await count('pickMission')]);
+  const build = [A.selectComponent('structure', 'str_6u'), A.addInstrument('payload_iot_sdr'), A.addInstrument('ant_iot_deploy'), A.selectPowerPack('pack_6u_60'),
+    A.selectComponent('comms', 'ttc_uhf'), A.selectComponent('downlink', 'dl_sband'), A.selectGround('gs_iot_gateways'), A.selectOrbit('leo_550'),
+    A.selectLauncher('lv_falcon9_rideshare'), A.selectDeployer('dep_cubesat'), A.togglePrep('tests', true), A.togglePrep('licence', true), A.togglePrep('disposal', true)];
+  build.forEach(d);
+  for (const [label, id] of [['size', 'size'], ['payload', 'science'], ['power', 'power'], ['comms', 'comms']]) rows.push([label, await count(id)]);
+  d(A.setDifficulty('normal')); d(A.setKit('standard'));
+  rows.push(['bus', await count('brains')]);
+  d(A.setDifficulty('easy'));
+  for (const [label, id] of [['orbit', 'orbit'], ['rocket', 'rocket'], ['launch prep', 'launchPrep'], ['final check', 'finalCheck']]) rows.push([label, await count(id)]);
+  // Operations: launch, then count while the mission plays.
+  w.document.querySelector('[data-key="launch"]')?.click();
+  await sleep(400);
+  rows.push(['operations', words()]);
+  for (let i = 0; i < 400 && store.getState().screen !== 'results'; i++) {
+    await sleep(30);
+    const b = w.document.querySelector('.event-choice') || w.document.querySelector('[data-anim-action]') || w.document.querySelector('[data-anim-skip]');
+    b?.click();
+  }
+  await sleep(300);
+  rows.push(['results', words()]);
+  } catch (e) { errors.push('THROW ' + (e.stack || e.message)); }
+  w.__WORDS = Object.fromEntries(rows);
+  log('WORDS ' + JSON.stringify(Object.fromEntries(rows)));
+  log(rows.map(([k, v]) => `${k.padEnd(12)} ${v}`).join('\n'));
+  log('ERRORS:\n' + errors.join('\n'));
+  document.title = errors.length ? 'WORDS FAIL' : 'WORDS PASS';
+</script></body></html>

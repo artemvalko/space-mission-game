@@ -33,10 +33,10 @@ export function balanceScale(container, { massKg = 0, capacityKg = null, fromAng
         ]);
         return g;
       };
-      const left = pan('🛰️', `Your satellite: ${kg(massKg)}`, over ? 'over' : '');
-      const right = pan(capacityKg == null ? '?' : '🚀', capacityKg == null ? 'Pick a rocket' : `${rocketName} lifts ${kg(capacityKg)}`, '');
+      const left = pan('🛰️', kg(massKg), over ? 'over' : '');
+      const right = pan(capacityKg == null ? '?' : '🚀', capacityKg == null ? '' : `≤ ${kg(capacityKg)}`, '');
       const stand = s('g', {}, [s('polygon', { points: `${cx - 50},420 ${cx + 50},420 ${cx + 10},${cy} ${cx - 10},${cy}`, class: 'bs-stand' })]);
-      const warn = s('text', { x: cx, y: 60, class: 'bs-warn', 'text-anchor': 'middle', opacity: 0 }, over ? `Too heavy by ${kg(massKg - capacityKg)}!` : '');
+      const warn = s('text', { x: cx, y: 60, class: 'bs-warn', 'text-anchor': 'middle', opacity: 0 }, over ? `+${kg(massKg - capacityKg)} too heavy!` : '');
       const root = s('g', {}, [stand, left, right, beam, warn]);
       svg.append(root);
       const place = (deg, shake = 0) => {

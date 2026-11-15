@@ -42,9 +42,9 @@ export function hidePopover() {
 }
 
 /** A small "Why?" button that opens an explanation popover. */
-export function whyButton(title, body, label = 'Why?') {
+export function whyButton(title, body, label = '?') {
   const btn = h('button', {
-    class: 'why-btn', type: 'button', 'aria-label': `Why: ${title}`,
+    class: 'why-btn', type: 'button', 'aria-label': `Why: ${title}`, title: 'Why?',
     onClick: (e) => { e.stopPropagation(); showPopover(btn, title, typeof body === 'function' ? body() : body); },
   }, label);
   return btn;

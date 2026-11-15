@@ -30,10 +30,10 @@ export function goalChecklist(state, res = computeResources(state)) {
     hint: `Model budget: at most ${money(scenario.budgetM)} (now ${money(res.budget.used)}).`,
   });
   if (scenario.deadlineMonths) {
-    chips.push({ id: 'time', icon: '📅', label: `${scenario.deadlineMonths[0]}–${scenario.deadlineMonths[1]} months`, status: anyChoice ? 'ok' : 'todo', hint: `Planning window ${scenario.deadlineMonths[0]}–${scenario.deadlineMonths[1]} months.` });
+    chips.push({ id: 'time', icon: '📅', label: `${scenario.deadlineMonths[0]}–${scenario.deadlineMonths[1]} mo`, status: anyChoice ? 'ok' : 'todo', hint: `Planning window ${scenario.deadlineMonths[0]}–${scenario.deadlineMonths[1]} months.` });
   }
   if (scenario.minMonths) {
-    chips.push({ id: 'lifetime', icon: '⏳', label: `≥${scenario.minMonths} months`, status: 'todo', hint: `Keep working for at least ${scenario.minMonths} months.` });
+    chips.push({ id: 'lifetime', icon: '⏳', label: `≥${scenario.minMonths} mo`, status: 'todo', hint: `Keep working for at least ${scenario.minMonths} months.` });
   }
   const prepDone = sel.prep.tests && sel.prep.licence && sel.prep.disposal;
   chips.push({ id: 'prep', icon: '🧾', label: 'Tests · licence · disposal', status: prepDone ? 'ok' : 'todo', hint: 'Launch prep checklist: tests, frequency licence and a disposal plan.' });

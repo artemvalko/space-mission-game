@@ -37,10 +37,10 @@ const ORBIT_TRACK = {
 };
 
 export const TRACK_CAPTION = {
-  leo_550: 'Illustration: each pass lands further west as Earth turns. A place sees the satellite for minutes.',
-  sso_550_650: 'Illustration: almost over the poles — in a day it passes over the whole Earth.',
-  meo_gnss: 'Illustration: high and slow, tilted 56° — one satellite sees a big part of Earth at once.',
-  geo: 'It stays above one spot on the equator and always sees the same side of Earth.',
+  leo_550: 'Minutes over each place (illustration).',
+  sso_550_650: 'Over the poles, whole Earth daily (illustration).',
+  meo_gnss: 'High, slow, tilted 56° (illustration).',
+  geo: 'Fixed above one spot.',
 };
 
 /** Sub-satellite points (lon, lat) for a few orbits. Pure maths; lon wraps to -180..180. */
@@ -86,7 +86,7 @@ function worldMap(svg) {
  * params: { orbitId, groundId, mode: 'track' | 'stations', caption }
  */
 export function groundTrack(container, { orbitId = 'leo', groundId = null, mode = 'track', caption } = {}) {
-  const cap = caption ?? (mode === 'stations' ? 'Illustration: stations light up when the satellite flies over them.' : TRACK_CAPTION[orbitId] ?? TRACK_CAPTION.leo_550);
+  const cap = caption ?? (mode === 'stations' ? 'Stations light up on each pass (illustration).' : TRACK_CAPTION[orbitId] ?? TRACK_CAPTION.leo_550);
   return play(container, {
     scene: mode === 'stations' ? 'ground-stations' : 'ground-track', label: mode === 'stations' ? 'Ground stations map' : 'Ground track map', duration: 1000, caption: cap,
     setup({ svg }) {

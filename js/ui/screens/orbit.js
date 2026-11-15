@@ -15,7 +15,7 @@ let trackShown = null; // view-only: which orbit the map shows
 
 function trackPanel(orbitId, groundId) {
   const box = h('div', { class: 'map-box' });
-  const panel = h('div', { class: 'panel map-panel' }, [h('div', { class: 'iv-head' }, [h('strong', { class: 'map-title' }, '🗺️ Ground track'), h('span', { class: 'muted small' }, 'Illustration — point at an orbit to see where it flies over Earth.')]), box]);
+  const panel = h('div', { class: 'panel map-panel' }, [h('div', { class: 'iv-head', title: 'Illustration — point at an orbit to see where it flies over Earth.' }, [h('strong', { class: 'map-title' }, '🗺️')]), box]);
   showTrack(box, orbitId, groundId);
   return panel;
 }
@@ -24,7 +24,7 @@ function showTrack(box, orbitId, groundId) {
   if (!orbitId) return;
   trackShown = orbitId;
   const t = box.parentElement?.querySelector('.map-title');
-  if (t) t.textContent = `🗺️ Ground track: ${ORBITS.find((o) => o.id === orbitId)?.plainName}`;
+  if (t) t.textContent = `🗺️ ${ORBITS.find((o) => o.id === orbitId)?.plainName}`;
   groundTrack(box, { orbitId, groundId });
 }
 const label = (x, y, text, anchor = 'middle') => s('text', { x, y, class: 'svg-label', 'text-anchor': anchor }, text);
@@ -38,21 +38,21 @@ export function orbitDiagram(orbit) {
   const d = orbit.diagram;
   const cx = 120; const cy = 82; const br = 14;
   const parts = [
-    s('line', { x1: 6, y1: 14, x2: 40, y2: 14, class: 'svg-sunray' }), label(8, 28, '☀ sunlight', 'start'),
+    s('line', { x1: 6, y1: 14, x2: 40, y2: 14, class: 'svg-sunray' }), label(8, 28, '☀', 'start'),
     s('rect', { x: cx, y: cy - br, width: 240 - cx, height: br * 2, class: 'svg-shadow' }),
   ];
   // Faint reference ring for MEO so every card shows the same scale.
   const meoR = br * (6371 + 23222) / 6371;
-  if (!d.geo && orbit.id !== 'meo_gnss') parts.push(s('circle', { cx, cy, r: meoR, class: 'svg-orbit faint' }), label(cx, cy - meoR - 3, 'MEO for scale'));
+  if (!d.geo && orbit.id !== 'meo_gnss') parts.push(s('circle', { cx, cy, r: meoR, class: 'svg-orbit faint' }), label(cx, cy - meoR - 3, 'MEO'));
   if (d.geo) {
     parts.push(s('circle', { cx, cy, r: meoR, class: 'svg-orbit faint' }), label(cx + meoR * 0.7, cy - meoR * 0.75, 'MEO'));
-    parts.push(s('circle', { cx, cy, r: 110, class: 'svg-orbit' }), sat(cx - 77.8, cy - 77.8), label(cx, 156, 'GEO — far beyond MEO (not to scale)'));
+    parts.push(s('circle', { cx, cy, r: 110, class: 'svg-orbit' }), sat(cx - 77.8, cy - 77.8), label(cx, 156, 'not to scale'));
   } else {
     const r = br * d.r;
     if (d.tilt) parts.push(s('ellipse', { cx, cy, rx: r, ry: r * Math.cos((d.tilt * Math.PI) / 180), transform: `rotate(-${90 - d.tilt / 2} ${cx} ${cy})`, class: 'svg-orbit' }), sat(cx + r * 0.6, cy - r * 0.35));
     else if (d.polar) parts.push(s('ellipse', { cx, cy, rx: r, ry: r * 0.28, transform: `rotate(-80 ${cx} ${cy})`, class: 'svg-orbit' }), sat(cx + 2, cy - r));
     else parts.push(s('circle', { cx, cy, r, class: 'svg-orbit' }), sat(cx - r * 0.7071, cy - r * 0.7071));
-    parts.push(label(cx, 156, `${orbit.altitudeText}${d.tilt ? ` · tilted ${d.tilt}°` : ''} — true scale`));
+    parts.push(label(cx, 156, `${orbit.altitudeText}${d.tilt ? ` · ${d.tilt}°` : ''}`));
   }
   parts.push(s('circle', { cx, cy, r: br, class: 'svg-earth' }));
   return s('svg', { viewBox: '0 0 240 160', class: 'orbit-diagram', role: 'img', 'aria-label': `Diagram of ${orbit.name}` }, parts);
@@ -71,7 +71,8 @@ export function render(container, state, dispatch) {
       icon: o.icon,
       title: o.plainName,
       realTerm: `${o.name} · ${o.altitudeText}`,
-      oneLiner: allowed ? o.oneLiner : `✗ ${scenario.orbitWhy[o.id] ?? 'Does not fit this mission.'}`,
+      oneLiner: allowed ? o.oneLiner : '✗ Wrong for this mission.',
+      whatFor: o.description,
       art: orbitDiagram(o),
       badges: scenario?.recommendedOrbits.includes(o.id) ? ['Recommended ★'] : allowed ? ['Also works'] : ['Wrong for this mission'],
       details: [['Altitude', o.altitudeText], ['Inclination', o.inclinationText],
@@ -91,12 +92,11 @@ export function render(container, state, dispatch) {
   };
   const info = ORBITS.filter((o) => o.infoOnly && scenario?.id === 'mission_navigation_meo');
   mount(container,
-    h('p', { class: 'step-hint' }, ['The orbit decides coverage, sunlight, how long you sit in Earth\'s ',
-      term('eclipse', 'shadow'), ' and which rocket can get you there. Diagrams are at true relative scale: ', term('leo', 'LEO'), ' hugs the Earth, ', term('meo', 'MEO'), ' is far out.']),
+    h('p', { class: 'step-hint', title: 'The orbit decides coverage, sunlight, shadow and which rocket can get you there. Diagrams are at true relative scale.' }, ['📏 True scale: ', term('leo', 'LEO'), ' hugs Earth, ', term('meo', 'MEO'), ' is far.']),
     trackPanel(shownId, state.design.groundId),
     h('div', { class: 'choices' }, sorted.map(card)),
-    info.length > 0 && h('div', { class: 'group' }, [
-      h('h2', { class: 'group-title' }, 'For information: another correct navigation orbit'),
+    info.length > 0 && h('details', { class: 'group fold' }, [
+      h('summary', { class: 'group-title' }, 'ℹ️ Also correct: GPS orbit'),
       h('div', { class: 'choices' }, info.map((o) => choiceCard({
         key: `orbit-info-${o.id}`, icon: o.icon, title: o.plainName, realTerm: `${o.name} · ${o.altitudeText}`, oneLiner: o.oneLiner,
         art: orbitDiagram(o), badges: ['Info only'], data: o, selected: false, disabled: true, disabledReason: o.oneLiner, why: o.description, onSelect: () => {},

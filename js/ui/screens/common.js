@@ -12,10 +12,10 @@ import { kg, money, watts, wh } from '../../utils/format.js';
 /** Sub-question heading inside a step ("Control radio", "Ground segment"…), with the real term + what it is for. */
 export function subQuestion(title, category, extra) {
   const info = category ? CATEGORY_PLAIN[category] : null;
+  // Title only; the real term + "what is it for" sit behind the ⓘ glossary popover and the tooltip.
   return h('div', { class: 'subq' }, [
-    h('h2', {}, [info ? h('span', { 'aria-hidden': 'true' }, `${info.icon} `) : null, title]),
-    info && h('span', { class: 'subq-real' }, ['Real term: ', term(info.glossary, info.realTerm)]),
-    info && h('span', { class: 'subq-real' }, ` · What is it for? ${info.whatFor}`),
+    h('h2', { title: info ? `${info.realTerm}: ${info.whatFor}` : null }, [info ? h('span', { 'aria-hidden': 'true' }, `${info.icon} `) : null, title,
+      info ? [' ', term(info.glossary, 'ⓘ')] : null]),
     extra,
   ]);
 }
@@ -47,7 +47,7 @@ export function componentCards(state, dispatch, category, meterDefs, before) {
   const options = optionsFor(state, category);
   const meterLevels = meterDefs.map((m) => levels(options.map((c) => m.value(c) ?? 0), { log: m.log !== false }));
   const info = CATEGORY_PLAIN[category];
-  const cards = options.map((c, i) => {
+  const card = (c, i) => {
     const selected = state.design.components[category] === c.id;
     const own = c.missions.includes(sid);
     return choiceCard({
@@ -66,7 +66,13 @@ export function componentCards(state, dispatch, category, meterDefs, before) {
       why: whyComponent(c, sid),
       onSelect: () => dispatch(selectComponent(category, c.id)),
     });
-  });
+  };
+  // Progressive disclosure: this mission's parts + the chosen one up front, other valid parts folded.
+  const pairs = options.map((c, i) => [c, i]);
+  const anyOwn = options.some((o) => o.missions.includes(sid));
+  const front = pairs.filter(([c]) => c.missions.includes(sid) || state.design.components[category] === c.id || !anyOwn);
+  const more = pairs.filter((x) => !front.includes(x));
+  const cards = front.map(([c, i]) => card(c, i));
   if (info.noneText) {
     const selected = state.design.components[category] === NONE;
     const needed = scenario?.requiredBus.includes(category);
@@ -74,15 +80,20 @@ export function componentCards(state, dispatch, category, meterDefs, before) {
       key: `comp-none-${category}`,
       icon: '🚫',
       title: info.noneText,
-      oneLiner: needed ? `Saves mass and money… ${info.noneWhy}` : info.noneWhy,
+      oneLiner: selected ? `${needed ? '⚠️ ' : ''}${cap(info.noneWhy)}` : null,
       badges: needed ? [] : ['Fine for this mission'],
       selected,
       warn: selected && needed,
       delta: selected ? null : `If chosen: ${previewDelta(state, selectComponent(category, NONE), before)}`,
-      why: `${info.realTerm}: ${info.whatFor} ${info.noneWhy}`,
+      why: `${info.realTerm}: ${info.whatFor} Without it: ${info.noneWhy}`,
       whyTitle: info.noneText,
       onSelect: () => dispatch(selectComponent(category, NONE)),
     }));
   }
-  return h('div', { class: 'choices' }, cards);
+  return h('div', {}, [
+    h('div', { class: 'choices' }, cards),
+    more.length > 0 && h('details', { class: 'fold' }, [h('summary', { title: 'More valid options from other research builds' }, `＋${more.length} more`), h('div', { class: 'choices' }, more.map(([c, i]) => card(c, i)))]),
+  ]);
 }
+
+export const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);

@@ -20,7 +20,7 @@ export const LAUNCHERS = [
     capacityKg: { leo_550: null, sso_550_650: null },
     headline: 'SpaceX advertises rideshare "from $350,000 per 50 kg to SSO, +$7,000 per extra kg".',
     adapters: ['dep_cubesat'],
-    oneLiner: 'A seat on a shared Falcon 9 — cheap, if the flight goes to your orbit.',
+    oneLiner: 'A cheap seat on a shared rocket.', about: 'A seat on a shared Falcon 9 — cheap, if the flight goes to your orbit.',
     description: 'Your CubeSat rides in a dispenser next to other satellites. The $350k is a public starting price, not a personal offer: broker contracts, the dispenser, integration and the exact orbit can change the full price.',
   },
   {
@@ -30,7 +30,7 @@ export const LAUNCHERS = [
     capacityKg: { leo_550: 300, sso_550_650: null },
     headline: 'Up to ~300 kg to LEO (headline value). The operator confirms the exact performance for your orbit.',
     adapters: ['dep_cubesat'],
-    oneLiner: 'Your own small rocket: you choose the exact low orbit. Price on request.',
+    oneLiner: 'Your own small rocket.', about: 'Your own small rocket: you choose the exact low orbit. Price on request.',
     description: 'A dedicated small launcher with an optional Kick Stage for a precise low orbit. Its real price is not public — do not assume the "$8M" you may read online.',
   },
   {
@@ -40,7 +40,7 @@ export const LAUNCHERS = [
     capacityKg: { meo_gnss: null, leo_550: 22800, sso_550_650: null },
     headline: 'Falcon 9: up to 22,800 kg to LEO and 8,300 kg to GTO (headline values for specific configurations).',
     adapters: ['dep_large_adapter', 'dep_cubesat'], overkillFor: [M_COMMS, M_WX],
-    oneLiner: 'The whole rocket for you, with a contracted ride to MEO.',
+    oneLiner: 'Whole rocket, ride to MEO.', about: 'The whole rocket for you, with a contracted ride to MEO.',
     description: 'Only valid with a confirmed injection profile to the target MEO orbit. The game uses a $90M launch/injection package (estimate): $74M is the public price of a standard GTO launch, the rest is a margin for the different orbit and services. Not a SpaceX offer.',
   },
   {
@@ -50,7 +50,7 @@ export const LAUNCHERS = [
     capacityKg: {}, deliversTo: 'GTO (geostationary transfer orbit)', gtoCapacityKg: 8300,
     headline: '$74M for a standard Falcon 9 launch to GTO (2026), up to 8,300 kg to GTO.',
     adapters: ['dep_large_adapter'],
-    oneLiner: 'Cheaper — but it drops you in GTO, not in your MEO orbit.',
+    oneLiner: 'Cheaper — but stops at GTO.', about: 'Cheaper — but it drops you in GTO, not in your MEO orbit.',
     description: 'GTO is not MEO. Without a transfer stage or apogee engine — and a calculated burn and propellant mass — the satellite would stay in the wrong orbit.',
   },
   {
@@ -60,7 +60,7 @@ export const LAUNCHERS = [
     capacityKg: { leo_550: 63800, meo_gnss: null },
     headline: '~63.8 t to LEO in the stated configuration.',
     adapters: ['dep_large_adapter'], overkillFor: [M_COMMS, M_WX, M_NAV],
-    oneLiner: 'Huge. It can do it — but a bigger rocket is not a better mission.',
+    oneLiner: 'Huge. Bigger is not better.', about: 'Huge. It can do it — but a bigger rocket is not a better mission.',
     description: 'Physically able to fly demanding profiles, but overkill for one ~700 kg satellite unless you have extra payload or a special trajectory. Its price for such a profile is not public.',
   },
 ];
@@ -82,13 +82,13 @@ export const DEPLOYERS = [
   {
     id: 'dep_cubesat', icon: '📦', plainName: 'CubeSat dispenser', name: 'CubeSat dispenser + mechanical interface + integration', formFactor: 'cubesat',
     cost: 0.25, dataKind: 'model', sources: ['S01'], ref: '§3.5 · §5.5',
-    oneLiner: 'A spring-loaded box that pushes your CubeSat out. Its mass limit follows your CubeSat size.',
+    oneLiner: 'Box that pushes a CubeSat out.', about: 'A spring-loaded box that pushes your CubeSat out. Its mass limit follows your CubeSat size.',
     description: 'Holds the CubeSat during launch and releases it in orbit. Typical mass limits: 3U 6 kg, 6U 12 kg, 12U 24 kg — the final limit is agreed with the dispenser supplier.',
   },
   {
     id: 'dep_large_adapter', icon: '🔩', plainName: 'Large-satellite adapter', name: 'Payload adapter + separation system for a large satellite', formFactor: 'large',
     cost: 0, costNote: 'included in the launch service', dataKind: 'model', sources: ['S12'], ref: '§6.2',
-    oneLiner: 'Bolts a big satellite to the rocket and separates it in orbit.',
+    oneLiner: 'Holds a big satellite, then releases.', about: 'Bolts a big satellite to the rocket and separates it in orbit.',
     description: 'Mechanical and electrical interface between the rocket and a large satellite. Its cost is part of the launch/integration contract — not added twice.',
   },
 ];

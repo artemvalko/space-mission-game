@@ -8,7 +8,6 @@ import { evaluateRoleGoals, voteStatus } from '../../engine/roleGoals.js';
 import { rerender } from '../view.js';
 import { computeResources } from '../../engine/resources.js';
 import { validateDesign, canLaunch, gateStatus } from '../../engine/validation.js';
-import { goalChecklist } from '../../engine/goals.js';
 import { getScenario } from '../../data/scenarios.js';
 import { dataBadge } from '../card.js';
 import { money } from '../../utils/format.js';
@@ -18,19 +17,31 @@ import { getStep } from '../steps.js';
 
 const SEV = { error: { icon: '⛔', cls: 'bad' }, warning: { icon: '⚠️', cls: 'bad' }, caution: { icon: '◐', cls: 'tight' }, todo: { icon: '○', cls: 'todo' } };
 
-/** Hard-gate list (research §8.5): each failed gate → (a) broken requirement, (b) fixing card, (c) alternative. */
+/** One gate issue: short message + fix button; requirement / fix / alternative behind "Why?". */
+function gateIssue(i, dispatch) {
+  return h('div', { class: 'gate-detail' }, [
+    h('span', {}, i.message), ' ',
+    i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `${i.severity === 'todo' ? '' : 'Fix: '}${getStep(i.step).label} →`),
+    i.severity === 'error' && h('details', { class: 'gate-why' }, [h('summary', {}, 'Why?'),
+      h('div', { class: 'muted' }, ['(a) Requirement: ', i.why]),
+      i.fix && h('div', {}, ['(b) Fix: ', i.fix]),
+      h('div', { class: 'muted' }, ['(c) Another correct architecture? ', i.alternative ?? 'Not for this mission — fix the design.']),
+    ]),
+  ]);
+}
+
+/** Hard-gate list (research §8.5): only failed / open gates up front; all 11 behind "show all". */
 function gatesPanel(issues, dispatch) {
   const gates = gateStatus(issues);
-  return h('ul', { class: 'gate-list' }, gates.map((g) => h('li', { class: g.status }, [
+  const passed = gates.filter((g) => g.status === 'pass');
+  const row = (g) => h('li', { class: g.status }, [
     h('strong', {}, `${g.status === 'pass' ? '✓' : g.status === 'fail' ? '⛔' : '○'} ${g.label}`),
-    ...g.issues.map((i) => h('div', { class: 'gate-detail' }, [
-      h('div', {}, i.message),
-      i.severity === 'error' && i.why && h('div', { class: 'muted' }, ['(a) Requirement: ', i.why]),
-      i.severity === 'error' && i.fix && h('div', {}, ['(b) Fix: ', i.fix, ' ', i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `${getStep(i.step).label} →`)]),
-      i.severity === 'error' && h('div', { class: 'muted' }, ['(c) Another correct architecture? ', i.alternative ?? 'Not for this mission — fix the design.']),
-      i.severity === 'todo' && i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `Go: ${getStep(i.step).label} →`),
-    ])),
-  ])));
+    ...g.issues.map((i) => gateIssue(i, dispatch)),
+  ]);
+  return h('div', {}, [
+    h('ul', { class: 'gate-list' }, gates.filter((g) => g.status !== 'pass').map(row)),
+    h('details', { class: 'fold' }, [h('summary', {}, `✓ ${passed.length} of ${gates.length} checks passed (show all)`), h('ul', { class: 'gate-list' }, gates.map(row))]),
+  ]);
 }
 
 function report(issues, dispatch) {
@@ -43,16 +54,21 @@ function report(issues, dispatch) {
   ])));
 }
 
-/** Full cost breakdown: hardware is only one line (research §3.5, §4.6, §5.5). */
+/** Full cost breakdown: hardware is only one line (research §3.5, §4.6, §5.5). Starts collapsed: total vs budget bar. */
 export function costTable(res, scenario) {
   const b = res.budget;
-  return h('table', { class: 'cost-table' }, [
+  const ratio = Math.min(1, b.used / scenario.budgetM);
+  return h('details', { class: 'fold' }, [
+    h('summary', {}, [`💰 ${money(b.used)} of ${money(scenario.budgetM)}`, h('div', { class: ['budget-bar', b.used > scenario.budgetM && 'over'] }, h('div', { style: { width: `${ratio * 100}%` } }))]),
+    h('table', { class: 'cost-table' }, [
     h('thead', {}, h('tr', {}, [h('th', {}, 'Budget line'), h('th', {}, ''), h('th', { class: 'num' }, '$M')])),
     h('tbody', {}, [
       ...b.lines.map((l) => h('tr', {}, [h('td', {}, [l.label, l.note ? h('span', { class: 'muted small' }, ` — ${l.note}`) : '']), h('td', {}, dataBadge(l.dataKind)), h('td', { class: 'num' }, l.value == null ? 'RFQ' : money(l.value))])),
       h('tr', {}, [h('td', {}, 'Project reserve left'), h('td', {}, dataBadge('model')), h('td', { class: ['num', b.reserveLeft < 0 && 'error-text'] }, money(b.reserveLeft ?? 0))]),
       h('tr', { class: 'total' }, [h('td', {}, 'Model budget'), h('td', {}, dataBadge('model')), h('td', { class: 'num' }, money(scenario.budgetM))]),
     ]),
+  ]),
+    h('p', { class: 'muted small' }, 'Hardware is only one line. All lines are educational estimates from our research — not real quotes.'),
   ]);
 }
 
@@ -62,8 +78,8 @@ let exploded = false;          // view-only: exploded view of the satellite
 function roleGoals(state) {
   const goals = evaluateRoleGoals(state);
   const owner = (roleId) => state.players.filter((p) => p.roleId === roleId).map((p) => p.name).join(' & ');
-  return h('div', { class: 'panel' }, [
-    h('h2', {}, state.mode === 'team' ? '🎯 Personal goals (live)' : '🎩 Role goals (live) — you wear every hat'),
+  return h('details', { class: 'panel fold' }, [
+    h('summary', {}, `${state.mode === 'team' ? '🎯 Personal goals' : '🎩 Role goals'} ${goals.filter((g) => g.met).length}/${goals.length} ✓`),
     h('ul', { class: 'checklist' }, goals.map((g) => h('li', { class: g.met ? 'ok' : 'bad' }, [
       h('strong', {}, `${g.met ? '✓' : '✗'} ${g.icon} ${g.name}${state.mode === 'team' && owner(g.roleId) ? ` — ${owner(g.roleId)}` : ''}`),
       h('div', { class: 'small' }, g.text),
@@ -106,7 +122,6 @@ export function render(container, state, dispatch) {
   const vs = voteStatus(state);
   const go = canLaunch(issues);
   const ready = go && vs.majority;
-  const chips = goalChecklist(state, res);
   const scenario = getScenario(state.scenarioId);
   const todos = issues.filter((i) => i.severity === 'todo' && i.step !== 'launchPrep');
   const canSimulate = !go && todos.length === 0;
@@ -120,19 +135,15 @@ export function render(container, state, dispatch) {
           return svg;
         })(),
         h('button', { class: 'btn btn-small', type: 'button', key: 'explode', 'aria-pressed': exploded ? 'true' : 'false', onClick: () => { exploded = !exploded; rerender(); } }, exploded ? '🧩 Put it back together' : '💥 Exploded view'),
-        h('ul', { class: 'goal-list' }, chips.map((c) => h('li', { class: `goal-${c.status}` }, [
-          h('span', { 'aria-hidden': 'true' }, c.status === 'ok' ? '✓' : c.status === 'bad' ? '✗' : '○'), ` ${c.icon} ${c.hint}`,
-        ]))),
+
       ]),
       h('div', { class: 'panel' }, [
-        h('h2', {}, `🧑‍🚀 Flight Readiness Review: ${go ? 'GO ✓' : 'NO-GO ⛔'}`),
-        h('p', { class: 'muted small' }, 'Hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.'),
+        h('h2', { title: 'Flight Readiness Review: hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.' }, go ? '✅ GO' : '⛔ NO-GO'),
         gatesPanel(issues, dispatch),
         report(issues, dispatch),
       ]),
     ]),
-    scenario && h('div', { class: 'panel' }, [h('h2', {}, '💰 Full cost breakdown (model budget)'), costTable(res, scenario),
-      h('p', { class: 'muted small' }, 'Hardware is only one line. All lines are educational estimates from our research — not real quotes.')]),
+    scenario && h('div', { class: 'panel' }, costTable(res, scenario)),
     roleGoals(state),
     votes(state, dispatch),
     h('div', { class: 'launch-box' }, [
@@ -141,11 +152,10 @@ export function render(container, state, dispatch) {
         onClick: () => dispatch(runSimulation(newSeed())),
       }, go ? '🚀 LAUNCH' : '⛔ NO-GO'),
       !ready && h('p', { class: 'muted' }, todos.length
-        ? `Finish ${todos.length === 1 ? 'this step' : 'these steps'} first: ${[...new Set(todos.map((t) => getStep(t.step).label))].join(', ')}.`
-        : !go ? 'NO-GO: fix the ⛔ gates above. Real missions never launch like this.' : `The team needs a majority Go: ${vs.go} of ${vs.needed} so far.`),
-      canSimulate && h('button', { class: 'btn btn-ghost', type: 'button', key: 'simulate-anyway', onClick: () => dispatch(runSimulation(newSeed(), true)) }, '🧪 Simulate what would happen'),
-      canSimulate && h('p', { class: 'muted small' }, 'Plays out the first failed gate as an animation and records a failed mission — so you can see why real missions never fly a NO-GO.'),
-      ready && issues.some((i) => i.severity === 'warning') && h('p', { class: 'muted' }, 'You can launch with ⚠️ warnings — but an objective will be missed.'),
+        ? `First: ${[...new Set(todos.map((t) => getStep(t.step).label))].join(', ')}.`
+        : !go ? 'Fix the ⛔ gates first.' : `Need a majority Go: ${vs.go} of ${vs.needed}.`),
+      canSimulate && h('button', { class: 'btn btn-ghost', type: 'button', key: 'simulate-anyway', title: 'Plays out the first failed gate as an animation and records a failed mission — real missions never fly a NO-GO.', onClick: () => dispatch(runSimulation(newSeed(), true)) }, '🧪 What would happen?'),
+      ready && issues.some((i) => i.severity === 'warning') && h('p', { class: 'muted' }, '⚠️ Launchable, but an objective will fail.'),
     ]),
   );
 }

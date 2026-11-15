@@ -81,8 +81,8 @@
 .choice-details dl div { display: flex; justify-content: space-between; gap: 12px; }
 .choice-details dt { color: var(--muted); }
 .choice-details dd { margin: 0; text-align: right; }
-.delta { font-size: .8rem; color: var(--accent-2); opacity: 0; transition: opacity .15s; min-height: 1.2em; }
-.choice:hover .delta, .choice:focus-within .delta, .choice:focus .delta { opacity: 1; }
+.delta { font-size: .8rem; color: var(--accent-2); visibility: hidden; min-height: 1.2em; }
+.choice:hover .delta, .choice:focus-within .delta, .choice:focus .delta { visibility: visible; }
 
 .meters { display: flex; flex-direction: column; gap: 3px; }
 .meter { display: flex; justify-content: space-between; align-items: center; font-size: .9rem; }
@@ -423,3 +423,18 @@ details.group > summary { cursor: pointer; }
 .compare-real { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .compare-real td, .compare-real th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
 .modal.sources-panel { max-width: 860px; align-items: stretch; }
+
+/* ── Less text: icon badges, compact chips/steps, collapsible sections ── */
+.data-badge.icon-only { padding: 0 6px; }
+.badge { cursor: help; }
+.choice-real { margin: 4px 0; }
+.step .step-short { font-size: 1rem; }
+.why-btn { min-width: 1.8em; }
+details.fold { margin-top: 10px; }
+details.fold > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.lesson-line { font-weight: 700; }
+.budget-bar { height: 10px; border-radius: 999px; background: var(--panel-2); overflow: hidden; margin: 6px 0; }
+.budget-bar > div { height: 100%; background: var(--ok); }
+.budget-bar.over > div { background: var(--danger); }
+.mini-icons { display: flex; gap: 8px; flex-wrap: wrap; font-size: 1.3rem; }
+.mini-icons .locked { opacity: .35; filter: grayscale(1); }

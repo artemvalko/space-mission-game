@@ -14,6 +14,7 @@ import { whyInstrument } from '../../engine/explain.js';
 import { addInstrument, removeInstrument } from '../../state/actions.js';
 import { kg, money } from '../../utils/format.js';
 import { instrumentView, drawView, viewKind, VIEW_CAPTION } from '../animations/instrumentView.js';
+import { cap } from './common.js';
 
 // View-only: which payload the "What it does" panel shows, and which one already played its reveal.
 let previewId = null;
@@ -22,7 +23,7 @@ let playedId = null;
 function previewPanel() {
   const box = h('div', { class: 'iv-box' });
   const panel = h('div', { class: 'panel iv-panel' }, [
-    h('div', { class: 'iv-head' }, [h('strong', {}, '👁️ What your payload does'), h('span', { class: 'muted small' }, 'Illustration — point at a card to look.')]),
+    h('div', { class: 'iv-head', title: 'Illustration — point at a card to look.' }, [h('strong', {}, '👁️')]),
     box,
   ]);
   showPreview(box, previewId);
@@ -32,7 +33,7 @@ function previewPanel() {
 function showPreview(box, id) {
   if (!id) return;
   const head = box.parentElement?.querySelector('.iv-head strong');
-  if (head) head.textContent = `👁️ What the ${getInstrument(id).plainName.toLowerCase()} does`;
+  if (head) head.textContent = `👁️ ${getInstrument(id).plainName}`;
   if (id === playedId) {
     const canvas = drawView(document.createElement('canvas'), id);
     canvas.className = 'iv-canvas';
@@ -64,8 +65,8 @@ export function render(container, state, dispatch) {
       icon: ins.icon,
       title: ins.plainName,
       realTerm: ins.name,
-      oneLiner: ins.oneLiner,
-      whatFor: whyNot ? null : ins.why,
+      oneLiner: whyNot ? `✗ ${cap(whyNot)}` : ins.oneLiner,
+      whatFor: ins.why,
       badges: [...(!whyNot ? ['Needed for your goal ★'] : []), ...(ins.category !== 'service_payload' ? [PAYLOAD_PLAIN[ins.category].plainName] : [])],
       details: [['Mass', ins.mass == null ? 'not in our data' : kg(ins.mass)], ['Cost', ins.cost == null ? 'not in our data' : money(ins.cost)],
         ...(ins.volumeU ? [['Volume', `about ${ins.volumeU}U`]] : [])],
@@ -73,10 +74,10 @@ export function render(container, state, dispatch) {
       selected,
       disabled: !fits && !selected,
       warn: !!whyNot && selected,
-      disabledReason: `✗ Built for a ${ins.formFactor === 'large' ? '~700 kg satellite' : 'CubeSat'} — it does not fit your frame. ${whyNot}`,
+      disabledReason: `✗ Wrong size for your frame.`,
       delta: `${selected ? 'If removed' : 'If added'}: ${previewDelta(state, action, before)}`,
       whyTitle: whyNot ? `Why not the ${ins.plainName.toLowerCase()}?` : ins.plainName,
-      why: whyNot ? `${whyNot} Fix: use the payload this mission needs.` : whyInstrument(ins, scenario),
+      why: whyNot ? `${cap(whyNot)} ${ins.formFactor !== 'any' && !fits ? `It is built for a ${ins.formFactor === 'large' ? '~700 kg satellite' : 'CubeSat'}. ` : ''}Fix: use the payload this mission needs. ${whyInstrument(ins, null)}` : whyInstrument(ins, scenario),
       onSelect: () => dispatch(action),
     });
     const hover = () => {
@@ -97,16 +98,13 @@ export function render(container, state, dispatch) {
 
   mount(container,
     previewId && previewPanel(),
-    h('p', { class: 'step-hint' }, [
-      'The payload is what the satellite exists for. Controlling the satellite (TT&C) is a different radio — you choose it on "Talking to Earth". ',
-      term('payload', 'What is a payload?'),
-    ]),
+    h('p', { class: 'step-hint', title: 'Controlling the satellite (TT&C) is a different radio — you choose it on the Radio step.' }, ['🎯 ', term('payload', 'Payload'), ' = the job. Control radio comes later.']),
     ...groups.map(([cat, list]) => h('div', { class: 'group' }, [
-      h('h2', { class: 'group-title' }, `${PAYLOAD_PLAIN[cat].icon} ${PAYLOAD_PLAIN[cat].plainName} — ${PAYLOAD_PLAIN[cat].whatFor}`),
+      h('h2', { class: 'group-title', title: PAYLOAD_PLAIN[cat].whatFor }, `${PAYLOAD_PLAIN[cat].icon} ${PAYLOAD_PLAIN[cat].plainName}`),
       h('div', { class: 'choices' }, list.map(card)),
     ])),
     others.length > 0 && h('details', { class: 'group', open: others.some((i) => chosen.has(i.id)) }, [
-      h('summary', { class: 'group-title' }, `Not useful for this mission (${others.length}) — see why`),
+      h('summary', { class: 'group-title' }, `✗ Not useful here (${others.length})`),
       h('div', { class: 'choices' }, others.map(card)),
     ]),
   );

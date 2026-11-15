@@ -10,11 +10,29 @@ import { formatDelta } from '../engine/explain.js';
 import { sound } from './sound.js';
 import { getSource, DATA_KIND } from '../data/sources.js';
 
-/** Data-honesty badge: ✔ Real fact · 🏷 Catalog price · ≈ Estimate (or ✉️ RFQ). */
-export function dataBadge(kind) {
-  if (kind === 'rfq') return h('span', { class: 'data-badge data-rfq', title: 'No public price — a real mission asks the operator for a quote.' }, '✉️ Price on request (RFQ)');
-  const k = DATA_KIND[kind];
-  return k ? h('span', { class: `data-badge data-${k.cls}`, title: k.text }, `${k.icon} ${k.label}`) : null;
+/**
+ * Data-honesty badge: ✔ Real fact · 🏷 Catalog price · ≈ Estimate (or ✉️ RFQ).
+ * Icon-only by default (label in the tooltip); `full: true` also prints the label (Details, panels).
+ */
+export function dataBadge(kind, { full = false } = {}) {
+  const k = kind === 'rfq'
+    ? { icon: '✉️', label: 'Price on request (RFQ)', cls: 'rfq', text: 'No public price — a real mission asks the operator for a quote.' }
+    : DATA_KIND[kind];
+  if (!k) return null;
+  return h('span', { class: `data-badge data-${k.cls}${full ? '' : ' icon-only'}`, title: `${k.label}: ${k.text}`, 'aria-label': k.label }, full ? `${k.icon} ${k.label}` : k.icon);
+}
+
+// Card badges are icons on the card face; the words live in the tooltip.
+const BADGE_ICON = {
+  'Research build ★': '★', 'Needed for your goal ★': '★', 'Recommended ★': '★', Recommended: '☆', 'Fine for this mission': '✓',
+  'Also works': '✓', 'Other mission': '✗', 'Wrong for this mission': '✗', "Can't reach": '✗', 'Too small': '✗', 'Info only': 'ℹ️',
+  Timing: '⏱️', Calibration: '🎚️', Overkill: '⚠️',
+};
+function badgeFace(b) {
+  if (BADGE_ICON[b]) return { face: BADGE_ICON[b], title: b };
+  const m = /^(\S+)\s+(.+)$/u.exec(b);
+  if (m && !/[A-Za-z0-9]/.test(m[1])) return { face: m[1], title: m[2] }; // "🏷 Published price" → 🏷
+  return { face: b, title: b };
 }
 
 /** "Source: S04 · S05 · research §4.3" with links that open in a new tab. */
@@ -30,8 +48,8 @@ export function provenance(item) {
   if (!item) return null;
   const re = item.realExample;
   return h('div', { class: 'provenance' }, [
-    h('div', { class: 'prov-row' }, [dataBadge(item.dataKind), ' ', sourceLinks(item.sources, item.ref)]),
-    re && h('div', { class: 'real-example' }, [dataBadge(re.dataKind), h('strong', {}, ' Real product example: '), re.text, ' ', sourceLinks(re.sources)]),
+    h('div', { class: 'prov-row' }, [dataBadge(item.dataKind, { full: true }), ' ', sourceLinks(item.sources, item.ref)]),
+    re && h('div', { class: 'real-example' }, [dataBadge(re.dataKind, { full: true }), h('strong', {}, ' Real product example: '), re.text, ' ', sourceLinks(re.sources)]),
   ]);
 }
 
@@ -54,9 +72,9 @@ export function levels(values, { log = true } = {}) {
 
 /** One meter: label + 3 symbols (filled up to level). */
 export function meter({ label, symbol = '●', level, text }) {
-  return h('div', { class: 'meter', title: text ?? `${label}: ${level}/3` }, [
-    h('span', { class: 'meter-label' }, label),
-    h('span', { class: 'meter-dots', 'aria-label': `${level} of 3` },
+  // Icon meter: the label lives in the tooltip / aria-label, the face is only symbols.
+  return h('div', { class: 'meter', title: text ?? `${label}: ${level}/3`, 'aria-label': `${label}: ${level} of 3` }, [
+    h('span', { class: 'meter-dots', 'aria-hidden': 'true' },
       [1, 2, 3].map((n) => h('span', { class: n <= level ? 'on' : 'off' }, symbol))),
   ]);
 }
@@ -100,19 +118,22 @@ export function choiceCard(o) {
     h('div', { class: 'choice-head' }, [
       h('span', { class: 'choice-icon', 'aria-hidden': 'true' }, o.icon),
       h('div', { class: 'choice-titles' }, [
-        h('div', { class: 'choice-title' }, o.title),
-        o.realTerm && h('div', { class: 'choice-real' }, o.glossary ? term(o.glossary, o.realTerm) : o.realTerm),
+        h('div', { class: 'choice-title', title: o.realTerm ?? null }, o.title),
       ]),
       o.selected && h('span', { class: 'choice-check', 'aria-hidden': 'true' }, '✓'),
     ]),
-    (o.badges?.length ?? 0) > 0 && h('div', { class: 'badges' }, o.badges.map((b) => h('span', { class: `badge badge-${b.replace(/[^a-z-]/gi, '').toLowerCase()}` }, b))),
-    h('p', { class: 'choice-one' }, o.disabled && o.disabledReason ? o.disabledReason : o.oneLiner),
-    o.whatFor && h('p', { class: 'choice-whatfor' }, [h('strong', {}, 'What is it for? '), o.whatFor]),
+    (o.badges?.length ?? 0) > 0 && h('div', { class: 'badges' }, o.badges.map((b) => {
+      const { face, title } = badgeFace(b);
+      return h('span', { class: `badge badge-${b.replace(/[^a-z-]/gi, '').toLowerCase()}`, title, 'aria-label': title }, face);
+    })),
+    (o.disabled && o.disabledReason ? o.disabledReason : o.oneLiner) && h('p', { class: 'choice-one' }, o.disabled && o.disabledReason ? o.disabledReason : o.oneLiner),
     meters.length > 0 && h('div', { class: 'meters' }, meters.map(meter)),
     o.extra,
     h('div', { class: 'choice-foot' }, [
-      o.details?.length || o.data ? h('details', { class: 'choice-details' }, [
+      o.details?.length || o.data || o.realTerm || o.whatFor ? h('details', { class: 'choice-details' }, [
         h('summary', {}, ['Details ', o.data && dataBadge(o.data.dataKind)]),
+        o.realTerm && h('p', { class: 'choice-real' }, ['Real term: ', o.glossary ? term(o.glossary, o.realTerm) : o.realTerm]),
+        o.whatFor && h('p', { class: 'choice-whatfor' }, [h('strong', {}, 'What is it for? '), o.whatFor]),
         o.details?.length && h('dl', {}, o.details.map(([k, v]) => h('div', {}, [h('dt', {}, k), h('dd', {}, v)]))),
         o.data && provenance(o.data),
       ]) : h('span'),

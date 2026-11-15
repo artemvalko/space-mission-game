@@ -16,31 +16,31 @@ export const INSTRUMENTS = [
   {
     id: 'payload_iot_sdr', category: 'service_payload', role: 'iot_transceiver', icon: '📡', plainName: 'IoT message radio', name: 'Two-way narrowband IoT transceiver (SDR / LoRa-like)', formFactor: 'cubesat',
     mass: 1.50, cost: 0.35, missions: [M_COMMS], status: 'must', dataKind: 'model', sources: ['S31'], ref: '§3.2',
-    oneLiner: 'Hears short messages from sensors on Earth and sends them on.', why: 'Does the mission: receives and forwards users\' messages.',
+    oneLiner: 'Hears sensor messages, passes them on.', about: 'Hears short messages from sensors on Earth and sends them on.', why: 'Does the mission: receives and forwards users\' messages.',
     realExample: { text: 'Sateliot\'s IoT/5G satellites built by Alén Space are 6U, 10 kg each, for SSO 500–600 km with a 5-year design life (S31). Their transponder price is not public.', dataKind: 'fact', sources: ['S31'] },
   },
   {
     id: 'ant_iot_deploy', category: 'service_payload', role: 'iot_antenna', icon: '📶', plainName: 'Fold-out IoT antennas', name: 'Deployable IoT service antennas', formFactor: 'cubesat',
     mass: 0.35, cost: 0.08, missions: [M_COMMS], status: 'must', dataKind: 'model', sources: [], ref: '§3.2',
-    oneLiner: 'Lets the satellite hear small terminals on the ground.', why: 'The link to the terminals on the surface.',
+    oneLiner: 'Hears small ground terminals.', about: 'Lets the satellite hear small terminals on the ground.', why: 'The link to the terminals on the surface.',
   },
 
   // ── Navigation / GNSS node (§4.2, §4.3)
   {
     id: 'clock_phm_rubidium_4', category: 'timing', role: 'atomic_clocks', icon: '⏱️', plainName: '4 atomic clocks', name: '2 passive hydrogen masers + 2 rubidium clocks + clock monitoring', formFactor: 'large',
     mass: 50, cost: 22, missions: [M_NAV], status: 'must', dataKind: 'model', sources: ['S04', 'S05'], ref: '§4.2 · §4.3',
-    oneLiner: 'The precise time every navigation signal is built on.', why: 'Reference time — with spares.',
+    oneLiner: 'Precise time for navigation.', about: 'The precise time every navigation signal is built on.', why: 'Reference time — with spares.',
     realExample: { text: 'Galileo FOC carries 2 passive hydrogen masers and 2 rubidium clocks (S05). Clock prices are not public.', dataKind: 'fact', sources: ['S05'] },
   },
   {
     id: 'nav_signal_rf', category: 'service_payload', role: 'nav_signal', icon: '〰️', plainName: 'Navigation signal generator', name: 'PRN code generator, frequency chain, navigation transmitters', formFactor: 'large',
     mass: 100, cost: 15, missions: [M_NAV], status: 'must', dataKind: 'model', sources: ['S05'], ref: '§4.3',
-    oneLiner: 'Builds the ranging code and the navigation message.', why: 'Forms the GNSS service itself.',
+    oneLiner: 'Builds the navigation signal.', about: 'Builds the ranging code and the navigation message.', why: 'Forms the GNSS service itself.',
   },
   {
     id: 'antenna_lband_nav', category: 'service_payload', role: 'nav_antenna', icon: '📡', plainName: 'L-band navigation antenna', name: 'L-band Earth-pointing antenna', formFactor: 'large',
     mass: 28, cost: 4, missions: [M_NAV], status: 'must', dataKind: 'model', sources: ['S04', 'S05'], ref: '§4.3',
-    oneLiner: 'Broadcasts the navigation signal to receivers on Earth.', why: 'Transmits the navigation signals to Earth.',
+    oneLiner: 'Beams the signal to Earth.', about: 'Broadcasts the navigation signal to receivers on Earth.', why: 'Transmits the navigation signals to Earth.',
     realExample: { text: 'Galileo broadcasts in L-band, about 1200–1600 MHz (S04, S05).', dataKind: 'fact', sources: ['S04', 'S05'] },
   },
 
@@ -54,7 +54,7 @@ export const INSTRUMENTS = [
   {
     id: 'radiometer_calibration', category: 'calibration', role: 'calibration', icon: '🎚️', plainName: 'Calibration module', name: 'Radiometer calibration / reference module', formFactor: 'cubesat',
     mass: 0.25, cost: 0.30, missions: [M_WX], status: 'must', dataKind: 'model', sources: [], ref: '§5.3',
-    oneLiner: 'Checks the radiometer against a known reference so temperatures are trustworthy.', why: 'Accurate, stable temperatures.',
+    oneLiner: 'Makes temperatures trustworthy.', about: 'Checks the radiometer against a known reference so temperatures are trustworthy.', why: 'Accurate, stable temperatures.',
   },
 
   // ── Distractor (§7.3, §5.2): real kind of instrument, but not part of any build → no numbers.

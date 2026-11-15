@@ -9,7 +9,7 @@ export const CATEGORY_WHY = Object.fromEntries(Object.entries(CATEGORY_PLAIN).ma
 const statusText = (p, scenarioId) => (p.missions?.includes(scenarioId) ? (p.status === 'recommended' ? ' In the research build as recommended.' : ' In the research build for this mission.') : '');
 
 export function whyComponent(c, scenarioId = null) {
-  const parts = [`What is it for? ${c.why}`, c.oneLiner];
+  const parts = [`What is it for? ${c.why}`, c.about ?? c.oneLiner];
   if (c.arrayW) parts.push(`Up to ${watts(c.arrayW)}${c.arrayWMax ? `–${watts(c.arrayWMax)}` : ''} in full sunlight.`);
   if (c.capacityWh) parts.push(`${wh(c.capacityWh)} stored; 60% is used each cycle to keep it healthy.`);
   if (c.maxMassKg) parts.push(`Typical CubeSat limit: ${kg(c.maxMassKg)} (S01).`);
@@ -20,7 +20,7 @@ export function whyComponent(c, scenarioId = null) {
 
 export function whyInstrument(ins, scenario) {
   const own = scenario && ins.missions.includes(scenario.id);
-  return `What is it for? ${ins.why} ${ins.oneLiner}${own ? ' Required by this mission.' : ''}`;
+  return `What is it for? ${ins.why} ${ins.about ?? ins.oneLiner}${own ? ' Required by this mission.' : ''}`;
 }
 
 export function whyOrbit(o, scenario) {

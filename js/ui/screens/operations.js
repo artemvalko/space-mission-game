@@ -36,7 +36,7 @@ function react(mood) {
   ctl.reactions.replaceChildren(...people.map((p, i) => {
     // Small variety: alternate cheer/party so a team doesn't look identical.
     const m = mood === 'cheer' && i % 2 ? 'party' : mood;
-    return h('div', { class: 'react', title: `${p.name}: ${m}` }, [h('span', { class: 'react-face', 'aria-hidden': 'true' }, MOODS[m] ?? MOODS.idle), h('span', { class: 'react-name' }, p.name)]);
+    return h('div', { class: 'react', title: `${p.name}: ${m}` }, [h('span', { class: 'react-face', 'aria-hidden': 'true' }, MOODS[m] ?? MOODS.idle), state.mode === 'team' && h('span', { class: 'react-name' }, p.name)]);
   }));
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, reducedMotion() ? 0 : ms));
@@ -110,12 +110,11 @@ async function run(token) {
       const voters = votingRoles(state);
       const roles = (voters.length ? ROLES.filter((r) => voters.includes(r.id)) : ROLES).map((r) => ({
         icon: r.icon, name: r.name,
-        who: state.players.filter((p) => p.roleId === r.id).map((p) => p.name).join(' & ') || (state.mode === 'solo' ? state.players[0]?.name : ''),
+        who: state.mode === 'team' ? state.players.filter((p) => p.roleId === r.id).map((p) => p.name).join(' & ') : '',
         vote: noGo ? 'nogo' : voters.length ? state.votes[r.id] ?? 'go' : 'go',
         reason: noGo ? 'Hard gate failed' : voters.length ? getNoGoReason(state.voteReasons[r.id])?.text : null,
       }));
-      const caption = noGo ? '⛔ NO-GO. A real mission stops here. 🧪 Simulating what would happen anyway…'
-        : roles.every((r) => r.vote === 'go') ? 'All stations GO for launch.' : 'Not everyone agreed — the majority said GO.';
+      const caption = noGo ? '⛔ NO-GO. 🧪 Simulating anyway…' : roles.every((r) => r.vote === 'go') ? 'All GO!' : 'GO by majority.';
       await goConsole(ctl.stage, { roles, caption });
       if (!alive()) return;
       if (sim().outcome === 'scrubbed') {
@@ -125,7 +124,7 @@ async function run(token) {
         return;
       }
       if (!noGo) {
-        await montage(ctl.stage, { state, devMonths: computeResources(state).time.range?.[0] ?? null, caption: 'Real satellites are tested to survive launch and space: vibration, thermal-vacuum and EMC tests.' });
+        await montage(ctl.stage, { state, devMonths: computeResources(state).time.range?.[0] ?? null, caption: 'Tested: shake, heat, radio.' });
         if (!alive()) return;
       }
     }
@@ -194,7 +193,7 @@ export function render(container, state, dispatch) {
     mount(container, h('p', { class: 'muted' }, 'No mission running — launch from the Final check.'));
     return;
   }
-  mount(container, h('p', { class: 'step-hint' }, 'Watch your mission fly. When something happens, the clock stops and the team decides.'), ctl.root);
+  mount(container, ctl.root);
   const key = `${sim.seed}:${sim.noGo ? 'nogo' : 'go'}`;
   if (key !== ctl.key || !ctl.running) {
     if (key !== ctl.key) clearGallery();

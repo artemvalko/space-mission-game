@@ -73,9 +73,9 @@ function render(state = store.getState()) {
   if (!NO_SIDEBAR.has(state.screen)) renderSidebar(els.sidebar, state, dispatch);
   els.actions.replaceChildren();
   mount(els.actions,
-    state.mode === 'team' && h('span', { class: 'muted small' }, `👥 ${state.players.map((p) => p.name).join(', ')}`),
-    h('span', { class: 'pill' }, state.difficulty === 'easy' ? '🙂 Easy' : '🧠 Normal'),
-    h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'sources', onClick: () => { sourcesOpen = true; render(); } }, '📚 Sources & data honesty'),
+    state.mode === 'team' && h('span', { class: 'pill', title: state.players.map((p) => p.name).join(', ') }, `👥 ${state.players.length}`),
+    h('span', { class: 'pill', title: state.difficulty === 'easy' ? 'Easy' : 'Normal' }, state.difficulty === 'easy' ? '🙂' : '🧠'),
+    h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'sources', title: 'Sources & data honesty', onClick: () => { sourcesOpen = true; render(); } }, '📚 Sources'),
     h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'mute', 'aria-pressed': isMuted() ? 'true' : 'false', 'aria-label': isMuted() ? 'Sound off — turn on' : 'Sound on — mute', onClick: () => { setMuted(!isMuted()); render(); } }, isMuted() ? '🔇' : '🔊'),
   );
 

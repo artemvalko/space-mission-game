@@ -138,26 +138,26 @@ function insights(sim, res, sel, st, objectives) {
   const good = [];
   const bad = [];
   const { scenario } = sel;
-  if (sim.noGo) bad.push({ w: 2, text: 'The design was NO-GO: a real mission never launches like this — it was only simulated to show what would happen.' });
-  if (st.budgetLeft < 0) bad.push({ w: 1, text: `Over the model budget by ${money(-st.budgetLeft * scenario.budgetM)} (spent ${money(st.spent)} of ${money(scenario.budgetM)}).` });
-  else if (!res.budget.launchUnknown) good.push({ w: 0.4, text: `Spent ${money(st.spent)} of ${money(scenario.budgetM)} — ${money(scenario.budgetM - st.spent)} of reserve left.` });
+  if (sim.noGo) bad.push({ w: 2, text: 'NO-GO design: only simulated.' });
+  if (st.budgetLeft < 0) bad.push({ w: 1, text: `${money(-st.budgetLeft * scenario.budgetM)} over budget.` });
+  else if (!res.budget.launchUnknown) good.push({ w: 0.4, text: `${money(scenario.budgetM - st.spent)} reserve left.` });
   if (res.power.margin != null) {
-    if (st.powerMargin < 0) bad.push({ w: 0.9, text: `Power deficit: the mission needs ${watts(res.power.used)} but the array gives ${watts(res.power.available)} on average.` });
-    else if (st.powerMargin < 0.1) bad.push({ w: 0.3, text: `Only ${pct(st.powerMargin)} power to spare.` });
-    else good.push({ w: 0.3, text: `Power margin ${pct(st.powerMargin)} (${watts(res.power.used)} needed, ${res.power.available.toFixed(2)} W available).` });
+    if (st.powerMargin < 0) bad.push({ w: 0.9, text: `Power short: ${watts(res.power.used)} needed, ${watts(res.power.available)} made.` });
+    else if (st.powerMargin < 0.1) bad.push({ w: 0.3, text: `Only ${pct(st.powerMargin)} spare power.` });
+    else good.push({ w: 0.3, text: `Power margin ${pct(st.powerMargin)}.` });
   }
   if (res.mass.available != null) {
-    if (res.mass.used > res.mass.available) bad.push({ w: 1, text: `${kg(res.mass.used - res.mass.available)} over the mass limit (${kg(res.mass.used)} vs ${kg(res.mass.available)}).` });
-    else good.push({ w: 0.25, text: `Mass ${kg(res.mass.used)} of ${kg(res.mass.available)} allowed.` });
+    if (res.mass.used > res.mass.available) bad.push({ w: 1, text: `${kg(res.mass.used - res.mass.available)} over the mass limit.` });
+    else good.push({ w: 0.25, text: `Mass ${kg(res.mass.used)} of ${kg(res.mass.available)}.` });
   }
   if (sim.reachedOrbit) {
     const kp = objectives.filter((o) => o.kpi);
     const met = kp.filter((o) => o.met).length;
-    if (met === kp.length) good.push({ w: 0.8, text: `All ${kp.length} mission KPIs met (simulated service ${pct(st.serviceFraction)}).` });
-    else bad.push({ w: 0.9, text: `${kp.length - met} of ${kp.length} mission KPIs missed: ${kp.filter((o) => !o.met).map((o) => o.label.toLowerCase()).join(', ')}.` });
+    if (met === kp.length) good.push({ w: 0.8, text: `All ${kp.length} KPIs met.` });
+    else bad.push({ w: 0.9, text: `${kp.length - met} KPI${kp.length - met > 1 ? 's' : ''} missed: ${kp.find((o) => !o.met).label.toLowerCase()}${kp.length - met > 1 ? '…' : '.'}` });
     const s = sim.summary;
-    if (s.hardwareFailures > 0) bad.push({ w: 0.2 * s.hardwareFailures, text: `${s.hardwareFailures} simulated hardware fault${s.hardwareFailures > 1 ? 's' : ''} during the mission.` });
-    else if (s.eventsSurvived) good.push({ w: 0.3, text: `Handled ${s.eventsSurvived} simulated event${s.eventsSurvived > 1 ? 's' : ''} without a hardware fault.` });
+    if (s.hardwareFailures > 0) bad.push({ w: 0.2 * s.hardwareFailures, text: `${s.hardwareFailures} simulated fault${s.hardwareFailures > 1 ? 's' : ''}.` });
+    else if (s.eventsSurvived) good.push({ w: 0.3, text: `${s.eventsSurvived} simulated event${s.eventsSurvived > 1 ? 's' : ''} handled.` });
   }
   return {
     good: good.sort((a, b) => b.w - a.w).slice(0, 3).map((x) => x.text),
@@ -168,30 +168,30 @@ function insights(sim, res, sel, st, objectives) {
 /** 2–3 concrete suggestions from the biggest losses. */
 function tips(parts, objectives, res, st, sim) {
   const out = [];
-  if (sim.noGo) out.push('Fix every ⛔ hard gate on the Final check before launching — each one tells you which card fixes it.');
+  if (sim.noGo) out.push('Fix every ⛔ gate on the Final check first.');
   const byLoss = [...parts].filter((p) => !p.bonus).sort((a, b) => (b.max - b.points) - (a.max - a.points));
   for (const p of byLoss) {
     if (out.length >= 3 || p.points >= p.max * 0.9) continue;
     if (p.id === 'science') {
       const miss = objectives.find((o) => o.kpi && !o.met);
-      out.push(miss ? `Meet "${miss.label}": ${miss.why}` : 'Answer events so the service keeps running (backup modes cost performance).');
+      out.push(miss ? `Fix: ${miss.label.toLowerCase()}.` : 'Pick event answers that keep the service running.');
     } else if (p.id === 'objectives') {
       const miss = objectives.find((o) => !o.met && !o.kpi);
-      if (miss?.id === 'budget') out.push('Stay inside the model budget: check the launch line and the parts you added.');
-      else if (miss?.id === 'deadline') out.push('Keep the schedule: a launch delay can push you past the planning window.');
-      else if (miss?.id === 'lifetime') out.push('Last the whole service period: do not ignore faults — a weakened satellite can be lost.');
-      else if (miss) out.push(`Meet "${miss.label}": ${miss.why}`);
+      if (miss?.id === 'budget') out.push('Cut cost: check the launch line.');
+      else if (miss?.id === 'deadline') out.push('Avoid launch delays.');
+      else if (miss?.id === 'lifetime') out.push('Don\'t ignore faults.');
+      else if (miss) out.push(`Fix: ${miss.label.toLowerCase()}.`);
     } else if (p.id === 'efficiency') {
       if (st.powerMargin < 0.1) out.push('Keep 10–30% spare power.');
-      else if (st.budgetLeft < 0.05) out.push('Keep some project reserve for surprises.');
-      else out.push('Aim for 10–30% spare money, mass and power — not too tight, not wasteful.');
+      else if (st.budgetLeft < 0.05) out.push('Keep some reserve.');
+      else out.push('Aim for 10–30% spare money, mass, power.');
     } else if (p.id === 'survivability') {
-      out.push('Do not ignore faults or fly through storms: a second hit can end the mission.');
+      out.push('Don\'t ignore faults or storms.');
     } else if (p.id === 'teamwork') {
-      out.push('Check every role\'s personal goal on the Final check before you vote Go.');
+      out.push('Check role goals before voting Go.');
     }
   }
-  if (!parts.find((p) => p.id === 'disposal')?.points) out.push('Add a disposal plan on the Launch prep step (+20 points for responsible disposal).');
+  if (!parts.find((p) => p.id === 'disposal')?.points) out.push('Add a disposal plan: +20 points.');
   return [...new Set(out)].slice(0, 3);
 }
 

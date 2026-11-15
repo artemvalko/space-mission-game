@@ -42,7 +42,7 @@ function build(container, dispatch) {
   const advisorFix = h('button', { class: 'btn btn-small', type: 'button', key: 'advisor-fix' });
   const advisor = h('div', { class: 'advisor', role: 'status', 'aria-live': 'polite' }, [
     h('div', { class: 'advisor-avatar', 'aria-hidden': 'true' }, '🧑‍🚀'),
-    h('div', { class: 'advisor-body' }, [h('div', { class: 'advisor-name' }, 'Flight Director'), advisorText, advisorFix]),
+    h('div', { class: 'advisor-body', title: 'Flight Director' }, [advisorText, advisorFix]),
   ]);
   const detailsList = h('dl', { class: 'details-list' });
   const details = h('details', { class: 'drawer' }, [h('summary', {}, 'Details'), detailsList]);
@@ -54,19 +54,18 @@ function build(container, dispatch) {
 
 function gaugeView(res) {
   switch (res.key) {
-    case 'budget': return res.available == null ? '' : `${money(res.used)} of ${money(res.available)}${res.launchUnknown ? ' (+ launch RFQ)' : ''}`;
+    case 'budget': return res.available == null ? '' : `${money(res.used)} / ${money(res.available)}${res.launchUnknown ? ' +RFQ' : ''}`;
     case 'mass':
-      if (res.status === 'blocked') return "This rocket can't reach your orbit";
-      return res.available == null ? `${kg(res.used)} — pick a frame & rocket to compare` : `${kg(res.used)} of ${kg(res.available)} allowed`;
+      if (res.status === 'blocked') return '✗ orbit unreachable';
+      return res.available == null ? kg(res.used) : `${num(res.used, 1)} / ${kg(res.available)}`;
     case 'power':
-      if (res.available == null) return res.used ? `Needs ${watts(res.used)} avg — ${res.generation === null && res.consumption ? 'pick array & orbit' : 'pick a solar array'}` : 'Pick a solar array';
-      return `Needs ${watts(res.used)} of ${num(res.available, 1)} W avg`;
+      if (res.available == null) return res.used ? `${watts(res.used)} needed` : '—';
+      return `${watts(res.used)} / ${num(res.available, 1)} W`;
     case 'data':
-      if (res.status === 'blocked') return 'Wrong ground segment — nobody receives it';
-      if (res.kind === 'packets') return res.status === 'unknown' ? 'Store & forward — pick radio, downlink, gateways' : res.chainOk ? 'Store & forward chain complete' : `Missing: ${res.missing.join(', ')}`;
-      if (res.kind === 'nav') return res.status === 'unknown' ? 'Navigation broadcast — pick payload & ground' : res.chainOk ? 'L-band broadcast + time uplink ready' : `Missing: ${res.missing.join(', ')}`;
-      if (res.available == null) return res.used ? `Makes ${gbDay(res.used)} — pick downlink & station` : 'Pick the radiometer first';
-      return `Makes ${gbDay(res.used)}, sends ${gbDay(res.available)} (theory)`;
+      if (res.status === 'blocked') return '✗ wrong ground';
+      if (res.kind === 'packets' || res.kind === 'nav') return res.status === 'unknown' ? '—' : res.chainOk ? '✓ chain' : '✗ chain';
+      if (res.available == null) return res.used ? `${num(res.used, 1)} GB/day` : '—';
+      return `${num(res.used, 1)} / ${num(res.available, 2)} GB/day`;
     default: return '';
   }
 }
@@ -76,7 +75,7 @@ export function renderSidebar(container, state, dispatch) {
   const res = computeResources(state);
   const issues = validateDesign(state, res);
 
-  els.pic.replaceChildren(renderSatellite(state), h('div', { class: 'sat-caption' }, 'Your satellite'));
+  els.pic.replaceChildren(renderSatellite(state));
 
   for (const g of GAUGES) {
     const r = res[g.key];
@@ -107,7 +106,7 @@ export function renderSidebar(container, state, dispatch) {
   els.advisorFix.hidden = !showFix;
   if (showFix) {
     els.advisorFix.dataset.step = a.step;
-    els.advisorFix.textContent = a.tone === 'ok' ? `Go to ${getStep(a.step).label} →` : `Fix it: ${getStep(a.step).label} →`;
+    els.advisorFix.textContent = a.tone === 'ok' ? `${getStep(a.step).label} →` : `Fix: ${getStep(a.step).label} →`;
   }
 
   const row = (label, value, status, glossary) => [

@@ -19,11 +19,8 @@ export function render(container, state, dispatch) {
   const needsDownlink = scenario?.requiredBus.includes('downlink');
 
   mount(container,
-    h('div', { class: 'panel small' }, [
-      h('strong', {}, '📻 ≠ 📶 Two different radios. '),
-      'The control radio (', term('ttc', 'TT&C'), ') lets the team command the satellite and check its health. The mission radio does the job itself: ',
-      scenario?.data.kind === 'nav' ? 'for navigation, the L-band payload broadcasts the signal (chosen on the Mission payload step).' : 'it sends the mission\'s messages or measurements down to Earth.',
-    ]),
+    h('p', { class: 'step-hint', title: scenario?.data.kind === 'nav' ? 'For navigation, the L-band payload (Payload step) broadcasts the signal.' : 'The control radio commands the satellite; the mission radio sends its data down.' },
+      ['📻 Control radio (', term('ttc', 'TT&C'), ') ≠ 📶 mission radio.']),
     subQuestion('Control radio', 'comms'),
     componentCards(state, dispatch, 'comms', [
       { label: 'Mass', symbol: '●', value: (c) => c.mass },
@@ -37,9 +34,9 @@ export function render(container, state, dispatch) {
     state.design.groundId && (() => {
       const box = h('div', { class: 'map-box' });
       groundTrack(box, { orbitId: state.design.orbitId ?? scenario?.recommendedOrbits[0] ?? 'leo_550', groundId: state.design.groundId, mode: 'stations' });
-      return h('div', { class: 'panel map-panel' }, [h('strong', {}, `🗺️ Your ground segment: ${GROUND_STATIONS.find((g) => g.id === state.design.groundId).plainName} (illustration)`), box]);
+      return h('details', { class: 'panel map-panel fold' }, [h('summary', {}, '🗺️ Map'), box]);
     })(),
-    subQuestion('Ground segment on Earth', null, h('span', { class: 'subq-real' }, ['Real term: ', term('groundSegment', 'Ground segment'), ' · What is it for? Receives, checks and controls — on Earth.'])),
+    h('div', { class: 'subq' }, h('h2', { title: 'Receives, checks and controls — on Earth.' }, ['🌍 Ground segment ', term('groundSegment', 'ⓘ')])),
     h('div', { class: 'choices' }, GROUND_STATIONS.map((g) => {
       const selected = state.design.groundId === g.id;
       const wrong = scenario && g.serves !== scenario.groundServes;
@@ -49,8 +46,8 @@ export function render(container, state, dispatch) {
         icon: g.icon,
         title: g.plainName,
         realTerm: g.name,
-        oneLiner: wrong ? `✗ ${whyNot}` : g.oneLiner,
-        whatFor: wrong ? null : g.description.split('. ')[0] + '.',
+        oneLiner: wrong ? '✗ Wrong mission.' : g.oneLiner,
+        whatFor: g.description,
         warn: wrong,
         badges: wrong ? ['Other mission'] : ['Research build ★'],
         details: [['Model cost', money(g.cost)], ...(g.contactHoursPerDay ? [['Contact (example)', `${g.contactHoursPerDay} h/day`]] : [])],

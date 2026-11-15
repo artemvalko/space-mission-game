@@ -14,11 +14,12 @@ import { subQuestion, componentCards } from './common.js';
 function eclipseNote(res) {
   const { power, battery } = res;
   if (power.generation == null) return null;
-  return h('div', { class: 'panel small' }, [
-    h('strong', {}, '☀️ Sunlight vs 🌑 shadow — '),
-    `average power ${num(power.generation, 2)} W for a ${watts(power.used)} load`,
-    battery.needWh != null && battery.usable != null ? `; shadow needs ${num(battery.needWh, 2)} Wh of ${wh(battery.usable)} usable` : '',
-    '. ', term('dutyCycle', 'Why an average?'), ' · ', term('eclipse', 'What is an eclipse?'),
+  // One visual line instead of a paragraph: ☀️ average power vs load · 🌑 shadow need vs usable battery.
+  const okP = power.generation >= power.used;
+  const okB = battery.needWh == null || (battery.usable != null && battery.needWh <= battery.usable);
+  return h('div', { class: 'panel small', title: 'Average = array × time in sunlight × 0.8. The battery uses 60% of its charge in the shadow.' }, [
+    h('span', { class: okP ? 'ok-text' : 'error-text' }, `☀️ ${num(power.generation, 1)} W ${okP ? '≥' : '<'} ⚡ ${watts(power.used)}`), ' ', term('dutyCycle', 'ⓘ'),
+    battery.needWh != null && battery.usable != null ? ['  ·  ', h('span', { class: okB ? 'ok-text' : 'error-text' }, `🌑 ${num(battery.needWh, 1)} / ${wh(battery.usable)}`), ' ', term('eclipse', 'ⓘ')] : '',
   ]);
 }
 
@@ -39,6 +40,7 @@ function packCards(state, dispatch, before) {
       realTerm: `${array.name}${battery ? ` + ${battery.name}` : ''}`,
       oneLiner: p.oneLiner,
       whatFor: 'Solar wings make electricity in sunlight; the battery keeps the satellite alive in Earth\'s shadow.',
+      meters: [],
       badges: own ? ['Research build ★'] : [],
       details: [['Array (full sun)', watts(array.arrayW)], ['Battery', battery ? wh(battery.capacityWh) : 'none'],
         ['Mass (sum of parts)', kg(tot.mass)], ['Cost (sum of parts)', money(tot.cost)]],
@@ -54,7 +56,7 @@ function packCards(state, dispatch, before) {
 
 export function render(container, state, dispatch) {
   const before = computeResources(state);
-  const hint = h('p', { class: 'step-hint' }, ['Solar wings only work in sunlight. In Earth\'s shadow (', term('eclipse', 'eclipse'), ') the battery must carry the load — and only 60% of it is used, to keep it healthy.']);
+  const hint = h('p', { class: 'step-hint', title: 'Only 60% of the battery is used, to keep it healthy.' }, ['☀️ Wings work in sunlight. 🔋 Battery covers the ', term('eclipse', 'shadow'), '.']);
   if (state.difficulty === 'easy') {
     mount(container, hint, eclipseNote(before), packCards(state, dispatch, before));
     return;

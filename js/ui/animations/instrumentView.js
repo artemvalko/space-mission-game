@@ -26,10 +26,10 @@ const KIND = {
 };
 
 export const VIEW_CAPTION = {
-  iot: 'Illustration: sensors send short messages as the satellite passes; it stores them and dumps them over a gateway.',
-  gnss: 'Illustration: precise clocks time a ranging signal; a receiver measures how long it travelled.',
-  radiometer: 'Illustration: microwaves see temperature and moisture through clouds; a colour camera only sees cloud tops.',
-  camera: 'Illustration: a colour camera sees cloud tops — not messages, signals or what is inside the clouds.',
+  iot: 'Collect → store → dump at a gateway.',
+  gnss: 'Precise time → signal → distance.',
+  radiometer: 'Microwaves see through clouds; cameras don\'t.',
+  camera: 'Only cloud tops.',
 };
 export const viewKind = (id) => KIND[id] ?? 'camera';
 

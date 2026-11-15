@@ -122,9 +122,10 @@ function board() {
     h('div', { class: 'board-tabs', role: 'tablist' }, SCENARIOS.map((sc) => h('button', {
       class: ['mini', sc.id === boardScenario && 'active'], type: 'button', role: 'tab', 'aria-selected': sc.id === boardScenario ? 'true' : 'false', key: `board-${sc.id}`,
       onClick: () => { boardScenario = sc.id; rerender(); },
-    }, `${sc.icon} ${sc.name}`))),
+      title: sc.name, 'aria-label': sc.name,
+    }, sc.icon))),
     rows.length === 0
-      ? h('p', { class: 'muted' }, 'No finished missions yet — be the first!')
+      ? h('p', { class: 'muted' }, 'No scores yet.')
       : h('table', { class: 'summary-table board' }, [
         h('thead', {}, h('tr', {}, ['#', 'Team', 'Grade', 'Score', 'Date'].map((x) => h('th', {}, x)))),
         h('tbody', {}, rows.map((a, i) => h('tr', {}, [h('td', {}, String(i + 1)), h('td', {}, a.team), h('td', { class: 'board-grade' }, a.grade), h('td', {}, String(a.total)), h('td', { class: 'muted small' }, new Date(a.at).toLocaleDateString())]))),
@@ -139,24 +140,22 @@ export function render(container, state, dispatch) {
       backdrop.sky,
       backdrop.earth,
       h('div', { class: 'hero-title-wrap' }, [backdrop.orbitSvg, h('h1', { class: 'hero-title' }, 'Mission Control')]),
-      h('p', { class: 'hero-tagline' }, 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.'),
+      h('p', { class: 'hero-tagline', title: 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.' }, 'Real missions. Real data. GO or NO-GO?'),
       h('div', { class: 'hero-buttons' }, [
         h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'play-solo', onClick: () => { dispatch(setMode('solo')); dispatch(goToScreen('pickMission')); } }, '▶ Play solo'),
-        h('button', { class: ['btn', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', onClick: () => dispatch(setMode('team')) }, '👥 Play as a team (2–4)'),
-        h('button', { class: 'btn btn-ghost btn-big', type: 'button', key: 'how-to', onClick: () => { slide = 0; rerender(); } }, '❓ How to play'),
+        h('button', { class: ['btn', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', title: 'Play as a team (2–4 on one screen)', onClick: () => dispatch(setMode('team')) }, '👥 Team'),
+        h('button', { class: 'btn btn-ghost btn-big', type: 'button', key: 'how-to', onClick: () => { slide = 0; rerender(); } }, '❓ How?'),
       ]),
       h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Difficulty' }, ['easy', 'normal'].map((d) =>
-        h('label', { class: ['seg', state.difficulty === d && 'active'] }, [
+        h('label', { class: ['seg', state.difficulty === d && 'active'], title: d === 'easy' ? 'Fewer choices: power pack + the standard bus kit from the research build list.' : 'You choose every part yourself.' }, [
           h('input', { type: 'radio', name: 'difficulty', value: d, checked: state.difficulty === d, key: `difficulty-${d}`, onChange: () => dispatch(setDifficulty(d)) }),
           h('span', {}, d === 'easy' ? '🙂 Easy' : '🧠 Normal'),
         ]))),
-      h('p', { class: 'muted small' }, state.difficulty === 'easy'
-        ? 'Easy: fewer choices — power comes as one pack and the bus systems come as the standard kit from the research build list.'
-        : 'Normal: you choose every part yourself.'),
+
     ]),
     state.mode === 'team' && teamPanel(state, dispatch),
     board(),
-    (() => { const have = unlockedBadges(); return h('section', { class: 'leaderboard' }, [h('h2', {}, `🏅 Your badges: ${BADGES.filter((b) => have.has(b.id)).length} of ${BADGES.length}`), h('div', { class: 'badge-row' }, BADGES.map((b) => h('span', { class: ['badge-pill', have.has(b.id) ? 'earned' : 'locked'], title: `${b.name}: ${b.text}` }, `${b.icon} ${b.name}`)))]); })(),
+    (() => { const have = unlockedBadges(); return h('section', { class: 'leaderboard' }, [h('h2', {}, `🏅 ${BADGES.filter((b) => have.has(b.id)).length}/${BADGES.length}`), h('div', { class: 'mini-icons' }, BADGES.map((b) => h('span', { class: have.has(b.id) ? 'earned' : 'locked', title: `${b.name}: ${b.text}`, 'aria-label': b.name }, b.icon)))]); })(),
     howToPlay(),
   );
 }

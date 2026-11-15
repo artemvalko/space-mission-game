@@ -9,12 +9,12 @@ import { firstFailedGate, operatingConditions } from './simulation.js';
 import { kg, pct, watts, months, money, num } from '../utils/format.js';
 
 const TIPS = {
-  budget: 'Stay inside the model budget: check the launch line and any parts you do not need.',
-  deadline: 'A launch delay can push you past the planning window.',
-  lifetime: 'Do not ignore faults — a weakened satellite can be lost before the service period ends.',
+  budget: 'Cut cost: check the launch line.',
+  deadline: 'Delays can miss the window.',
+  lifetime: 'Don\'t ignore faults: a weak satellite can be lost.',
 };
 
-const NO_GO_NOTE = ' Real missions never launch with a NO-GO — this was only a simulation of what physics would do.';
+const NO_GO_NOTE = ' NO-GO: real missions never fly like this.';
 
 export function describeOutcome(state, sim) {
   const sel = getSelection(state);
@@ -28,37 +28,37 @@ export function describeOutcome(state, sim) {
 
   switch (sim.outcome) {
     case 'scrubbed':
-      return { ...base, title: 'Launch scrubbed — NO-GO', caption: `The launch could not go ahead:${gateText}${note}`, tip: 'Finish the Launch prep checklist: tests, frequency licence and a disposal plan.' };
+      return { ...base, title: 'Launch scrubbed', caption: `${gateText.trim()}${note}`, tip: 'Finish the Launch prep checklist.' };
     case 'too_heavy':
       return { ...base, title: 'It does not fit', caption: res.mass.available != null && res.mass.used > res.mass.available
-        ? `${kg(res.mass.used)} checked against a ${kg(res.mass.available)} limit — the ${rocket} and its dispenser cannot carry it safely.${note}`
-        : `The satellite does not fit its frame, dispenser or adapter.${gateText}${note}`,
-      tip: 'Use the frame size, parts and adapter made for this mission.' };
+        ? `${kg(res.mass.used)} vs ${kg(res.mass.available)} limit: it can't fly safely.${note}`
+        : `${gateText.trim()}${note}`,
+      tip: 'Use the frame, parts and adapter made for this mission.' };
     case 'wrong_orbit':
-      return { ...base, title: 'Wrong orbit', caption: `The ${rocket} cannot put the satellite where the mission needs it (${orbit}).${gateText}${note}`, tip: 'Pick the orbit the service needs, and a launch service that really reaches it.' };
+      return { ...base, title: 'Wrong orbit', caption: `${gateText.trim()}${note}`, tip: 'Pick the right orbit and a rocket that reaches it.' };
     case 'lost': {
       const m = sim.summary.monthsOperated;
       if (sim.failureCause === 'power') {
         return { ...base, title: 'Out of power', caption: res.battery.status === 'over'
-          ? `In sunlight there was enough power, but in Earth's shadow the battery could not keep it alive. It went dark in month ${m}.${note}`
-          : `The mission needs ${watts(res.power.used)} on average but the array gave only ${res.power.available == null ? 'an unknown amount' : `${num(res.power.available, 2)} W`}. It went dark in month ${m}.${note}`,
-        tip: 'Check average AND shadow power: array × sunlight × 0.8 must beat the load, and 60% of the battery must cover the shadow.' };
+          ? `Dark in Earth's shadow: no battery power. Lost in month ${m}.${note}`
+          : `Needs ${watts(res.power.used)}, array gave ${res.power.available == null ? '?' : `${num(res.power.available, 1)} W`}. Lost in month ${m}.${note}`,
+        tip: 'Check sunlight AND shadow power.' };
       }
       if (sim.failureCause === 'comms') {
-        return { ...base, title: 'Nobody hears it', caption: `The signal never made it into a working ground chain:${gateText || ' the link was broken.'} The mission was lost in month ${m}.${note}`, tip: 'Control radio + mission downlink + the ground segment made for this mission.' };
+        return { ...base, title: 'Nobody hears it', caption: `${gateText.trim() || 'The link was broken.'} Lost in month ${m}.${note}`, tip: 'Radios + the right ground segment.' };
       }
       if (sim.noGo) {
-        return { ...base, title: 'A bus system was missing', caption: `${gateText.trim()} The satellite failed in month ${m}.${note}`, tip: 'Every satellite needs control radio, power, battery, computer, pointing and thermal control.' };
+        return { ...base, title: 'A bus system was missing', caption: `${gateText.trim()} Failed in month ${m}.${note}`, tip: 'Every satellite needs a full bus.' };
       }
-      return { ...base, title: 'Lost after damage', caption: `Two risky choices weakened the satellite until it stopped responding in month ${m}. (Simulated events.)`, tip: TIPS.lifetime };
+      return { ...base, title: 'Lost after damage', caption: `Two risky choices broke it in month ${m} (simulated).`, tip: TIPS.lifetime };
     }
     case 'success':
-      return { ...base, title: 'Mission accomplished!', caption: `Your satellite worked for ${months(sim.summary.monthsOperated)} and met every mission KPI (simulated service ${pct(sim.summary.serviceFraction)}).`, tip: 'Try a harder mission, or keep more reserve with a leaner design.' };
+      return { ...base, title: 'Mission accomplished!', caption: `${months(sim.summary.monthsOperated)}, every KPI met (simulated service ${pct(sim.summary.serviceFraction)}).`, tip: 'Try a harder mission.' };
     case 'partial': {
       const objectives = evaluateObjectives(state, sim, res);
       const missed = objectives.filter((o) => !o.met);
       return { ...base, missed, title: sim.noGo ? 'It flew — but could not do the job' : 'Partial success',
-        caption: `${sim.noGo ? `${gateText.trim()} ` : ''}Missed: ${missed.map((o) => o.label.toLowerCase()).join(', ')}.${note}`,
+        caption: `${sim.noGo ? `${gateText.trim()} ` : ''}Missed: ${missed.slice(0, 2).map((o) => o.label.toLowerCase()).join(', ')}${missed.length > 2 ? ` +${missed.length - 2}` : ''}.${note}`,
         tip: sim.noGo ? 'Add the mission payload that physically does this job.' : TIPS[missed[0]?.id] ?? missed[0]?.why ?? 'Check the gauges before launch.' };
     }
     default:

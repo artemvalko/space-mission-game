@@ -10,7 +10,7 @@ export const GROUND_STATIONS = [
   {
     id: 'gs_iot_gateways', icon: '📡', plainName: 'IoT gateway stations (1–3)', name: '1–3 licensed IoT gateways + mission control', serves: 'iot',
     cost: 0.50, missions: [M_COMMS], dataKind: 'model', sources: [], ref: '§3.4 · §3.5',
-    oneLiner: 'Collects the stored messages on each pass and passes them to the internet.',
+    oneLiner: 'Collects messages on each pass.', about: 'Collects the stored messages on each pass and passes them to the internet.',
     description: '1–3 gateway stations with licences and network links, test IoT terminals on the ground, a control centre and pass-planning tools.',
   },
   {
@@ -22,7 +22,7 @@ export const GROUND_STATIONS = [
   {
     id: 'gs_weather_science', icon: '🌦️', plainName: 'Science receiving + processing', name: 'Science data receiver + calibration chain + reference comparison', serves: 'weather', contactHoursPerDay: 1,
     cost: 1.10, missions: [M_WX], dataKind: 'model', sources: ['S23'], ref: '§5.4 · §5.5',
-    oneLiner: 'Receives the measurements, calibrates them and compares them with NASA GPM data.',
+    oneLiner: 'Receives and checks the measurements.', about: 'Receives the measurements, calibrates them and compares them with NASA GPM data.',
     description: 'Science receiving stations, weather-data processing, calibration, time and position tagging, and comparison with reference data (NASA GPM IMERG). The research example uses about 1 hour of contact per day.',
   },
 ];

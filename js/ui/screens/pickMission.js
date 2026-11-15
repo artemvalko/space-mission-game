@@ -18,23 +18,22 @@ export function render(container, state, dispatch) {
       oneLiner: sc.oneLiner,
       badges: [...(state.difficulty === 'easy' && sc.id === EASY_DEFAULT_SCENARIO ? ['Start here'] : [])],
       extra: h('div', { class: 'mission-meta' }, [
-        h('span', { class: 'stars', 'aria-label': `Difficulty ${sc.stars} of 3` }, stars(sc.stars)),
+        h('span', { class: 'stars', 'aria-label': `Difficulty ${sc.stars} of 3`, title: `Difficulty ${sc.stars} of 3` }, stars(sc.stars)),
         h('span', {}, [`💰 ${money(sc.budgetM)} `, dataBadge('model')]),
-        h('div', { class: 'small muted' }, `Real mission inspiration: ${sc.realInspiration}`),
       ]),
+      details: [['Real mission inspiration', sc.realInspiration], ['Goal', sc.objective], ...(sc.deadlineMonths ? [['Planning window', `${sc.deadlineMonths[0]}–${sc.deadlineMonths[1]} months`]] : [])],
       data: sc,
       selected: sc.id === state.scenarioId,
       onSelect: () => dispatch(selectScenario(sc.id)),
     }))),
-    current && h('div', { class: 'brief' }, [
-      h('div', { class: 'brief-icon', 'aria-hidden': 'true' }, current.icon),
-      h('div', {}, [
-        h('p', { class: 'brief-text' }, current.brief),
-        h('p', { class: 'muted' }, [h('strong', {}, 'Goal: '), current.objective]),
-        h('p', { class: 'muted small' }, [`Model budget ${money(current.budgetM)} `, dataBadge('model'),
-          current.deadlineMonths ? ` · planning window ${current.deadlineMonths[0]}–${current.deadlineMonths[1]} months` : '',
-          ' · Lesson: ', h('strong', {}, current.impossibleClaim.title)]),
-      ]),
+    // The brief opens only on request (progressive disclosure).
+    current && h('details', { class: 'brief fold', key: 'brief' }, [
+      h('summary', {}, `📖 ${current.name}: the brief`),
+      h('p', { class: 'brief-text' }, current.brief),
+      h('p', { class: 'muted' }, [h('strong', {}, 'Goal: '), current.objective]),
+      h('p', { class: 'muted small' }, [`Model budget ${money(current.budgetM)} `, dataBadge('model', { full: true }),
+        current.deadlineMonths ? ` · planning window ${current.deadlineMonths[0]}–${current.deadlineMonths[1]} months` : '',
+        ' · Lesson: ', h('strong', {}, current.impossibleClaim.title)]),
     ]),
   );
 }

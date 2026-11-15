@@ -73,6 +73,13 @@ python3 -m http.server        # then open http://localhost:8000
 6. **Advisor** ("Flight Director") shows ONE most important message + "Fix it" jump (`engine/advisor.js`).
 7. **Live satellite picture** (`ui/satellite.js`): new parts snap in with a glow; exploded view.
 8. Colour has meaning only: green OK, amber tight, red over; one accent (blue) for selection.
+9. **Word budgets (playtest: players don't read)** — visible by default: question ≤8 words (+ at most one
+   hint line ≤12); card = title + ≤3 icon meters + one line ≤10 words (real term, "What is it for?",
+   numbers, sources → Details; long text → `about` / Why?); advisor ≤15 words + Fix button; goal strip
+   = icon chips; gate message ≤12 words + fix button, requirement/fix/alternative behind "Why?";
+   data badges icon-only (✔ 🏷 ≈ ✉️) with tooltips. Screens ≤ ~120 visible words (Results ~200).
+   Progressive disclosure, never deletion: everything stays one click away (Details, Why?, folds,
+   tooltips, Sources panel). Measure with `tools/word-count.sh tools/word-count.before.json`.
 
 ## The three missions (`js/data/scenarios.js`)
 | id | Name | Budget (model) | Correct build (research §13) |
