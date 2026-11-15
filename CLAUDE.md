@@ -121,8 +121,9 @@ python3 -m http.server        # then open http://localhost:8000
 **Objective variants** (`scenario.variants`, chosen as chips on the Mission step, `design.variantId`):
 comms *Cheapest coverage / Standard phone chips / Licensed, reliable link*; weather *Global humidity map /
 Watch hurricanes often / Measure rain inside storms*; navigation *Join Galileo / GPS-style node*. Each has
-a `fit` (dimension → factor) that scales **only** mission performance (`objectives.js#variantFit`) — a
-valid but less suitable build is never a failure — and `builds`: real PASS builds (≥2 each), proven by
+a `fit` (dimension → factor) that scales mission performance (`objectives.js#variantFit`); whether a build
+meets THIS goal comes from the dependency matrix (MET / PARTLY / NOT MET — a physically valid build for the
+wrong goal flies but does not meet it) — and `builds`: real PASS builds (≥2 each), proven by
 the self-test and suggested on Results ("Other valid builds").
 
 Each mission has an **impossible claim** lesson (`impossibleClaim`, `objectives.js#checkClaim`): one LEO
