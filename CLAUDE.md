@@ -13,7 +13,7 @@ Where they disagree on a catalog price, the store price is used and the others a
 ## Data honesty rule (never break it)
 - **Never invent a number.** Every mass, power, price, capacity, altitude, budget and date comes from
   the research. Each data item stores `dataKind` (`fact` | `catalog` | `model` | `reported`) and
-  `sources: ['Sxx' | 'Oxx']` (codes in `js/data/sources.js`, S01–S34 + O01–O56), plus `ref`.
+  `sources: ['Sxx' | 'Oxx']` (codes in `js/data/sources.js`, S01–S34 + O01–O56 + D01–D08 end of life), plus `ref`.
 - UI badges: ✔ Real fact · 🏷 Catalog price · ≈ Estimate · 📰 Reported (press / third-party, never
   official) · ✉️ Price on request (RFQ). Card faces show "💰 ?" / "⚖️ ?" for NOT PUBLIC values and
   "⚖️ ≈" for a same-class research estimate (IoT radios borrow the research SDR mass).
@@ -43,10 +43,10 @@ Solo, or hot-seat team of 2–4 (Director, Engineer, Scientist, Flight Dynamics)
 cd space-mission-game
 python3 -m http.server        # then open http://localhost:8000
 ```
-- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 197 checks: data honesty, research
+- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 224 checks: data honesty, research
   BOM sums, power/battery/data numbers, every §10 QA case C-01…ALL-02, alternatives vs distractors,
   NO-GO rule, simulation replay, scoring, role goals, votes, sharing, badges, and every PASS build of
-  every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path).
+  every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path, disposal strategies + planet impact, design-reactive events).
 - Dev tools: `tools/word-count.sh tools/word-count.before.json` (visible words per screen) and
   `tools/options-count.html` (selectable options per mission × step).
 - Animation debug page: `/animations.html` — plays every scene in isolation with real sample data.
@@ -128,7 +128,7 @@ satellite ≠ 24/7 coverage; one GNSS satellite ≠ 3D positioning (needs ≥4 i
 | 6 | `brains` | **Bus systems**: computer + pointing (real choices); thermal + cables + sensors = one "included" line (Normal; Easy = research kit; navigation: fixed inside the platform, step hidden) | Engineer |
 | 7 | `orbit` | Orbit (true relative scale, ground track illustration, GEO as distractor, GPS info card) | Flight |
 | 8 | `rocket` | **Rocket & adapter**: price-type badges, dispenser/adapter, "What's inside this rocket?", balance scale | Flight |
-| 9 | `launchPrep` | Checklist: tests (vibration, TVAC, EMC), frequency licence/ITU, disposal plan + end-of-life choice for CubeSats (natural decay / turn broadside / drag sail) | Director |
+| 9 | `launchPrep` | Checklist: tests (vibration, TVAC, EMC), frequency licence/ITU + **How will it retire?** (3 strategy cards with 🛰️ ☁️ 🧍 meters; burn-up speed = natural decay / drag sail / broadside, folded; docking-plate add-on) | Director |
 | 10 | `finalCheck` | Flight Readiness Review: 11 hard gates, full cost table, role goals, votes, LAUNCH / NO-GO + "Simulate what would happen" | Director |
 | 11 | `operations` | Go/No-Go console → montage → countdown → orbit view with simulated events | Flight |
 | 12 | `results` | Grade, KPIs, lesson card (+ constellation animation), your design vs the real thing, alternatives, real NASA data, log, compare, share | Director |
@@ -187,7 +187,8 @@ failed mission (grade F).
   design: { components: { structure, power, battery, comms, downlink, computer, adcs, thermal, sensors,
                           harness, propulsion, propellant },   // id | 'none' | null
             instrumentIds: [], orbitId, launcherId, deployerId, groundId,
-            powerPack, kit: null|'standard', prep: { tests, licence, disposal } },
+            powerPack, kit: null|'standard', prep: { tests, licence, disposal },
+            variantId, satsPerLaunch, disposalId, dockingPlate },
   votes, voteReasons, simulation: null | { …, noGo }, score,
 }
 ```
@@ -208,6 +209,21 @@ wrong-size parts and payloads (→ todo). Selecting another mission starts a fre
   (correct builds leave exactly the research reserve 0.59 / 2.61 / 20 $M).
 - No lifetime bonus from thrusters; the mission flies its planned months (`simMonths`).
 
+## End of life / planet impact (data/disposal.js, resources.planet — DISPOSAL.md)
+- Strategies: `disp_burn_up` 🔥 (sub-options = `eol_*` parts), `disp_controlled_ocean` 🌊, `disp_leave_in_orbit` 🛰️
+  (MEO: disposal orbit); add-on `addon_docking_plate` (D07, mass/price null → budget uncertain, not in mass check).
+  `design.disposalId` / `design.dockingPlate`; `selectDisposal` also ticks `prep.disposal` (old designs default:
+  burn-up in LEO, disposal orbit in MEO).
+- Validity (`disposalWhyNot`, gate `legal_safety_disposal_plan_pass`): leave-in-orbit in low orbits = NO-GO (S22);
+  ocean reentry: CubeSats have no thrusters (D05), MEO "not in our data"; burn-up in MEO impossible; MEO disposal
+  orbit needs thrusters + propellant. Large-sat burn-up → caution "1-in-10,000 rule" (D04).
+- `resources.planet`: `debrisScore`, `atmosphereKg` = launch mass × 0.12 (**model**, "≈ science estimate (Ferreira
+  2024)"), `groundRisk` ok | needs-controlled | n.a., per-option meters/score, `best`, fleet multiplier
+  (`reference.fleet`: Swarm 150, Astrocast 64, TROPICS 4). Meter points are game scores, not data.
+- Events react to the design (`simulation.js#eventChoices/eventContext`): thruster dodge, spare computer
+  (obc_si_quad), rad-hard halves storm damage, low battery margin note, MEO radiation-belt note, and the
+  end-of-mission "Extend or retire?" event. Multipliers only; chosen label/effects stored in the event log.
+
 ## Hard gates (engine/validation.js — §8.5)
 orbit_service_compatible · spacecraft_size_mass_volume_compatible · mandatory_payload_complete ·
 bus_support_complete · launcher_trajectory_compatible · launch_adapter_compatible ·
@@ -224,7 +240,9 @@ Over the model budget is a `warning` (objective fails), not a gate.
 - Plus service period, model budget, schedule window.
 - Score: Mission performance 35% (KPIs 70% + simulated service 30%) · Objectives 25% · Efficiency 15%
   (mass margin [large bus: within 700 kg], power margin, budget left — skipped if launch is RFQ) ·
-  Survivability 15% · Teamwork 10% (solo redistributes) · +20 responsible-disposal bonus. NO-GO runs → F.
+  Survivability 15% · Teamwork 10% (solo redistributes) · + **Sustainability** bonus up to 40 (debris 15 · atmosphere 15 ·
+  ground 10 from the chosen retirement; no option gets 40; "best possible for your orbit" shown; extending the mission
+  costs debris points). NO-GO runs → F.
 - Role goals: Director = model budget + schedule + licence & disposal; Engineer = mass/power margins ≥10%
   + thermal; Scientist = all KPIs; Flight = recommended orbit + rocket reaches it + working link.
 
@@ -246,6 +264,7 @@ with timers in headless Chrome; `window.__animFreeze` freezes for screenshots).
 | Orbit view (LEO / SSO / MEO at true relative scale with 56° tilt / GEO; power dead, comms loss, HUD, timeline) | `orbitView` | Operations |
 | Simulated events: solar storm · debris · hardware fault · budget cut / launch delay · huge storm (weather) | `solarFlare`, `debris`, `hardwareFailure`, `cardFlip`, `discovery` (`EVENT_SCENES`) | Operations |
 | Mission success · partial · lost · end of life (deorbit / leave MEO / no disposal plan) | `missionSuccess`, `missionPartial`, `missionLost`, `endOfLife` (+ `patch.js`) | Operations |
+| Retirement: burn up (oxide cloud → ozone band) · controlled ocean reentry (Point Nemo) · docking-plate tug | `burnUp`, `oceanReentry`, `tugRemoval` | Operations (by chosen strategy) |
 | Go/No-Go console (also NO-GO / scrubbed) · factory-to-pad montage | `goConsole`, `montage` | Operations |
 | What your payload does (IoT store-and-forward, GNSS clock + ranging, radiometer vs RGB — illustrations) · balance scale · ground track / stations map | `instrumentView`, `balanceScale`, `groundTrack` | Payload, Rocket, Orbit, Comms steps |
 | 1 satellite → no fix, 4 → 3D fix | `constellation` | Results (navigation lesson) |

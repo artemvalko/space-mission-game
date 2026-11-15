@@ -38,7 +38,7 @@ Animation debug page: `http://localhost:8000/animations.html`.
 1. **Start**: play solo or as a team (names + roles), Easy or Normal.
 2. **Pick a mission**: the goal and checklist stay at the top of the screen.
 3. **Build it, one question per step**: size → mission payload → power → talking to Earth →
-   (Normal: bus systems) → orbit → rocket & adapter → launch prep (tests, licence, disposal plan).
+   (Normal: bus systems) → orbit → rocket & adapter → launch prep (tests, licence, and **how it retires**: burn up / controlled fall into the ocean / leave in orbit).
 4. **Final check (Flight Readiness Review)**: 11 hard gates, a full cost breakdown and team votes.
    A failed gate is **NO-GO**. The review shows what is broken, which card fixes it, and whether
    another correct design exists. You can still *simulate what would happen* (recorded as a failed mission).
@@ -65,6 +65,14 @@ when over. 🔊 mutes sound; animations respect "reduce motion".
 - **✉️ Price on request (RFQ)**: not public, so the game never invents one.
 
 Options supplement: [`docs/OPTIONS_RESEARCH.md`](docs/OPTIONS_RESEARCH.md) (O01–O56: EnduroSat, GomSpace, CubeSpace, Blue Canyon, ISISPACE, Space Inventor, AWS, KSAT, Swarm, Astrocast, Lacuna, Rocket Lab, NASA TROPICS / TEMPEST-D / RainCube, Spire, GPS III, Galileo L12–L14).
+End-of-life sources: D01–D08 (Ferreira 2024 GRL on aluminium oxide from reentries, NOAA/PNAS stratospheric metals, ESA re-entry safety and Clean Space, Point Nemo, Astroscale ELSA-M, FCC 5-year rule).
+
+### Planet impact (end of life)
+Every mission chooses how its satellite retires. Each option shows three meters — 🛰️ debris, ☁️ atmosphere, 🧍 ground risk —
+and none is perfect (Sustainability is scored out of 40; no option gets 40). Burning up releases aluminium oxide:
+**≈ launch mass × 0.30 × 0.40 = mass × 0.12** (a science estimate from Ferreira 2024, always badged; a 6U of 8.68 kg ≈ 1.0 kg).
+Low orbits can't stay up (5-year rule), CubeSats can't do a controlled ocean reentry (no thrusters), and MEO
+satellites can only move to a disposal orbit.
 
 Main sources: CubeSat Design Specification (S01), GPS.gov (S02), ESA Galileo (S04, S05, S15, S30),
 NASA TROPICS (S06), NASA/JPL TEMPEST-D (S07), EnduroSat (S08, S09), SpaceX Rideshare / Falcon 9 /
