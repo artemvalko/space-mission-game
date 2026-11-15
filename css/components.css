@@ -286,32 +286,28 @@ details.group > summary { cursor: pointer; }
 /* ── Start screen ────────────────────────────────────────── */
 .hero {
   position: relative; isolation: isolate; overflow: hidden;
-  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) 190px; align-items: center; gap: 32px;
+  display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr); align-items: center; gap: 32px;
   min-height: min(78vh, 720px); padding: 72px 0 48px;
 }
 .hero > * { position: relative; z-index: 1; }
 .hero > .dot-field { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; fill: #fff; pointer-events: none; }
 .hero-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
 .hero-title { font-family: var(--font-heading); font-size: clamp(2.75rem, 5.6vw, 4rem); font-weight: 600; letter-spacing: -0.025em; line-height: 1.02; margin: 0; }
-.hero-tagline { font-size: 18px; color: var(--text-2); margin: 0; max-width: 40ch; }
 .hero-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0 4px; }
 .hero-visual-wrap { display: grid; place-items: center; }
-.hero-visual { width: 100%; max-width: 520px; height: auto; overflow: visible; }
+.hero-visual { width: 100%; max-width: 940px; height: auto; overflow: visible; }
 .hv-planet { fill: none; stroke: rgba(255, 255, 255, .7); stroke-width: 1.2; }
 .hv-lat { fill: none; stroke: rgba(255, 255, 255, .1); stroke-width: 1; }
 .hv-orbit { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 1; }
 .hv-orbit-front { stroke: rgba(255, 255, 255, .38); }
 .hv-sat { fill: #fff; }
 .hv-sat-halo { fill: rgba(255, 255, 255, .12); }
-.hero-points { list-style: none; margin: 0; padding: 0 0 0 20px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; color: var(--text-2); font-size: 14px; }
-.hero-credits { text-align: center; color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin: 0; padding: 20px 0 0; border-top: 1px solid var(--line); }
 .below-fold { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px 40px; margin-top: 80px; }
-@media (max-width: 1000px) {
+@media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; padding: 40px 0 24px; min-height: 0; gap: 24px; }
   .hero-visual-wrap { order: -1; }
   .hero-visual { max-width: 340px; }
-  .hero-points { flex-direction: row; flex-wrap: wrap; border-left: 0; padding: 0; gap: 8px 20px; }
-}
+  }
 
 .team-panel { max-width: 720px; margin: 24px auto 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .player-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }

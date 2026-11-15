@@ -140,7 +140,6 @@ export function render(container, state, dispatch) {
       h('div', { class: 'hero-copy' }, [
         h('p', { class: 'eyebrow' }, 'NASA Space Apps · Mission design game'),
         h('h1', { class: 'hero-title' }, ['Design a real', h('br'), 'space mission.']),
-        h('p', { class: 'hero-tagline', title: 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.' }, 'Real missions. Real data. GO or NO-GO?'),
         h('div', { class: 'hero-buttons' }, [
           h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'play-solo', onClick: () => { dispatch(setMode('solo')); dispatch(goToScreen('pickMission')); } }, 'Play solo'),
           h('button', { class: ['btn', 'btn-ghost', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', title: 'Play as a team (2–4 on one screen)', onClick: () => dispatch(setMode('team')) }, 'Play as a team'),
@@ -153,9 +152,7 @@ export function render(container, state, dispatch) {
           ]))),
       ]),
       h('div', { class: 'hero-visual-wrap' }, centrepiece()),
-      h('ul', { class: 'hero-points' }, ['Real hardware data', 'Real launch prices', 'Real trade-offs'].map((x) => h('li', {}, x))),
     ]),
-    h('p', { class: 'hero-credits' }, 'Data: NASA · ESA · NOAA · SpaceX · Rocket Lab'),
     state.mode === 'team' && teamPanel(state, dispatch),
     h('div', { class: 'below-fold' }, [
       board(),
