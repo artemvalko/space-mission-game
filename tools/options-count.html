@@ -1,0 +1,46 @@
+<!doctype html>
+<!-- Counts selectable (non-greyed) option cards per mission × step in the real UI (Normal mode, research
+     build filled in). Run headless via tools/options-count.sh. "front" = visible without opening a fold. -->
+<html lang="en"><head><meta charset="utf-8"><title>OPTIONS running</title></head><body><pre id="log"></pre>
+<script type="module">
+  const log = (m) => { document.getElementById('log').textContent += m + '\n'; };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const errors = [];
+  const frame = document.createElement('iframe'); frame.style.cssText = 'width:1400px;height:900px'; document.body.append(frame);
+  await new Promise((r) => { frame.onload = r; frame.src = '../index.html'; });
+  const w = frame.contentWindow; w.__animTimerFrames = true;
+  w.addEventListener('error', (e) => errors.push(`${e.message} @${e.filename}:${e.lineno}`));
+  await sleep(300);
+  const A = await w.eval(`import('${new URL('js/state/actions.js', w.location.href).href}')`);
+  const d = (a) => w.__store.dispatch(a);
+  const B = {
+    mission_comms_iot: ['str_6u', ['payload_iot_sdr', 'ant_iot_deploy'], 'eps_solar_6u', 'battery_6u_60wh', 'ttc_uhf', 'dl_sband', 'gs_iot_gateways', 'leo_550', 'lv_falcon9_rideshare', 'dep_cubesat'],
+    mission_weather_mw: ['str_6u_weather', ['payload_mw_radiometer', 'radiometer_calibration'], 'eps_solar_6u', 'battery_6u_80wh', 'ttc_uhf', 'science_sband', 'gs_weather_science', 'sso_550_650', 'lv_falcon9_rideshare', 'dep_cubesat'],
+    mission_navigation_meo: ['str_gnss_meo', ['clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'], null, null, null, null, 'gs_gnss_monitoring', 'meo_gnss', 'lv_f9_dedicated_meo', 'dep_large_adapter'],
+  };
+  const STEPS = ['pickMission', 'size', 'science', 'power', 'comms', 'brains', 'orbit', 'rocket', 'launchPrep'];
+  const out = {};
+  try {
+    for (const [sid, [st, pl, pw, bat, ttc, dl, gs, orb, lv, dep]] of Object.entries(B)) {
+      d(A.setDifficulty('normal')); d(A.goToScreen('pickMission')); d(A.selectScenario(sid));
+      [A.selectComponent('structure', st), ...pl.map(A.addInstrument), pw && A.selectComponent('power', pw), bat && A.selectComponent('battery', bat), ttc && A.selectComponent('comms', ttc), dl && A.selectComponent('downlink', dl),
+        A.setKit('standard'), A.selectGround(gs), A.selectOrbit(orb), A.selectLauncher(lv), A.selectDeployer(dep)].filter(Boolean).forEach(d);
+      out[sid] = {};
+      for (const step of STEPS) {
+        d(A.goToScreen(step)); await sleep(150);
+        const scr = w.document.querySelector('#screen');
+        if (w.__store.getState().screen !== step || scr.querySelector('.question h1') == null) { out[sid][step] = 'skipped'; continue; }
+        const all = [...scr.querySelectorAll('.choice:not(.disabled)')].filter((c) => !c.closest('.compare-box'));
+        const front = all.filter((c) => !c.closest('details:not([open])'));
+        const chips = scr.querySelectorAll('.variant-row button, .prep-item').length;
+        out[sid][step] = `${all.length + (step === 'pickMission' ? 0 : 0)} (front ${front.length})${chips ? ` + ${chips} toggles` : ''}`;
+      }
+      // the navigation step list hides Power and Bus: the platform fixes them
+      const visible = [...w.document.querySelectorAll('#step-list button')].map((b) => b.title);
+      out[sid].steps = visible.join(' · ');
+    }
+  } catch (e) { errors.push('THROW ' + (e.stack || e.message)); }
+  log('OPTIONS ' + JSON.stringify(out));
+  log('ERRORS:\n' + errors.join('\n'));
+  document.title = errors.length ? 'OPTIONS FAIL' : 'OPTIONS PASS';
+</script></body></html>

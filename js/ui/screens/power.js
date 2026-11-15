@@ -68,12 +68,11 @@ export function render(container, state, dispatch) {
       { label: 'Power', symbol: '⚡', value: (c) => c.arrayW },
       { label: 'Mass', symbol: '●', value: (c) => c.mass },
       { label: 'Cost', symbol: '$', value: (c) => c.cost },
-    ], before),
+    ], before, { max: 4 }),
     subQuestion('Battery', 'battery'),
     componentCards(state, dispatch, 'battery', [
       { label: 'Storage', symbol: '🔋', value: (c) => c.capacityWh },
       { label: 'Mass', symbol: '●', value: (c) => c.mass },
-      { label: 'Cost', symbol: '$', value: (c) => c.cost },
-    ], before),
+    ], before, { max: 4 }),
   );
 }

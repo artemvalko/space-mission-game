@@ -225,37 +225,37 @@ export const COMPONENTS = [
   // ── Reference builds: complete REAL satellites whose total mass is public (§5 rule 4).
   // reference.includes = categories that come with the satellite; payloadRoles = what its payload does.
   {
-    id: 'ref_swarm_spacebee', category: 'structure', icon: '🐝', plainName: 'Swarm SpaceBEE (real)', name: 'Swarm SpaceBEE — whole satellite, 0.25U', formFactor: 'cubesat', units: 0.25, maxMassKg: null,
+    id: 'ref_swarm_spacebee', heritage: 'Swarm', category: 'structure', icon: '🐝', plainName: 'Swarm SpaceBEE (real)', name: 'Swarm SpaceBEE — whole satellite, 0.25U', formFactor: 'cubesat', units: 0.25, maxMassKg: null,
     mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'reported', sources: ['O20', 'O21', 'O22'], ref: 'options §2.1',
     reference: { totalMassKg: 0.4, massText: '~400 g (tracking database: 0.284 kg)', payloadRoles: ['iot_transceiver', 'iot_antenna'], language: 'swarm', fleet: 150, licensingNote: 'The FCC refused Swarm’s first licence in 2017: satellites this small are hard to track.' },
     oneLiner: 'Tiny and cheap; needs ~150 sats.', why: 'A complete flown IoT satellite — you use its real total mass.',
   },
   {
-    id: 'ref_astrocast_3u', category: 'structure', icon: '📶', plainName: 'Astrocast 3U (real)', name: 'Astrocast — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
+    id: 'ref_astrocast_3u', heritage: 'Astrocast', category: 'structure', icon: '📶', plainName: 'Astrocast 3U (real)', name: 'Astrocast — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
     mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'reported', sources: ['O23', 'O24', 'O25'], ref: 'options §2.1',
     reference: { totalMassKg: 4.5, massText: '~4.5 kg', payloadRoles: ['iot_transceiver', 'iot_antenna'], language: 'lband', fleet: 64 },
     oneLiner: 'Licensed L-band; 64 sats planned.', why: 'A complete flown IoT satellite — you use its real total mass.',
   },
   {
-    id: 'ref_sateliot_6u', category: 'structure', icon: '📱', plainName: 'Sateliot 6U (real)', name: 'Sateliot (Alén Space) — whole satellite, 6U', formFactor: 'cubesat', units: 6, maxMassKg: 12,
+    id: 'ref_sateliot_6u', heritage: 'Sateliot', category: 'structure', icon: '📱', plainName: 'Sateliot 6U (real)', name: 'Sateliot (Alén Space) — whole satellite, 6U', formFactor: 'cubesat', units: 6, maxMassKg: 12,
     mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['S31'], ref: '§3.1 · options §2.1',
     reference: { totalMassKg: 10, massText: '10 kg', payloadRoles: ['iot_transceiver', 'iot_antenna'], language: 'nbiot', designLifeYears: 5 },
     oneLiner: 'Talks to standard phone IoT chips.', why: 'A complete flown IoT satellite — you use its real total mass.',
   },
   {
-    id: 'ref_tropics_3u', category: 'structure', icon: '🌀', plainName: 'TROPICS 3U (real)', name: 'NASA TROPICS — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
+    id: 'ref_tropics_3u', heritage: 'TROPICS', category: 'structure', icon: '🌀', plainName: 'TROPICS 3U (real)', name: 'NASA TROPICS — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
     mass: null, cost: null, missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1–3.2',
     reference: { totalMassKg: 5.4, massText: '5.34–5.4 kg', payloadRoles: ['mw_radiometer', 'calibration'], sensor: 'wx_tropics_radiometer', powerW: 15 },
     oneLiner: '12 channels in 3U; spins at 30 rpm.', why: 'A complete flown weather satellite — you use its real total mass.',
   },
   {
-    id: 'ref_raincube_6u', category: 'structure', icon: '🌧️', plainName: 'RainCube 6U (real)', name: 'NASA/JPL RainCube — whole satellite, 6U', formFactor: 'cubesat', units: 6, maxMassKg: 12,
+    id: 'ref_raincube_6u', heritage: 'RainCube', category: 'structure', icon: '🌧️', plainName: 'RainCube 6U (real)', name: 'NASA/JPL RainCube — whole satellite, 6U', formFactor: 'cubesat', units: 6, maxMassKg: 12,
     mass: null, cost: null, missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O30', 'O35', 'O36'], ref: 'options §3.1–3.2',
     reference: { totalMassKg: 12, massText: '12 kg — right at the 6U limit', payloadRoles: ['precip_radar'], sensor: 'wx_raincube_radar' },
     oneLiner: 'Rain radar; right at 12 kg.', why: 'A complete flown weather satellite — you use its real total mass.',
   },
   {
-    id: 'ref_gps_iii', category: 'structure', icon: '🛰️', plainName: 'GPS III (real)', name: 'GPS III (Lockheed Martin) — whole satellite', formFactor: 'large', units: null, reserveFraction: 0,
+    id: 'ref_gps_iii', heritage: 'GPS III', category: 'structure', icon: '🛰️', plainName: 'GPS III (real)', name: 'GPS III (Lockheed Martin) — whole satellite', formFactor: 'large', units: null, reserveFraction: 0,
     mass: null, cost: null, missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O40'], ref: 'options §4.1',
     reference: { totalMassKg: 3681, massText: '8,115 lb ≈ 3,681 kg (on orbit 4,764 lb)', payloadRoles: ['atomic_clocks', 'nav_signal', 'nav_antenna'], clocks: 'clk_rafs_3', designLifeYears: 15 },
     oneLiner: '~5× heavier; 15-year design life.', why: 'A complete real navigation satellite — you use its real total mass.',
@@ -340,7 +340,7 @@ export const COMPONENTS = [
     oneLiner: 'Light; enough to point down.', why: 'Points antennas and sensors.',
   },
   {
-    id: 'adcs_bct_xact15', category: 'adcs', icon: '🎯', plainName: 'Blue Canyon XACT-15', name: 'Blue Canyon XACT-15 (0.007°)', formFactor: 'cubesat',
+    id: 'adcs_bct_xact15', heritage: 'ASTERIA, MinXSS', category: 'adcs', icon: '🎯', plainName: 'Blue Canyon XACT-15', name: 'Blue Canyon XACT-15 (0.007°)', formFactor: 'cubesat',
     mass: 0.885, cost: null, missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
     oneLiner: 'Very precise; flew on ASTERIA.', why: 'Points antennas and sensors very precisely.',
   },

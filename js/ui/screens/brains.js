@@ -1,14 +1,15 @@
-// Step 6 — Bus systems: computer, pointing, thermal control, sensors, cables, and on-board
-// propulsion where needed (Normal only; Easy uses the standard kit from the research build list).
+// Step 6 — Bus systems: the real choices are the computer and the pointing system (options §1.5, §1.8).
+// Thermal + cables + sensors are one "included" line (no real alternatives in our data); the end-of-life
+// choice is on Launch prep. Normal only; Easy uses the standard kit. Navigation: fixed inside the platform.
 
 import { mount, h } from '../dom.js';
 import { setKit } from '../../state/actions.js';
 import { getScenario } from '../../data/scenarios.js';
-import { KITS, bundleTotals } from '../../data/bundles.js';
+import { KITS, FIXED_BUS, bundleTotals } from '../../data/bundles.js';
 import { computeResources } from '../../engine/resources.js';
-import { kg, money } from '../../utils/format.js';
-import { subQuestion, componentCards, optionsFor } from './common.js';
-import { CATEGORY_PLAIN } from '../../data/components.js';
+import { kg, money, num } from '../../utils/format.js';
+import { subQuestion, componentCards } from './common.js';
+import { getComponent } from '../../data/components.js';
 
 const MASS_COST = [
   { label: 'Mass', symbol: '●', value: (c) => c.mass },
@@ -20,15 +21,18 @@ export function render(container, state, dispatch) {
   const scenario = getScenario(state.scenarioId);
   const kitParts = scenario ? KITS[0].byMission[scenario.id] : null;
   const tot = kitParts ? bundleTotals(kitParts, scenario.id) : null;
-  const cats = [['computer', 'Computer'], ['adcs', 'Pointing system'], ['thermal', 'Thermal control'], ['sensors', 'Position & time sensors'], ['harness', 'Cables & integration'], ['propulsion', 'Thrusters'], ['propellant', 'Propellant']];
+  // Thermal control, cables and position sensors have no real alternatives in our data: one line.
+  const fixed = FIXED_BUS.map((cat) => getComponent(state.design.components[cat])).filter(Boolean);
+  const fixedKg = fixed.reduce((a, c) => a + (c.mass ?? 0), 0);
   mount(container,
     h('div', { class: 'step-hint' }, [
       h('button', { class: 'btn btn-small', type: 'button', key: 'use-standard-kit', title: tot ? `The research build list for this mission: ${kg(tot.mass)}, ${money(tot.cost)} (the sum of its parts).` : null, onClick: () => dispatch(setKit('standard')) },
         state.design.kit === 'standard' ? '✓ Standard kit' : 'Use standard kit'),
     ]),
-    // A category with only a "leave it out" option for this frame (e.g. thrusters in LEO) becomes one line.
-    ...cats.flatMap(([cat, title]) => (optionsFor(state, cat).length === 0 && !scenario?.requiredBus.includes(cat)
-      ? [h('p', { class: 'muted small', title: CATEGORY_PLAIN[cat].noneWhy }, `${CATEGORY_PLAIN[cat].icon} ${title}: not needed here`)]
-      : [subQuestion(title, cat), componentCards(state, dispatch, cat, MASS_COST, before)])),
+    subQuestion('Computer', 'computer'),
+    componentCards(state, dispatch, 'computer', MASS_COST, before),
+    subQuestion('Pointing system', 'adcs'),
+    componentCards(state, dispatch, 'adcs', MASS_COST, before),
+    fixed.length > 0 && h('p', { class: 'muted small', title: fixed.map((c) => `${c.plainName} (${c.name}): ${kg(c.mass)}`).join(' · ') }, `🔧 Thermal + cables + sensors included: +${num(fixedKg, 2)} kg`),
   );
 }

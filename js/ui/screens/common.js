@@ -8,6 +8,7 @@ import { getScenario } from '../../data/scenarios.js';
 import { whyComponent } from '../../engine/explain.js';
 import { selectComponent } from '../../state/actions.js';
 import { kg, money, watts, wh } from '../../utils/format.js';
+import { rerender } from '../view.js';
 
 /** Sub-question heading inside a step ("Control radio", "Ground segment"…), with the real term + what it is for. */
 export function subQuestion(title, category, extra) {
@@ -20,28 +21,68 @@ export function subQuestion(title, category, extra) {
   ]);
 }
 
-/** Options for a category that fit the current frame size (mission's own parts first). */
+/**
+ * Options for a category that fit the current frame: the mission's research part first, then shared
+ * real products. Another mission's research card is a duplicate of the same thing → hidden.
+ */
 export function optionsFor(state, category) {
   const structure = getComponent(state.design.components.structure);
   const sid = state.scenarioId;
+  const chosenId = state.design.components[category];
   return componentsByCategory(category)
     .filter((c) => !structure || c.formFactor === structure.formFactor)
+    .filter((c) => c.id === chosenId || !c.missions.length || c.missions.includes(sid))
     .sort((a, b) => Number(b.missions.includes(sid)) - Number(a.missions.includes(sid)));
 }
 
 const partDetails = (c, sid) => [
-  ['Mass', c.mass == null ? 'not in our data' : kg(c.mass)],
-  ['Cost', c.cost == null ? 'not in our data' : money(costFor(c, sid))],
+  ['Mass', c.mass != null ? kg(c.mass) : c.massClassOf ? '≈ research SDR class (estimate)' : 'not public (?)'],
+  ['Price', c.cost != null ? money(costFor(c, sid)) : 'not public (?)'],
+  ...(c.costText ? [['Price sources', c.costText]] : []),
+  ...(c.massText ? [['Mass sources', c.massText]] : []),
   ...(c.arrayW ? [['Array output (full sun)', `${watts(c.arrayW)}${c.arrayWMax ? `–${watts(c.arrayWMax)}` : ''}`]] : []),
   ...(c.capacityWh ? [['Capacity', `${wh(c.capacityWh)} (60% usable)`]] : []),
-  ...(c.rateMbps ? [['Data rate (example)', `${c.rateMbps} Mbps`]] : []),
+  ...(c.rateMbps ? [['Data rate', `${c.rateMbps} Mbps`]] : []),
+  ...(c.powerW ? [['Power', watts(c.powerW)]] : []),
 ];
+
+/** Why a part is physically impossible for the current design ('' = possible). */
+export function partWhyNot(c, state) {
+  const structure = getComponent(state.design.components.structure);
+  if (c.fitsUnits && structure?.units && !c.fitsUnits.includes(structure.units)) return `Made for a ${c.fitsUnits.join('/')}U frame.`;
+  if (c.requiresComms && state.design.components.comms !== c.requiresComms) return 'Needs the S-band transceiver as control radio.';
+  return '';
+}
+
+// ── Compare toggle (view-only): side-by-side table of the visible options of a step.
+const compareOpen = new Set();
+const cell = (v) => (v == null ? '?' : v);
+/** Row values for any option kind (part, payload, orbit, launcher, ground, structure). */
+export function compareRow(o, sid) {
+  const mass = o.reference ? `${o.reference.totalMassKg} kg (real)` : 'mass' in o ? (o.mass != null ? `${o.mass} kg` : o.massClassOf ? '≈1.5 kg' : '?') : o.altitudeText ?? '—';
+  const power = o.arrayW ? `${o.arrayW} W` : o.capacityWh ? `${o.capacityWh} Wh` : o.powerW ? `${o.powerW} W` : o.rateMbps ? `${o.rateMbps} Mbps` : o.inclinationText ?? '—';
+  const price = 'cost' in o ? (o.cost != null ? money(costFor(o, sid)) : '?') : 'priceM' in o ? (o.priceM != null ? money(o.priceM) : '?') : '—';
+  return [o.plainName, cell(mass), cell(power), cell(price), o.oneLiner ?? ''];
+}
+export function compareToggle(key, items, sid, headers = ['Option', 'Mass', 'Power / size', 'Price', 'Trade-off']) {
+  const open = compareOpen.has(key);
+  return h('div', { class: 'compare-box' }, [
+    h('button', { class: ['btn', 'btn-small', open && 'btn-active'], type: 'button', key: `compare-${key}`, 'aria-pressed': open ? 'true' : 'false',
+      title: 'Show the options side by side', onClick: () => { if (open) compareOpen.delete(key); else compareOpen.add(key); rerender(); } }, '⚖️ Compare'),
+    open && h('table', { class: 'compare-real compare-table' }, [
+      h('thead', {}, h('tr', {}, headers.map((t) => h('th', {}, t)))),
+      h('tbody', {}, items.map((o) => h('tr', {}, compareRow(o, sid).map((v) => h('td', {}, v))))),
+    ]),
+  ]);
+}
 
 /**
  * Standard cards for a bus category. `meterDefs`: [{ label, symbol, value(c), log? }] (max 3).
- * Categories with a "none" option (CATEGORY_PLAIN[cat].noneText) also get a "leave it out" card.
+ * Shows up to `max` options up front (chosen + research part first); the rest fold under "+N more".
+ * Impossible options stay visible but greyed with a one-line reason.
+ * Categories with a "none" option (CATEGORY_PLAIN[cat].noneText) also get a "leave it out" card (folded).
  */
-export function componentCards(state, dispatch, category, meterDefs, before) {
+export function componentCards(state, dispatch, category, meterDefs, before, { max = 3, compare = true } = {}) {
   const sid = state.scenarioId;
   const scenario = getScenario(sid);
   const options = optionsFor(state, category);
@@ -50,6 +91,7 @@ export function componentCards(state, dispatch, category, meterDefs, before) {
   const card = (c, i) => {
     const selected = state.design.components[category] === c.id;
     const own = c.missions.includes(sid);
+    const whyNot = partWhyNot(c, state);
     return choiceCard({
       key: `comp-${c.id}`,
       icon: c.icon,
@@ -62,21 +104,27 @@ export function componentCards(state, dispatch, category, meterDefs, before) {
       details: partDetails(c, sid),
       data: c,
       selected,
-      delta: selected ? null : `If chosen: ${previewDelta(state, selectComponent(category, c.id), before)}`,
-      why: whyComponent(c, sid),
+      disabled: !!whyNot && !selected,
+      warn: !!whyNot && selected,
+      disabledReason: `✗ ${whyNot}`,
+      delta: selected || whyNot ? null : `If chosen: ${previewDelta(state, selectComponent(category, c.id), before)}`,
+      why: `${whyNot ? `${whyNot} ` : ''}${whyComponent(c, sid)}`,
       onSelect: () => dispatch(selectComponent(category, c.id)),
     });
   };
-  // Progressive disclosure: this mission's parts + the chosen one up front, other valid parts folded.
+  const chosenId = state.design.components[category];
   const pairs = options.map((c, i) => [c, i]);
-  const anyOwn = options.some((o) => o.missions.includes(sid));
-  const front = pairs.filter(([c]) => c.missions.includes(sid) || state.design.components[category] === c.id || !anyOwn);
-  const more = pairs.filter((x) => !front.includes(x));
+  // Order: chosen, this mission's research part, possible real products, impossible ones last.
+  const rank = ([c]) => (c.id === chosenId ? 0 : c.missions.includes(sid) ? 1 : partWhyNot(c, state) ? 3 : 2);
+  const sorted = [...pairs].sort((a, b) => rank(a) - rank(b));
+  const front = sorted.slice(0, max);
+  const more = sorted.slice(max);
   const cards = front.map(([c, i]) => card(c, i));
+  const extra = more.map(([c, i]) => card(c, i));
   if (info.noneText) {
     const selected = state.design.components[category] === NONE;
     const needed = scenario?.requiredBus.includes(category);
-    cards.push(choiceCard({
+    (selected ? cards : extra).push(choiceCard({
       key: `comp-none-${category}`,
       icon: '🚫',
       title: info.noneText,
@@ -92,7 +140,8 @@ export function componentCards(state, dispatch, category, meterDefs, before) {
   }
   return h('div', {}, [
     h('div', { class: 'choices' }, cards),
-    more.length > 0 && h('details', { class: 'fold' }, [h('summary', { title: 'More valid options from other research builds' }, `＋${more.length} more`), h('div', { class: 'choices' }, more.map(([c, i]) => card(c, i)))]),
+    extra.length > 0 && h('details', { class: 'fold' }, [h('summary', { title: `${extra.length} more real options (and leaving it out)` }, `＋${extra.length}`), h('div', { class: 'choices' }, extra)]),
+    compare && compareToggle(`cat-${category}`, options, sid),
   ]);
 }
 

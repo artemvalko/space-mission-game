@@ -3,6 +3,9 @@
 
 import { getComponent, costFor, isCubeSat, M_COMMS, M_NAV, M_WX } from './components.js';
 
+/** Bus categories that are not a real choice in our data (always the research parts, "included"). */
+export const FIXED_BUS = ['thermal', 'harness', 'sensors'];
+
 /** Bus categories that come with a reference build (a complete real satellite). */
 export const INCLUDED_IN_REFERENCE = ['power', 'battery', 'comms', 'downlink', 'computer', 'adcs', 'thermal', 'sensors', 'harness', 'propulsion', 'propellant'];
 
@@ -50,6 +53,17 @@ export function applyBundles(design, scenarioId) {
     return { ...design, components };
   }
   const cube = structure ? isCubeSat(structure) : null;
+  // Navigation part build (Galileo FOC): the bus inside the platform is fixed — always the research build.
+  if (structure?.id === 'str_gnss_meo' && scenarioId === M_NAV) {
+    Object.assign(components, getPowerPack('pack_gnss').parts, KITS[0].byMission[M_NAV], { comms: 'ttc_c_s_band' });
+    return { ...design, powerPack: 'pack_gnss', kit: design.kit, components };
+  }
+  // Thermal control, cables and position sensors are not real choices in our data: they always come
+  // from the mission's research build (shown as one "included" line). The engine still counts them.
+  const own = KITS[0].byMission[scenarioId];
+  if (own && structure && cube) {
+    for (const cat of FIXED_BUS) if (components[cat] == null) components[cat] = own[cat];
+  }
   let powerPack = design.powerPack;
   const pack = getPowerPack(powerPack);
   if (pack) {

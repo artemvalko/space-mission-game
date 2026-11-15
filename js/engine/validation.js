@@ -187,7 +187,7 @@ export function validateDesign(state, resources = computeResources(state)) {
           : `${plain(launcher)} can't reach your orbit.`,
       gto ? `It delivers to ${gto}. GTO is not MEO: without a transfer stage or apogee engine plus a calculated burn, the satellite stays in the wrong orbit.`
         : `${tooHeavyEvenLeo ? `It cannot reach ${plain(orbit)} either. ` : ''}An orbit or inclination is never "fixed for free" after launch.`,
-      scenario.launchers.length ? `Pick ${scenario.launchers.map((id) => id === 'lv_f9_dedicated_meo' ? 'Falcon 9 dedicated with MEO injection' : 'a Falcon 9 rideshare seat').join(' or ')}.` : '',
+      scenario.launchers.length ? `Pick ${scenario.launchers.map((id) => id === 'lv_f9_dedicated_meo' ? 'Falcon 9 to MEO (or Ariane 62)' : 'Falcon 9 rideshare').join(' or ')}.` : '',
       null);
   }
   if (launcher?.overkillFor?.includes(scenario.id) && mass.reaches !== false) {
@@ -260,17 +260,17 @@ export function validateDesign(state, resources = computeResources(state)) {
   // ── End of life
   const eol = components.eol;
   if (eol?.id === 'eol_natural_decay' && orbit && ['leo_550', 'sso_550_650', 'leo_550_32deg'].includes(orbit.id)) {
-    add('caution', 'legal_safety_disposal_plan_pass', 'legal', 'brains', 'Natural decay from 550+ km may miss the 5-year rule.', 'Higher orbits decay much slower (NASA SoA, O55). The FCC 5-year rule (S22) applies to listed US systems. Not verified with a decay model here.');
+    add('info', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Natural decay from 550+ km may miss the 5-year rule.', 'Higher orbits decay much slower (NASA SoA, O55). The FCC 5-year rule (S22) applies to listed US systems. Not verified with a decay model here.');
   }
   if (eol?.needsAdcs && !components.adcs && !included.has('adcs')) {
-    add('error', 'legal_safety_disposal_plan_pass', 'legal', 'brains', 'Turning broadside needs a pointing system.', eol.why, 'Add an ADCS.');
+    add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Turning broadside needs a pointing system.', eol.why, 'Add an ADCS.');
   }
 
   // ── Budget (not a hard gate: the mission objective "on budget" will fail)
   if (budget.status === 'over') {
     add('warning', null, 'budget', 'rocket', `${money(budget.used - budget.available)} over the model budget.`, budget.explanation, 'Choose cheaper options; check the launch line.');
   } else if (budget.uncertain) {
-    add('caution', null, 'budget', 'rocket', `Budget uncertain: ${budget.unknownItems.length} item${budget.unknownItems.length > 1 ? 's have' : ' has'} no public price.`, `${budget.unknownItems.join(', ')}. Real engineers would request a quote (RFQ). Not a fail, and never a guess.`);
+    add('caution', null, 'budget', null, `Budget uncertain: ${budget.unknownItems.length} item${budget.unknownItems.length > 1 ? 's have' : ' has'} no public price.`, `${budget.unknownItems.join(', ')}. Real engineers would request a quote (RFQ). Not a fail, and never a guess.`);
   } else if (budget.status === 'caution') {
     add('caution', null, 'budget', 'rocket', `Eating into the reserve: ${money(budget.reserveLeft)} left.`, `The research plan keeps ${money(budget.plannedReserve)}. ${budget.explanation}`);
   }

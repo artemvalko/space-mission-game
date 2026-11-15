@@ -14,6 +14,13 @@ Play solo or as a team of 2–4 on one screen. Plain HTML, CSS and JavaScript: n
 | 🌦️ **Weather Under the Clouds** | ★★ | A 6U CubeSat with a passive 5-channel microwave radiometer + calibration in a sun-synchronous orbit (550–650 km), compared with NASA GPM data. Model budget $18M. | NASA TEMPEST-D and TROPICS |
 | 📍 **Precise Time for Navigation** | ★★★ | One ~700 kg Galileo-class navigation satellite with 4 atomic clocks and an L-band signal in MEO (23,222 km, 56°). Model budget $280M. | ESA Galileo FOC |
 
+Every step offers **several real options** (EnduroSat frames, panels and EPS batteries, real radios,
+CubeSpace / Blue Canyon pointing units, OBCs, AWS / KSAT ground stations, Electron, Ariane 62, ISS
+deploy…) and you can also fly a **complete real satellite** (Swarm, Astrocast, Sateliot, TROPICS,
+RainCube, GPS III) using its public total mass. Pick a **goal** for your mission — e.g. *Watch hurricanes
+often* or *Measure rain inside storms* — and different builds can each be right. Use **⚖️ Compare** to
+see options side by side.
+
 Each mission also teaches one **impossible claim**: one low satellite ≠ 24/7 worldwide service; one
 navigation satellite ≠ a 3D position (that needs ≥4 in view); one 18-month CubeSat ≠ a climate trend.
 
@@ -51,7 +58,13 @@ when over. 🔊 mutes sound; animations respect "reduce motion".
 - **✔ Real fact**: confirmed by an official source (ESA, NASA, SpaceX, Rocket Lab, CubeSat spec).
 - **🏷 Catalog price**: a public catalog price or spec of one product (not a quote for a mission).
 - **≈ Estimate**: an educational estimate from the research (part breakdowns, mission budgets). Never official.
+- **📰 Reported**: a press or third-party figure (e.g. Electron ~$7.5M). Never official.
+- **💰 ? / ⚖️ ?**: the price or mass is **not public**. The game never guesses: an unknown price makes the
+  budget *uncertain* (real engineers would ask for a quote), an unknown mass cannot be verified — fly a
+  real satellite whose total mass is public instead.
 - **✉️ Price on request (RFQ)**: not public, so the game never invents one.
+
+Options supplement: [`docs/OPTIONS_RESEARCH.md`](docs/OPTIONS_RESEARCH.md) (O01–O56: EnduroSat, GomSpace, CubeSpace, Blue Canyon, ISISPACE, Space Inventor, AWS, KSAT, Swarm, Astrocast, Lacuna, Rocket Lab, NASA TROPICS / TEMPEST-D / RainCube, Spire, GPS III, Galileo L12–L14).
 
 Main sources: CubeSat Design Specification (S01), GPS.gov (S02), ESA Galileo (S04, S05, S15, S30),
 NASA TROPICS (S06), NASA/JPL TEMPEST-D (S07), EnduroSat (S08, S09), SpaceX Rideshare / Falcon 9 /

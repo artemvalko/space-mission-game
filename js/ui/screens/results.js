@@ -234,6 +234,33 @@ function compare(state) {
   ]);
 }
 
+/** "Your choices vs real missions": each chosen option that really flew, as a tiny chip. */
+function heritageStrip(state) {
+  const sel = getSelection(state);
+  const picks = [
+    ['Satellite', sel.components.structure], ...sel.instruments.map((i) => [i.plainName, i]), ['Pointing', sel.components.adcs],
+    ['Orbit', sel.orbit], ['Rocket', sel.launcher], ['Ground', sel.ground],
+  ].filter(([, it]) => it?.heritage);
+  if (!picks.length) return null;
+  return h('div', { class: 'variant-row', 'aria-label': 'Your choices vs real missions' }, [
+    h('span', { class: 'muted' }, '🛰 Like the real thing:'),
+    ...picks.map(([what, it]) => h('span', { class: 'pill', title: `${it.plainName}: ${it.heritage} (real mission)` }, `${what} = ${it.heritage}`)),
+  ]);
+}
+
+/** "Other valid builds you could try" for the chosen objective variant (all proven PASS by the self-test). */
+function otherBuilds(state) {
+  const sel = getSelection(state);
+  const v = sel.variant;
+  if (!v?.builds?.length) return null;
+  return h('section', { class: 'panel' }, [
+    h('h2', {}, `🔀 Other valid builds (${v.builds.length})`),
+    h('p', { class: 'muted small' }, `Different real ways to reach "${v.label}" — each one passes every hard gate, with different mass, power, cost and coverage.`),
+    h('ul', { class: 'small' }, v.builds.map((b) => h('li', {}, b.label))),
+    sel.scenario.variants.length > 1 && h('p', { class: 'muted small' }, `Other goals for this mission: ${sel.scenario.variants.filter((x) => x.id !== v.id).map((x) => `${x.icon} ${x.label}`).join(' · ')}.`),
+  ]);
+}
+
 /** Collapse a results panel: its <h2> becomes the <summary> (progressive disclosure). */
 function fold(el) {
   if (!el) return null;
@@ -285,8 +312,11 @@ export function render(container, state, dispatch) {
     breakdown(score),
     topInsights(score),
     (score.tips[0] ?? (!score.success && d.tip)) && h('p', { class: 'step-hint' }, ['💡 ', score.tips[0] ?? d.tip]),
+    heritageStrip(state),
+    score.stats.budgetUncertain && h('p', { class: 'small muted', title: score.stats.unknownPrices.join(', ') }, `💰 ${score.stats.unknownPrices.length} price${score.stats.unknownPrices.length > 1 ? 's' : ''} not public: real engineers would request a quote (RFQ).`),
     lessonCard(state),
     // Everything else is one click away.
+    fold(otherBuilds(state)),
     fold(objectivesPanel(score, state)),
     fold(badgesPanel(state, score, sim)),
     fold(wellHurt(score)),

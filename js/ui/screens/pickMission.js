@@ -3,7 +3,7 @@
 import { mount, h } from '../dom.js';
 import { choiceCard, dataBadge } from '../card.js';
 import { SCENARIOS, getScenario, EASY_DEFAULT_SCENARIO } from '../../data/scenarios.js';
-import { selectScenario } from '../../state/actions.js';
+import { selectScenario, setVariant } from '../../state/actions.js';
 import { money } from '../../utils/format.js';
 
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -26,6 +26,14 @@ export function render(container, state, dispatch) {
       selected: sc.id === state.scenarioId,
       onSelect: () => dispatch(selectScenario(sc.id)),
     }))),
+    // Objective variant: different builds can each be "right" (docs/OPTIONS_RESEARCH.md).
+    current?.variants && h('div', { class: 'variant-row', role: 'radiogroup', 'aria-label': 'Objective' }, [
+      h('span', { class: 'muted' }, '🎯 Goal: '),
+      ...current.variants.map((v) => {
+        const on = (state.design.variantId ?? current.variants[0].id) === v.id;
+        return h('button', { class: ['mini', on && 'active'], type: 'button', key: `variant-${v.id}`, 'aria-pressed': on ? 'true' : 'false', title: v.text, onClick: () => dispatch(setVariant(v.id)) }, `${v.icon} ${v.label}`);
+      }),
+    ]),
     // The brief opens only on request (progressive disclosure).
     current && h('details', { class: 'brief fold', key: 'brief' }, [
       h('summary', {}, `📖 ${current.name}: the brief`),

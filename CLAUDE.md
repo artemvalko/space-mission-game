@@ -6,14 +6,25 @@ missions**, pass the hard engineering gates (GO / NO-GO), fly it and learn the t
 engineers face — **money, mass, power, data** — with **real data only**. Every outcome is **shown**
 with an animation and **explained** in one plain sentence built from engine numbers.
 
-**Single source of truth:** `docs/NASA_Hackathon_Mission_Control_Deep_Research_UA.md` (research, §
-numbers are cited in code comments and as `ref` on data items).
+**Sources of truth:** `docs/NASA_Hackathon_Mission_Control_Deep_Research_UA.md` (research, S01–S34, §
+numbers cited as `ref`) + `docs/OPTIONS_RESEARCH.md` (real alternative options, O01–O56, `ref: 'options §…'`).
+Where they disagree on a catalog price, the store price is used and the others are listed in Details.
 
 ## Data honesty rule (never break it)
 - **Never invent a number.** Every mass, power, price, capacity, altitude, budget and date comes from
-  the research. Each data item stores `dataKind` (`fact` | `catalog` | `model`) and `sources: ['Sxx']`
-  (codes in `js/data/sources.js`, S01–S34), plus `ref` (research §).
-- UI badges: ✔ Real fact · 🏷 Catalog price · ≈ Estimate · ✉️ Price on request (RFQ). Details on every
+  the research. Each data item stores `dataKind` (`fact` | `catalog` | `model` | `reported`) and
+  `sources: ['Sxx' | 'Oxx']` (codes in `js/data/sources.js`, S01–S34 + O01–O56), plus `ref`.
+- UI badges: ✔ Real fact · 🏷 Catalog price · ≈ Estimate · 📰 Reported (press / third-party, never
+  official) · ✉️ Price on request (RFQ). Card faces show "💰 ?" / "⚖️ ?" for NOT PUBLIC values and
+  "⚖️ ≈" for a same-class research estimate (IoT radios borrow the research SDR mass).
+- **Unknown-value rule (options §5):** NOT PUBLIC = `null`, never 0 and never guessed.
+  - Unknown price → budget **uncertain** (amber hatched gauge, "N items have no public price"); cost
+    efficiency uses known items only; Results say "real engineers would request a quote (RFQ)".
+  - Unknown mass (or unknown frame limit) → mass gate **"cannot verify"** = NO-GO, offering a
+    **reference build**: a complete real satellite whose total mass is public (Swarm 0.4 kg, Astrocast
+    4.5 kg, Sateliot 10 kg, TROPICS 5.4 kg, RainCube 12 kg, GPS III 3,681 kg). Its bus + payload are
+    "included"; only add-ons that really flew on it (`flewOn`) can be added.
+  - Unknown data rate / contact time → link "not measurable" (info), judged on a complete chain. Details on every
   card show the badge + source links (`ui/card.js#provenance`); catalog anchors (EnduroSat S08/S09,
   GomSpace S18…) are shown as "Real product example" and never mixed into model prices.
 - Not public (Electron price, Falcon Heavy profile price) → `costType: 'rfq'`, `priceM: null`: left out
@@ -32,9 +43,12 @@ Solo, or hot-seat team of 2–4 (Director, Engineer, Scientist, Flight Dynamics)
 cd space-mission-game
 python3 -m http.server        # then open http://localhost:8000
 ```
-- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 138 checks: data honesty, research
+- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 197 checks: data honesty, research
   BOM sums, power/battery/data numbers, every §10 QA case C-01…ALL-02, alternatives vs distractors,
-  NO-GO rule, simulation replay, scoring, role goals, votes, sharing, badges).
+  NO-GO rule, simulation replay, scoring, role goals, votes, sharing, badges, and every PASS build of
+  every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path).
+- Dev tools: `tools/word-count.sh tools/word-count.before.json` (visible words per screen) and
+  `tools/options-count.html` (selectable options per mission × step).
 - Animation debug page: `/animations.html` — plays every scene in isolation with real sample data.
 - No build step, no npm, no libraries, no external assets. Vanilla ES modules.
 
@@ -80,6 +94,9 @@ python3 -m http.server        # then open http://localhost:8000
    data badges icon-only (✔ 🏷 ≈ ✉️) with tooltips. Screens ≤ ~120 visible words (Results ~200).
    Progressive disclosure, never deletion: everything stays one click away (Details, Why?, folds,
    tooltips, Sources panel). Measure with `tools/word-count.sh tools/word-count.before.json`.
+10. **Real choices**: every step shows 2–4 real options up front (rest under "＋N"), impossible ones greyed
+   with a one-line reason, a "⚖️ Compare" table, heritage chips ("🛰 TROPICS"), and the Flight Director's
+   one-line "Change:" note after each choice. Another mission's research card is a duplicate → hidden.
 
 ## The three missions (`js/data/scenarios.js`)
 | id | Name | Budget (model) | Correct build (research §13) |
@@ -87,6 +104,13 @@ python3 -m http.server        # then open http://localhost:8000
 | `mission_comms_iot` ★ | Connect Remote Sensors | $6.00M | 6U (7.55 → 8.68 kg) · IoT SDR + antennas · UHF TT&C · S-band downlink · LEO 550 · IoT gateways · F9 rideshare + dispenser |
 | `mission_weather_mw` ★★ | Weather Under the Clouds | $18.00M | 6U (8.60 → 9.89 kg) · 5-ch radiometer + calibration · UHF TT&C · S-band science · SSO 550–650 · science station · F9 rideshare + dispenser |
 | `mission_navigation_meo` ★★★ | Precise Time for Navigation | $280M | ~700 kg bus incl. 110 kg propellant · 4 atomic clocks + nav signal + L-band · C/S-band TT&C · MEO 23,222 km / 56° · GNSS monitoring · F9 dedicated MEO injection ($90M model) + large adapter |
+
+**Objective variants** (`scenario.variants`, chosen as chips on the Mission step, `design.variantId`):
+comms *Cheapest coverage / Standard phone chips / Licensed, reliable link*; weather *Global humidity map /
+Watch hurricanes often / Measure rain inside storms*; navigation *Join Galileo / GPS-style node*. Each has
+a `fit` (dimension → factor) that scales **only** mission performance (`objectives.js#variantFit`) — a
+valid but less suitable build is never a failure — and `builds`: real PASS builds (≥2 each), proven by
+the self-test and suggested on Results ("Other valid builds").
 
 Each mission has an **impossible claim** lesson (`impossibleClaim`, `objectives.js#checkClaim`): one LEO
 satellite ≠ 24/7 coverage; one GNSS satellite ≠ 3D positioning (needs ≥4 in view); one 18-month CubeSat
@@ -101,10 +125,10 @@ satellite ≠ 24/7 coverage; one GNSS satellite ≠ 3D positioning (needs ≥4 i
 | 3 | `science` | **Mission payload** (+ Timing for nav, + Calibration for weather) + distractors with "why not" | Scientist |
 | 4 | `power` | Solar array + battery (Easy: power pack), eclipse explanation | Engineer |
 | 5 | `comms` | **Talking to Earth**: control radio (TT&C) ≠ mission downlink + ground segment | Flight |
-| 6 | `brains` | **Bus systems**: computer, pointing, thermal, sensors, cables, thrusters + propellant (Normal; Easy = research kit) | Engineer |
+| 6 | `brains` | **Bus systems**: computer + pointing (real choices); thermal + cables + sensors = one "included" line (Normal; Easy = research kit; navigation: fixed inside the platform, step hidden) | Engineer |
 | 7 | `orbit` | Orbit (true relative scale, ground track illustration, GEO as distractor, GPS info card) | Flight |
 | 8 | `rocket` | **Rocket & adapter**: price-type badges, dispenser/adapter, "What's inside this rocket?", balance scale | Flight |
-| 9 | `launchPrep` | Checklist: tests (vibration, TVAC, EMC), frequency licence/ITU, disposal plan | Director |
+| 9 | `launchPrep` | Checklist: tests (vibration, TVAC, EMC), frequency licence/ITU, disposal plan + end-of-life choice for CubeSats (natural decay / turn broadside / drag sail) | Director |
 | 10 | `finalCheck` | Flight Readiness Review: 11 hard gates, full cost table, role goals, votes, LAUNCH / NO-GO + "Simulate what would happen" | Director |
 | 11 | `operations` | Go/No-Go console → montage → countdown → orbit view with simulated events | Flight |
 | 12 | `results` | Grade, KPIs, lesson card (+ constellation animation), your design vs the real thing, alternatives, real NASA data, log, compare, share | Director |

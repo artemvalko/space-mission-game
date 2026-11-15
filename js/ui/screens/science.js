@@ -6,7 +6,7 @@
 import { mount, h } from '../dom.js';
 import { term } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
-import { INSTRUMENTS, PAYLOAD_PLAIN, getInstrument } from '../../data/instruments.js';
+import { INSTRUMENTS, PAYLOAD_PLAIN, ROLE_INFO, getInstrument } from '../../data/instruments.js';
 import { getScenario, payloadWhyNot } from '../../data/scenarios.js';
 import { getComponent } from '../../data/components.js';
 import { computeResources } from '../../engine/resources.js';
@@ -14,7 +14,7 @@ import { whyInstrument } from '../../engine/explain.js';
 import { addInstrument, removeInstrument } from '../../state/actions.js';
 import { kg, money } from '../../utils/format.js';
 import { instrumentView, drawView, viewKind, VIEW_CAPTION } from '../animations/instrumentView.js';
-import { cap } from './common.js';
+import { cap, compareToggle } from './common.js';
 
 // View-only: which payload the "What it does" panel shows, and which one already played its reveal.
 let previewId = null;
@@ -67,14 +67,15 @@ export function render(container, state, dispatch) {
       realTerm: ins.name,
       oneLiner: whyNot ? `✗ ${cap(whyNot)}` : ins.oneLiner,
       whatFor: ins.why,
-      badges: [...(!whyNot ? ['Needed for your goal ★'] : []), ...(ins.category !== 'service_payload' ? [PAYLOAD_PLAIN[ins.category].plainName] : [])],
-      details: [['Mass', ins.mass == null ? 'not in our data' : kg(ins.mass)], ['Cost', ins.cost == null ? 'not in our data' : money(ins.cost)],
+      badges: [...(ins.missions.includes(scenario?.id) && ['payload_iot_sdr', 'ant_iot_deploy', 'payload_mw_radiometer', 'radiometer_calibration', 'clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'].includes(ins.id) ? ['Research build ★'] : []), ...(ins.category !== 'service_payload' ? [PAYLOAD_PLAIN[ins.category].plainName] : [])],
+      details: [['Mass', ins.mass != null ? kg(ins.mass) : ins.massClassOf ? '≈ research SDR class (estimate)' : 'not public (?)'], ['Price', ins.cost == null ? 'not public (?)' : money(ins.cost)],
+        ...(ins.powerW ? [['Power', `${ins.powerW} W`]] : []), ...(ins.dataKbps ? [['Data rate', `${ins.dataKbps} kbps`]] : []),
         ...(ins.volumeU ? [['Volume', `about ${ins.volumeU}U`]] : [])],
       data: ins,
       selected,
-      disabled: !fits && !selected,
+      disabled: (!fits || ins.cancelled || (ins.leoOnly && scenario?.size === 'large')) && !selected,
       warn: !!whyNot && selected,
-      disabledReason: `✗ Wrong size for your frame.`,
+      disabledReason: ins.cancelled ? '✗ Cancelled: never flew.' : ins.leoOnly ? '✗ LEO demo only — not MEO.' : '✗ Wrong size for your frame.',
       delta: `${selected ? 'If removed' : 'If added'}: ${previewDelta(state, action, before)}`,
       whyTitle: whyNot ? `Why not the ${ins.plainName.toLowerCase()}?` : ins.plainName,
       why: whyNot ? `${cap(whyNot)} ${ins.formFactor !== 'any' && !fits ? `It is built for a ${ins.formFactor === 'large' ? '~700 kg satellite' : 'CubeSat'}. ` : ''}Fix: use the payload this mission needs. ${whyInstrument(ins, null)}` : whyInstrument(ins, scenario),
@@ -91,18 +92,28 @@ export function render(container, state, dispatch) {
     return built;
   };
 
-  const own = INSTRUMENTS.filter((i) => !payloadWhyNot(scenario, i));
-  const others = INSTRUMENTS.filter((i) => payloadWhyNot(scenario, i));
+  const reference = structure?.reference ?? null;
+  // A reference build brings its own payload: only add-ons that really flew on it can be added.
+  const own = INSTRUMENTS.filter((i) => !payloadWhyNot(scenario, i) && !i.leoOnly && (!reference || i.flewOn === structure.id));
+  const others = INSTRUMENTS.filter((i) => (payloadWhyNot(scenario, i) || i.leoOnly) && !own.includes(i));
+  const partOnly = reference ? INSTRUMENTS.filter((i) => !payloadWhyNot(scenario, i) && !own.includes(i) && !i.leoOnly) : [];
   const groups = ['service_payload', 'timing', 'calibration'].map((cat) => [cat, own.filter((i) => i.category === cat)]).filter(([, list]) => list.length);
+  const includedCard = reference && h('div', { class: 'choice selected', key: 'ins-included' }, [
+    h('div', { class: 'choice-head' }, [h('span', { class: 'choice-icon', 'aria-hidden': 'true' }, '📦'), h('div', { class: 'choice-titles' }, h('div', { class: 'choice-title' }, `Included in ${structure.plainName.replace(' (real)', '')}`))]),
+    h('p', { class: 'choice-one' }, reference.payloadRoles.map((r) => ROLE_INFO[r]?.plainName).join(' + ')),
+  ]);
   if (!previewId || !INSTRUMENTS.some((i) => i.id === previewId)) previewId = state.design.instrumentIds[0] ?? own[0]?.id ?? null;
 
   mount(container,
     previewId && previewPanel(),
     h('p', { class: 'step-hint', title: 'Controlling the satellite (TT&C) is a different radio — you choose it on the Radio step.' }, ['🎯 ', term('payload', 'Payload'), ' = the job. Control radio comes later.']),
+    includedCard && h('div', { class: 'choices' }, includedCard),
     ...groups.map(([cat, list]) => h('div', { class: 'group' }, [
       h('h2', { class: 'group-title', title: PAYLOAD_PLAIN[cat].whatFor }, `${PAYLOAD_PLAIN[cat].icon} ${PAYLOAD_PLAIN[cat].plainName}`),
       h('div', { class: 'choices' }, list.map(card)),
     ])),
+    partOnly.length > 0 && h('details', { class: 'group fold' }, [h('summary', { class: 'group-title', title: 'These need a part-by-part frame, not a complete real satellite.' }, `🔧 Part-by-part payloads (${partOnly.length})`), h('div', { class: 'choices' }, partOnly.map(card))]),
+    compareToggle('payload', [...own], scenario?.id),
     others.length > 0 && h('details', { class: 'group', open: others.some((i) => chosen.has(i.id)) }, [
       h('summary', { class: 'group-title' }, `✗ Not useful here (${others.length})`),
       h('div', { class: 'choices' }, others.map(card)),

@@ -23,9 +23,12 @@ export const SCENARIOS = [
     // Objective variants (docs/OPTIONS_RESEARCH.md §2): different builds can each be "right".
     // fit = dimension → { option: factor 0..1 }; unlisted options use `other`. Only mission performance is affected.
     variants: [
-      { id: 'cheapest', icon: '🪙', label: 'Cheapest coverage', text: 'Many small, cheap satellites (Swarm, Astrocast).', fit: [{ dim: 'structure', map: { ref_swarm_spacebee: 1, ref_astrocast_3u: 0.9 }, other: 0.6 }] },
-      { id: 'phone_chips', icon: '📱', label: 'Standard phone chips', text: 'Works with normal cellular IoT modules (5G NB-IoT NTN, Sateliot).', fit: [{ dim: 'language', map: { nbiot: 1 }, other: 0.5 }] },
-      { id: 'licensed', icon: '📜', label: 'Licensed, reliable link', text: 'Protected licensed L-band spectrum (Astrocast).', fit: [{ dim: 'language', map: { lband: 1 }, other: 0.5 }] },
+      { id: 'cheapest', icon: '🪙', label: 'Cheapest coverage', text: 'Many small, cheap satellites (Swarm, Astrocast).', fit: [{ dim: 'structure', map: { ref_swarm_spacebee: 1, ref_astrocast_3u: 0.9 }, other: 0.6 }],
+        builds: [{ label: 'Swarm SpaceBEE (real 0.4 kg) · LEO · rideshare', ref: 'ref_swarm_spacebee' }, { label: 'Astrocast 3U (real 4.5 kg) · SSO · rideshare', ref: 'ref_astrocast_3u', orbitId: 'sso_550_650' }] },
+      { id: 'phone_chips', icon: '📱', label: 'Standard phone chips', text: 'Works with normal cellular IoT modules (5G NB-IoT NTN, Sateliot).', fit: [{ dim: 'language', map: { nbiot: 1 }, other: 0.5 }],
+        builds: [{ label: 'Sateliot 6U (real 10 kg) · LEO', ref: 'ref_sateliot_6u' }, { label: 'Research 6U + 5G NB-IoT NTN radio', instrumentIds: ['iot_nbiot_ntn', 'ant_iot_deploy'] }] },
+      { id: 'licensed', icon: '📜', label: 'Licensed, reliable link', text: 'Protected licensed L-band spectrum (Astrocast).', fit: [{ dim: 'language', map: { lband: 1 }, other: 0.5 }],
+        builds: [{ label: 'Astrocast 3U (real) · LEO', ref: 'ref_astrocast_3u' }, { label: 'Research 6U + L-band radio', instrumentIds: ['iot_lband', 'ant_iot_deploy'] }] },
     ],
     orbitWhy: {
       sso_550_650: 'Also works if it suits where your users are — the polar path is good for high latitudes but not always best for your network.',
@@ -68,11 +71,14 @@ export const SCENARIOS = [
     recommendedOrbits: ['sso_550_650'], allowedOrbits: ['sso_550_650', 'leo_550', 'leo_550_32deg', 'iss_400_516'],
     variants: [
       { id: 'global_humidity', icon: '🌍', label: 'Global humidity map', text: 'Same local time, whole Earth: SSO + a radiometer (TEMPEST-D-style).',
-        fit: [{ dim: 'orbit', map: { sso_550_650: 1, leo_550: 0.6, leo_550_32deg: 0.5, iss_400_516: 0.5 }, other: 0.5 }, { dim: 'sensor', map: { payload_mw_radiometer: 1, wx_tropics_radiometer: 1, wx_gnss_ro: 0.8, wx_raincube_radar: 0.6 }, other: 0.5 }] },
+        fit: [{ dim: 'orbit', map: { sso_550_650: 1, leo_550: 0.6, leo_550_32deg: 0.5, iss_400_516: 0.5 }, other: 0.5 }, { dim: 'sensor', map: { payload_mw_radiometer: 1, wx_tropics_radiometer: 1, wx_gnss_ro: 0.8, wx_raincube_radar: 0.6 }, other: 0.5 }],
+        builds: [{ label: 'Research 6U radiometer · SSO · rideshare' }, { label: 'TROPICS 3U (real) · SSO, like the TROPICS Pathfinder', ref: 'ref_tropics_3u' }, { label: 'Research radiometer in a real 12U XL frame', parts: { structure: 'str_cube_12u' } }] },
       { id: 'hurricanes', icon: '🌀', label: 'Watch hurricanes often', text: 'Frequent tropical revisits: 32° orbit + TROPICS-style radiometer.',
-        fit: [{ dim: 'orbit', map: { leo_550_32deg: 1, iss_400_516: 0.7, leo_550: 0.6, sso_550_650: 0.6 }, other: 0.5 }, { dim: 'sensor', map: { wx_tropics_radiometer: 1, payload_mw_radiometer: 0.9, wx_raincube_radar: 0.8, wx_gnss_ro: 0.6 }, other: 0.5 }] },
+        fit: [{ dim: 'orbit', map: { leo_550_32deg: 1, iss_400_516: 0.7, leo_550: 0.6, sso_550_650: 0.6 }, other: 0.5 }, { dim: 'sensor', map: { wx_tropics_radiometer: 1, payload_mw_radiometer: 0.9, wx_raincube_radar: 0.8, wx_gnss_ro: 0.6 }, other: 0.5 }],
+        builds: [{ label: 'TROPICS 3U (real) · 32° · Electron', ref: 'ref_tropics_3u', orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }, { label: 'TEMPEST-D-style radiometer from the ISS (51.6°)', orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }] },
       { id: 'rain_inside', icon: '🌧️', label: 'Measure rain inside storms', text: 'A vertical rain profile: the RainCube radar.',
-        fit: [{ dim: 'sensor', map: { wx_raincube_radar: 1, payload_mw_radiometer: 0.6, wx_tropics_radiometer: 0.6, wx_gnss_ro: 0.4 }, other: 0.4 }] },
+        fit: [{ dim: 'sensor', map: { wx_raincube_radar: 1, payload_mw_radiometer: 0.6, wx_tropics_radiometer: 0.6, wx_gnss_ro: 0.4 }, other: 0.4 }],
+        builds: [{ label: 'RainCube 6U (real 12 kg) · ISS deploy', ref: 'ref_raincube_6u', orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }, { label: 'RainCube radar in a 12U XL part build · SSO', parts: { structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] }] },
     ],
     orbitWhy: {
       leo_550: 'Possible, but a non-SSO orbit changes the science geometry and lighting; SSO matches this mission\'s wide, regular coverage.',
@@ -115,9 +121,11 @@ export const SCENARIOS = [
     recommendedOrbits: ['meo_gnss'], allowedOrbits: ['meo_gnss', 'meo_gps_20200'],
     variants: [
       { id: 'galileo', icon: '🇪🇺', label: 'Join Galileo', text: 'MEO 23,222 km, 2 hydrogen masers + 2 rubidium clocks.',
-        fit: [{ dim: 'orbit', map: { meo_gnss: 1, meo_gps_20200: 0.5 }, other: 0.4 }, { dim: 'clock', map: { phm_rafs: 1, rafs3: 0.6 }, other: 0.4 }] },
+        fit: [{ dim: 'orbit', map: { meo_gnss: 1, meo_gps_20200: 0.5 }, other: 0.4 }, { dim: 'clock', map: { phm_rafs: 1, rafs3: 0.6 }, other: 0.4 }],
+        builds: [{ label: 'Galileo FOC · Falcon 9 · 1 per launch' }, { label: 'Galileo FOC · Falcon 9 · 2 per launch (like L12/L13)', satsPerLaunch: 2 }, { label: 'Galileo FOC · Ariane 62 (like L14)', launcherId: 'lv_ariane62' }] },
       { id: 'gps', icon: '🇺🇸', label: 'GPS-style node', text: 'MEO 20,200 km, 3 rubidium clocks (GPS III).',
-        fit: [{ dim: 'orbit', map: { meo_gps_20200: 1, meo_gnss: 0.5 }, other: 0.4 }, { dim: 'clock', map: { rafs3: 1, phm_rafs: 0.7 }, other: 0.4 }] },
+        fit: [{ dim: 'orbit', map: { meo_gps_20200: 1, meo_gnss: 0.5 }, other: 0.4 }, { dim: 'clock', map: { rafs3: 1, phm_rafs: 0.7 }, other: 0.4 }],
+        builds: [{ label: 'GPS III (real 3,681 kg) · MEO 20,200 km · Falcon 9', ref: 'ref_gps_iii', orbitId: 'meo_gps_20200' }, { label: 'GPS III + laser retroreflector (flew on SV09/SV10)', ref: 'ref_gps_iii', orbitId: 'meo_gps_20200', instrumentIds: ['nav_lra'] }, { label: 'GPS III + DRAFS demo clock (SV10)', ref: 'ref_gps_iii', orbitId: 'meo_gps_20200', instrumentIds: ['clk_drafs_demo'] }] },
     ],
     orbitWhy: {
       leo_550: 'Wrong for a classic Galileo-type MEO node (a LEO navigation DEMO is a different mission — see ESA Celeste).',
@@ -150,6 +158,9 @@ export const SCENARIOS = [
 ];
 
 export const EASY_DEFAULT_SCENARIO = M_COMMS;
+
+// Each variant lists real PASS builds (patches on the mission's research build; `ref` = a reference
+// satellite). The self-test proves every one of them passes; Results suggests the others.
 
 /** The chosen objective variant (default: the first). */
 export const variantOf = (scenario, variantId) => scenario?.variants?.find((v) => v.id === variantId) ?? scenario?.variants?.[0] ?? null;

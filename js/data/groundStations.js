@@ -8,7 +8,7 @@ import { M_COMMS, M_NAV, M_WX } from './components.js';
 
 export const GROUND_STATIONS = [
   {
-    id: 'gs_iot_gateways', icon: '📡', plainName: 'IoT gateway stations (1–3)', name: '1–3 licensed IoT gateways + mission control', serves: 'iot',
+    id: 'gs_iot_gateways', icon: '📡', plainName: 'IoT gateways (1–3)', name: '1–3 licensed IoT gateways + mission control', serves: 'iot',
     cost: 0.50, missions: [M_COMMS], dataKind: 'model', sources: [], ref: '§3.4 · §3.5',
     oneLiner: 'Collects messages on each pass.', about: 'Collects the stored messages on each pass and passes them to the internet.',
     description: '1–3 gateway stations with licences and network links, test IoT terminals on the ground, a control centre and pass-planning tools.',
@@ -32,7 +32,7 @@ export const GROUND_STATIONS = [
     description: 'Rent antenna time by the minute: LEO and MEO, S-band up/down and X-band down. Total cost depends on minutes used — not public for your mission.',
   },
   {
-    id: 'gs_ksat', icon: '🏔️', plainName: 'KSAT network', name: 'KSAT ground station network', serves: ['iot', 'weather'],
+    id: 'gs_ksat', heritage: 'TROPICS', icon: '🏔️', plainName: 'KSAT network', name: 'KSAT ground station network', serves: ['iot', 'weather'],
     cost: null, missions: [], dataKind: 'fact', sources: ['O19', 'O33'], ref: 'options §1.6 · §3.5',
     oneLiner: 'Used by TROPICS; price not public.',
     description: 'A commercial global network. NASA TROPICS used KSAT for its downlink (data latency ~45 min). Price not public.',

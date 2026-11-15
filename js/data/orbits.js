@@ -26,7 +26,7 @@ export const ORBITS = [
     diagram: { r: (6371 + 600) / 6371, polar: true },
   },
   {
-    id: 'leo_550_32deg', icon: '🌀', plainName: 'Tropics orbit (550 km, 32°)', name: 'Low-inclination LEO (TROPICS)', altitudeKm: 550, altitudeText: '~550 km',
+    id: 'leo_550_32deg', heritage: 'TROPICS', icon: '🌀', plainName: 'Tropics orbit (550 km, 32°)', name: 'Low-inclination LEO (TROPICS)', altitudeKm: 550, altitudeText: '~550 km',
     inclinationText: '32–33°', inclinationDeg: 32, sunlitFraction: 0.60, eclipseMinutes: 35,
     dataKind: 'fact', sources: ['O32', 'O34'], ref: 'options §3.3 (power: research LEO model §3.3)',
     oneLiner: 'Frequent tropical revisits; no poles.',
@@ -34,7 +34,7 @@ export const ORBITS = [
     diagram: { r: (6371 + 550) / 6371, tilt: 32 },
   },
   {
-    id: 'iss_400_516', icon: '🏠', plainName: 'ISS orbit (~400 km, 51.6°)', name: 'ISS deploy orbit', altitudeKm: 400, altitudeText: '~400 km',
+    id: 'iss_400_516', heritage: 'TEMPEST-D, RainCube', icon: '🏠', plainName: 'ISS orbit (~400 km, 51.6°)', name: 'ISS deploy orbit', altitudeKm: 400, altitudeText: '~400 km',
     inclinationText: '51.6°', inclinationDeg: 51.6, sunlitFraction: 0.60, eclipseMinutes: 35,
     dataKind: 'fact', sources: ['O16', 'O30'], ref: 'options §2.3 · §3.3 (power: research LEO model §3.3)',
     oneLiner: 'Easy ride; decays sooner; no poles.',
@@ -42,7 +42,7 @@ export const ORBITS = [
     diagram: { r: (6371 + 400) / 6371, tilt: 51.6 },
   },
   {
-    id: 'meo_gnss', icon: '🧭', plainName: 'Navigation orbit (MEO 23,222 km)', name: 'Medium Earth Orbit — Galileo', altitudeKm: 23222, altitudeText: '23,222 km',
+    id: 'meo_gnss', heritage: 'Galileo', icon: '🧭', plainName: 'Navigation orbit (MEO 23,222 km)', name: 'Medium Earth Orbit — Galileo', altitudeKm: 23222, altitudeText: '23,222 km',
     inclinationText: '56°', inclinationDeg: 56, sunlitFraction: null, eclipseMinutes: null,
     dataKind: 'fact', sources: ['S04'], ref: '§1.1 · §4.4',
     oneLiner: 'Where Galileo flies.', about: 'Where Galileo flies: high enough that one satellite sees a big part of Earth.',
@@ -50,7 +50,7 @@ export const ORBITS = [
     diagram: { r: (6371 + 23222) / 6371, tilt: 56 },
   },
   {
-    id: 'meo_gps_20200', icon: '🧭', plainName: 'GPS orbit (MEO ~20,200 km)', name: 'Medium Earth Orbit — GPS', altitudeKm: 20200, altitudeText: '~20,200 km',
+    id: 'meo_gps_20200', heritage: 'GPS', icon: '🧭', plainName: 'GPS orbit (MEO ~20,200 km)', name: 'Medium Earth Orbit — GPS', altitudeKm: 20200, altitudeText: '~20,200 km',
     inclinationText: '55°', inclinationDeg: 55, sunlitFraction: null, eclipseMinutes: null,
     dataKind: 'fact', sources: ['S02', 'O40'], ref: '§1.1 · §4.4 · options §4.1',
     oneLiner: 'Where GPS flies.', about: 'Where GPS flies — a valid GNSS alternative with a different architecture.',

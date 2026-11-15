@@ -27,7 +27,7 @@ export const INSTRUMENTS = [
 
   // ── Navigation / GNSS node (§4.2, §4.3)
   {
-    id: 'clock_phm_rubidium_4', category: 'timing', role: 'atomic_clocks', icon: '⏱️', plainName: '4 atomic clocks', name: '2 passive hydrogen masers + 2 rubidium clocks + clock monitoring', formFactor: 'large',
+    id: 'clock_phm_rubidium_4', category: 'timing', role: 'atomic_clocks', clockType: 'phm_rafs', heritage: 'Galileo', icon: '⏱️', plainName: '4 atomic clocks', name: '2 passive hydrogen masers + 2 rubidium clocks + clock monitoring', formFactor: 'large',
     mass: 50, cost: 22, missions: [M_NAV], status: 'must', dataKind: 'model', sources: ['S04', 'S05'], ref: '§4.2 · §4.3',
     oneLiner: 'Precise time for navigation.', about: 'The precise time every navigation signal is built on.', why: 'Reference time — with spares.',
     realExample: { text: 'Galileo FOC carries 2 passive hydrogen masers and 2 rubidium clocks (S05). Clock prices are not public.', dataKind: 'fact', sources: ['S05'] },
@@ -49,7 +49,7 @@ export const INSTRUMENTS = [
     id: 'payload_mw_radiometer', category: 'service_payload', role: 'mw_radiometer', sensor: true, passive: true, powerW: 3.8, dataKbps: 8, icon: '🌦️', plainName: 'TEMPEST-D radiometer', name: 'TEMPEST-D-class 5-channel radiometer, 89–182 GHz (research model)', formFactor: 'cubesat', volumeU: 4,
     mass: 2.70, cost: 4.00, missions: [M_WX], status: 'must', dataKind: 'model', sources: ['S06', 'S07'], ref: '§5.3',
     oneLiner: 'Measures the atmosphere\'s natural microwave glow — through clouds, day and night.', why: 'The main science measurement.',
-    flewOn: 'TEMPEST-D',
+    heritage: 'TEMPEST-D',
     realExample: { text: 'NASA/JPL TEMPEST-D: 5 channels 89–182 GHz in about 4U of a 6U; instrument 1.6 kg best estimate (3 kg allocation), 3.8 W, 8 kbps; flew 2018–2021 (S07, O16). Our 2.70 kg / $4.0M is the research model for the whole payload.', dataKind: 'fact', sources: ['S07', 'O16', 'O31'] },
   },
   {
@@ -79,12 +79,12 @@ export const INSTRUMENTS = [
   // ── Weather sensors (§3.1)
   {
     id: 'wx_tropics_radiometer', category: 'service_payload', role: 'mw_radiometer', sensor: true, passive: true, powerW: 3, volumeU: 1, icon: '🌀', plainName: 'TROPICS radiometer', name: 'TROPICS 12-channel radiometer, 90–205 GHz', formFactor: 'cubesat',
-    mass: null, cost: null, flewOn: 'TROPICS', missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1',
+    mass: null, cost: null, heritage: 'TROPICS', missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1',
     oneLiner: 'More channels in 1U; mass not public.', why: 'Temperature + humidity profiles and precipitation.',
   },
   {
     id: 'wx_raincube_radar', category: 'service_payload', role: 'precip_radar', sensor: true, powerW: 22, volumeU: 4.5, icon: '🌧️', plainName: 'RainCube radar', name: 'RainCube Ka-band 35.75 GHz precipitation radar', formFactor: 'cubesat',
-    mass: 7, cost: null, flewOn: 'RainCube', missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O30', 'O35', 'O36'], ref: 'options §3.1',
+    mass: 7, cost: null, heritage: 'RainCube', missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O30', 'O35', 'O36'], ref: 'options §3.1',
     oneLiner: 'Measures rain directly; 22 W hungry.', why: 'A vertical rain profile inside storms (3U radar + antenna in 1.5U).',
     realExample: { text: 'RainCube: the first radar on a CubeSat (2018), 7 kg vs 336 kg for GPM’s KaPR. After losing a power tracker in orbit it could only run the radar ~40 min at a time (O36).', dataKind: 'fact', sources: ['O35', 'O36'] },
   },
@@ -101,12 +101,12 @@ export const INSTRUMENTS = [
   // ── Navigation clocks and add-ons (§4.2, §4.4). Masses/prices NOT PUBLIC; they fly inside GPS III.
   {
     id: 'clk_rafs_3', category: 'timing', role: 'atomic_clocks', clockType: 'rafs3', icon: '⏱️', plainName: '3 rubidium clocks', name: '3 rubidium atomic frequency standards (RAFS)', formFactor: 'large',
-    mass: null, cost: null, flewOn: 'ref_gps_iii', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O40'], ref: 'options §4.2',
+    mass: null, cost: null, flewOn: 'ref_gps_iii', heritage: 'GPS III', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O40'], ref: 'options §4.2',
     oneLiner: 'Proven and simpler (GPS III).', why: 'Reference time for GPS-style signals.',
   },
   {
     id: 'clk_drafs_demo', category: 'timing', role: 'clock_demo', demo: true, icon: '🧪', plainName: 'Digital rubidium (demo)', name: 'Digital rubidium clock DRAFS — technology demo', formFactor: 'large',
-    mass: null, cost: null, flewOn: 'ref_gps_iii', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O45'], ref: 'options §4.2',
+    mass: null, cost: null, flewOn: 'ref_gps_iii', heritage: 'GPS III SV10', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O45'], ref: 'options §4.2',
     oneLiner: 'New tech add-on; not a replacement yet.', why: 'First flown on GPS III SV10 (21 Apr 2026) next to the standard clocks.',
   },
   {
@@ -116,7 +116,7 @@ export const INSTRUMENTS = [
   },
   {
     id: 'nav_lra', category: 'service_payload', role: 'lra', addOn: true, icon: '🪞', plainName: 'Laser retroreflector', name: 'Laser retroreflector array (LRA)', formFactor: 'large',
-    mass: null, cost: null, flewOn: 'ref_gps_iii', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O45'], ref: 'options §4.4',
+    mass: null, cost: null, flewOn: 'ref_gps_iii', heritage: 'GPS III SV09/10', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O45'], ref: 'options §4.4',
     oneLiner: 'Orbit known to under 1 cm.', why: 'NASA lasers measure the distance — better orbit knowledge (GPS III SV09/SV10).',
   },
   // ── Distractor (§7.3, §5.2): real kind of instrument, but not part of any build → no numbers.

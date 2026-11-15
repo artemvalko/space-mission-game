@@ -22,6 +22,9 @@ const KIND = {
   payload_iot_sdr: 'iot', ant_iot_deploy: 'iot',
   clock_phm_rubidium_4: 'gnss', nav_signal_rf: 'gnss', antenna_lband_nav: 'gnss',
   payload_mw_radiometer: 'radiometer', radiometer_calibration: 'radiometer',
+  iot_lora: 'iot', iot_lband: 'iot', iot_nbiot_ntn: 'iot',
+  wx_tropics_radiometer: 'radiometer', wx_raincube_radar: 'radiometer', wx_gnss_ro: 'gnss', wx_ciras_ir: 'radiometer',
+  clk_rafs_3: 'gnss', clk_drafs_demo: 'gnss', clk_none_leo: 'gnss', nav_lra: 'gnss',
   dist_rgb_camera: 'camera',
 };
 

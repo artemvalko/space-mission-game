@@ -444,29 +444,21 @@
       return ok;
     };
     {
-      // ── Builds per mission × objective variant (≥2 each)
-      const commsBuilds = {
-        cheapest: [['Swarm SpaceBEE (real 0.4 kg) · LEO · rideshare', ref(C, 'ref_swarm_spacebee')], ['Astrocast 3U (real 4.5 kg) · SSO · rideshare', ref(C, 'ref_astrocast_3u', { orbitId: 'sso_550_650' })]],
-        phone_chips: [['Sateliot 6U (real 10 kg) · LEO', ref(C, 'ref_sateliot_6u')], ['research 6U + NB-IoT NTN radio', make(C, (d) => ({ ...d, instrumentIds: ['iot_nbiot_ntn', 'ant_iot_deploy'] }))]],
-        licensed: [['Astrocast 3U (real) · LEO', ref(C, 'ref_astrocast_3u')], ['research 6U + L-band radio', make(C, (d) => ({ ...d, instrumentIds: ['iot_lband', 'ant_iot_deploy'] }))]],
+      // ── Builds per mission × objective variant (≥2 each) — straight from the data (scenarios.js variants[].builds)
+      const fromBuild = (sid, b) => {
+        let st = b.ref ? ref(sid, b.ref) : make(sid, (d) => ({ ...d, components: { ...d.components, ...(b.parts ?? {}) } }));
+        st = { ...st, design: { ...st.design, ...(b.instrumentIds ? { instrumentIds: b.instrumentIds } : {}), ...(b.orbitId ? { orbitId: b.orbitId } : {}), ...(b.launcherId ? { launcherId: b.launcherId } : {}), ...(b.satsPerLaunch ? { satsPerLaunch: b.satsPerLaunch } : {}) } };
+        return st;
       };
-      const wxRadar12u = make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] }));
-      const weatherBuilds = {
-        global_humidity: [['research 6U radiometer · SSO', make(W)], ['TROPICS 3U (real) · SSO (like the TROPICS Pathfinder)', ref(W, 'ref_tropics_3u')], ['research radiometer in a real 12U XL frame', make(W, withParts({ structure: 'str_cube_12u' }))]],
-        hurricanes: [['TROPICS 3U (real) · 32° · Electron', ref(W, 'ref_tropics_3u', { orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' })], ['TEMPEST-D-style radiometer from the ISS (51.6°), like the real TEMPEST-D', make(W, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }))]],
-        rain_inside: [['RainCube 6U (real 12 kg) · ISS deploy', ref(W, 'ref_raincube_6u', { orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' })], ['RainCube radar in a 12U XL part build · SSO', wxRadar12u]],
-      };
-      const gps = ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' });
-      const navBuilds = {
-        galileo: [['Galileo FOC · Falcon 9 · 1 per launch', make(N)], ['Galileo FOC · Falcon 9 · 2 per launch', make(N, (d) => ({ ...d, satsPerLaunch: 2 }))], ['Galileo FOC · Ariane 62', make(N, (d) => ({ ...d, launcherId: 'lv_ariane62' }))]],
-        gps: [['GPS III (real 3,681 kg) · MEO 20,200 km · Falcon 9', gps], ['GPS III + laser retroreflector (flew on SV09/SV10)', ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200', instrumentIds: ['nav_lra'] })], ['GPS III + DRAFS demo clock (SV10)', ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200', instrumentIds: ['clk_drafs_demo'] })]],
-      };
-      for (const [sid, table] of [[C, commsBuilds], [W, weatherBuilds], [N, navBuilds]]) {
-        for (const [v, builds] of Object.entries(table)) {
-          const n = builds.filter(([label, st]) => passes(`${sid} · ${v}: ${label}`, variant(st, v))).length;
-          check(`${sid} · "${v}": at least 2 distinct PASS builds`, n >= 2, `${n} PASS`);
+      for (const sc of SCENARIOS) {
+        for (const v of sc.variants) {
+          const n = v.builds.filter((b) => passes(`${sc.id} · ${v.id}: ${b.label}`, variant(fromBuild(sc.id, b), v.id))).length;
+          check(`${sc.id} · "${v.id}": at least 2 distinct PASS builds`, n >= 2 && n === v.builds.length, `${n} of ${v.builds.length} PASS`);
         }
       }
+      const weatherBuilds = { hurricanes: [[null, fromBuild(W, SCENARIOS.find((x) => x.id === W).variants[1].builds[0])]] };
+      const wxRadar12u = fromBuild(W, SCENARIOS.find((x) => x.id === W).variants[2].builds[1]);
+      const gps = ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' });
       // ── Variant fit changes mission performance only (never a failure)
       const fitBest = variantFit(variant(weatherBuilds.hurricanes[0][1], 'hurricanes')).value;
       const fitSub = variantFit(variant(make(W), 'hurricanes')).value;

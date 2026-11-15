@@ -28,7 +28,10 @@ const BADGE_ICON = {
   'Also works': '✓', 'Other mission': '✗', 'Wrong for this mission': '✗', "Can't reach": '✗', 'Too small': '✗', 'Info only': 'ℹ️',
   Timing: '⏱️', Calibration: '🎚️', Overkill: '⚠️',
 };
+const KEEP_FACE = { '💰 ?': 'Price not public — never guessed (budget becomes uncertain)', '⚖️ ?': 'Mass not public — the mass gate cannot verify it', '⚖️ ≈': 'Mass estimated from the research model of the same class' };
 function badgeFace(b) {
+  if (KEEP_FACE[b]) return { face: b, title: KEEP_FACE[b] };
+  if (b.startsWith('🛰 ')) return { face: b, title: `Flew on / used by ${b.slice(2)} (real mission)` };
   if (BADGE_ICON[b]) return { face: BADGE_ICON[b], title: b };
   const m = /^(\S+)\s+(.+)$/u.exec(b);
   if (m && !/[A-Za-z0-9]/.test(m[1])) return { face: m[1], title: m[2] }; // "🏷 Published price" → 🏷
@@ -100,8 +103,19 @@ export function meter({ label, symbol = '●', level, text }) {
  * @param {string} [o.whatFor]     "What is it for?" line
  * @param {object} [o.data]        item with dataKind / sources / ref / realExample → badge + source link in Details
  */
+/** Face markers for a data item: unknown price/mass ("?" — never 0) and a real-mission chip. */
+export function dataMarks(d) {
+  if (!d) return [];
+  const out = [];
+  if (('cost' in d && d.cost === null) || ('priceM' in d && d.priceM === null)) out.push('💰 ?');
+  if ('mass' in d && d.mass === null && !d.reference && d.formFactor !== 'any' && !d.leoOnly && !d.cancelled) out.push(d.massClassOf ? '⚖️ ≈' : '⚖️ ?');
+  if (d.heritage) out.push(`🛰 ${d.heritage}`);
+  return out;
+}
+
 export function choiceCard(o) {
   const meters = (o.meters ?? []).slice(0, 3); // rule: never more than 3 stats by default
+  o = { ...o, badges: [...(o.badges ?? []), ...dataMarks(o.data)] };
   const card = h('div', {
     class: ['choice', o.selected && 'selected', o.disabled && 'disabled', o.warn && 'warn'],
     tabindex: o.disabled ? -1 : 0,

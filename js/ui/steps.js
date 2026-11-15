@@ -3,10 +3,14 @@
 
 import { SCREENS } from '../state/actions.js';
 import { getScenario } from '../data/scenarios.js';
+import { getComponent } from '../data/components.js';
 import { STEP_FOR_CATEGORY } from '../engine/validation.js';
 
 const c = (state) => state.design.components;
 const chosen = (state, cat) => c(state)[cat] != null; // a part id or 'none'
+const isRef = (state) => !!getComponent(c(state).structure)?.reference;
+// Navigation: the bus inside the platform (Galileo FOC part build or GPS III) is fixed.
+const fixedPlatform = (state) => state.scenarioId === 'mission_navigation_meo';
 const reqOn = (state, step) => {
   const sc = getScenario(state.scenarioId);
   return (sc?.requiredBus ?? []).filter((cat) => STEP_FOR_CATEGORY[cat] === step);
@@ -19,13 +23,13 @@ export const STEPS = [
   { id: 'size', label: 'Size', icon: '📦', verb: 'Choose the satellite size', question: 'How big is your satellite?', phase: 'Trade study', owner: 'engineer',
     answered: (s) => !!c(s).structure },
   { id: 'science', label: 'Payload', icon: '🎯', verb: 'Choose the mission payload', question: 'What does it carry for the job?', phase: 'Trade study', owner: 'scientist',
-    answered: (s) => s.design.instrumentIds.length > 0 },
+    answered: (s) => s.design.instrumentIds.length > 0 || isRef(s) },
   { id: 'power', label: 'Power', icon: '⚡', verb: 'Choose your power', question: 'Power for sunlight and shadow?', phase: 'Trade study', owner: 'engineer',
-    answered: (s) => chosen(s, 'power') && chosen(s, 'battery') },
+    answered: (s) => (chosen(s, 'power') && chosen(s, 'battery')) || isRef(s), skip: (s) => fixedPlatform(s) },
   { id: 'comms', label: 'Radio', icon: '📡', verb: 'Choose how to talk to Earth', question: 'How does it talk to Earth?', phase: 'Trade study', owner: 'flight',
-    answered: (s) => reqOn(s, 'comms').every((cat) => chosen(s, cat)) && !!s.design.groundId },
+    answered: (s) => (isRef(s) || reqOn(s, 'comms').every((cat) => chosen(s, cat))) && !!s.design.groundId },
   { id: 'brains', label: 'Bus', icon: '🧠', verb: 'Choose the bus systems', question: 'Which bus systems?', phase: 'Trade study', owner: 'engineer',
-    answered: (s) => reqOn(s, 'brains').every((cat) => chosen(s, cat)), skip: (s) => s.difficulty === 'easy' },
+    answered: (s) => isRef(s) || reqOn(s, 'brains').every((cat) => chosen(s, cat)), skip: (s) => s.difficulty === 'easy' || fixedPlatform(s) },
   { id: 'orbit', label: 'Orbit', icon: '🌍', verb: 'Choose your orbit', question: 'Where will it fly?', phase: 'Trade study', owner: 'flight',
     answered: (s) => !!s.design.orbitId },
   { id: 'rocket', label: 'Rocket', icon: '🚀', verb: 'Choose the rocket & adapter', question: 'Which rocket and adapter?', phase: 'Trade study', owner: 'flight',

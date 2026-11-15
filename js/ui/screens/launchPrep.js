@@ -7,6 +7,9 @@ import { dataBadge, sourceLinks } from '../card.js';
 import { getScenario } from '../../data/scenarios.js';
 import { togglePrep } from '../../state/actions.js';
 import { money } from '../../utils/format.js';
+import { getComponent, CATEGORY_PLAIN } from '../../data/components.js';
+import { computeResources } from '../../engine/resources.js';
+import { componentCards } from './common.js';
 
 export const PREP_ITEMS = [
   {
@@ -30,6 +33,7 @@ export function render(container, state, dispatch) {
   const scenario = getScenario(state.scenarioId);
   const prep = state.design.prep ?? {};
   const needsProp = scenario?.requiredBus.includes('propulsion');
+  const isCube = getComponent(state.design.components.structure)?.formFactor === 'cubesat';
   mount(container,
     h('p', { class: 'step-hint', title: 'Real missions pass tests, licensing and a disposal plan before the Flight Readiness Review says GO.' }, ['Missing any = NO-GO. ', term('deorbit', 'ⓘ')]),
     h('div', { class: 'prep-list' }, PREP_ITEMS.map((it) => {
@@ -47,5 +51,8 @@ export function render(container, state, dispatch) {
         whyButton(it.title, more),
       ]);
     })),
+    // The disposal plan becomes a real choice for CubeSats in LEO (options §1.9).
+    isCube && h('div', { class: 'subq' }, h('h2', { title: CATEGORY_PLAIN.eol.whatFor }, ['♻️ How will it end? ', term('deorbit', 'ⓘ')])),
+    isCube && componentCards(state, dispatch, 'eol', [{ label: 'Mass', symbol: '●', value: (c) => c.mass ?? 0 }], computeResources(state), { max: 3 }),
   );
 }
