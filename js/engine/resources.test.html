@@ -892,6 +892,84 @@
       check('Results: program OVER with the amount; fix offered', ov.program === 'OVER' && ov.reasons.some((r) => /\$[\d.]+M over the \$6M model budget/.test(r)) && ov.fixes.length >= 1, ov.reasons.join(' | '));
     }
 
+    // ═══ 19. Table-driven cases: 3 missions × 8 goals (CLARITY Phase 4) ═════════
+    await tick();
+    section('19 · Table: every goal × valid / wrong payload / trade-off / unverified / reference / wrong orbit-launcher');
+    {
+      const RANK = { 'NOT MET': 0, TODO: 0, PARTLY: 1, MET: 2 };
+      const add = (st, ids) => ({ ...st, design: { ...st.design, instrumentIds: [...st.design.instrumentIds, ...ids] } });
+      const set = (st, patch) => ({ ...st, design: { ...st.design, ...patch } });
+      const parts = (st, patch) => ({ ...st, design: { ...st.design, components: { ...st.design.components, ...patch } } });
+      const ins = (st, ids) => ({ ...st, design: { ...st.design, instrumentIds: ids } });
+      const radar12 = parts(ins(make(W), ['wx_raincube_radar']), { structure: 'str_cube_12u' });
+      // [mission, goal, valid, wrongPayload, tradeOff, unverified, reference, wrongOrbitOrLauncher]
+      const T = [
+        [C, 'cheapest', ref(C, 'ref_swarm_spacebee'), add(make(C), ['payload_mw_radiometer']), make(C), parts(make(C), { structure: 'str_es_6u_xl' }), ref(C, 'ref_astrocast_3u'), set(make(C), { orbitId: 'geo' })],
+        [C, 'phone_chips', ins(make(C), ['iot_nbiot_ntn', 'ant_iot_deploy']), ins(make(C), ['iot_lora', 'ant_iot_deploy']), ref(C, 'ref_sateliot_6u'), parts(ins(make(C), ['iot_nbiot_ntn', 'ant_iot_deploy']), { structure: 'str_es_6u_xl' }), ref(C, 'ref_sateliot_6u'), set(make(C), { launcherId: 'lv_f9_gto_standard' })],
+        [C, 'licensed', ins(make(C), ['iot_lband', 'ant_iot_deploy']), make(C), ref(C, 'ref_astrocast_3u'), parts(ins(make(C), ['iot_lband', 'ant_iot_deploy']), { structure: 'str_es_6u_xl' }), ref(C, 'ref_astrocast_3u'), set(make(C), { orbitId: 'meo_gnss' })],
+        [W, 'global_humidity', make(W), ins(make(W), ['dist_rgb_camera', 'radiometer_calibration']), set(make(W), { orbitId: 'leo_550' }), set(make(W), { groundId: 'gs_aws' }), ref(W, 'ref_tropics_3u'), set(make(W), { orbitId: 'geo' })],
+        [W, 'hurricanes', ref(W, 'ref_tropics_3u', { orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }), ins(make(W), ['wx_gnss_ro']), make(W), parts(ins(make(W), ['wx_tropics_radiometer', 'radiometer_calibration']), { structure: 'str_cube_3u' }), ref(W, 'ref_tropics_3u', { orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }), set(make(W), { orbitId: 'leo_550_32deg' })],
+        [W, 'rain_inside', radar12, make(W), ref(W, 'ref_raincube_6u', { orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }), radar12, ref(W, 'ref_raincube_6u', { orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }), set(radar12, { orbitId: 'meo_gnss' })],
+        [N, 'galileo', make(N), add(make(N), ['payload_iot_sdr']), set(make(N), { orbitId: 'meo_gps_20200' }), make(N), ref(N, 'ref_gps_iii'), set(make(N), { launcherId: 'lv_electron_kickstage', deployerId: 'dep_cubesat' })],
+        [N, 'gps', ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' }), ins(make(N), ['clk_none_leo', 'nav_signal_rf', 'antenna_lband_nav']), set(make(N), { orbitId: 'meo_gps_20200' }), set(make(N), { orbitId: 'meo_gps_20200' }), ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' }), set(ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' }), { launcherId: 'lv_f9_gto_standard' })],
+      ];
+      for (const [sid, vid, valid, wrongP, trade, unver, reference, wrongOL] of T) {
+        const v = (st) => variant(st, vid);
+        const verd = (st) => missionVerdicts(v(st), sim(v(st)));
+        const a = verd(valid);
+        check(`${vid} · valid: flies, goal MET, simulated success`, ['GO', 'CONDITIONAL'].includes(a.engineering) && a.objective === 'MET' && sim(v(valid)).outcome === 'success', `${a.engineering}/${a.objective}/${sim(v(valid)).outcome}`);
+        const b = verd(wrongP);
+        check(`${vid} · wrong payload: NO-GO or goal NOT MET, with a reason`, (b.engineering === 'NO-GO' || !go(v(wrongP)) || b.objective === 'NOT MET') && b.reasons.length > 0, `${b.engineering}/${b.objective}`);
+        const c = verd(trade);
+        check(`${vid} · trade-off: still flies; goal MET or PARTLY (never better than the valid build)`, go(v(trade)) && ['MET', 'PARTLY'].includes(c.objective) && RANK[c.objective] <= RANK[a.objective], `${c.engineering}/${c.objective}/${c.program}`);
+        const d = verd(unver);
+        check(`${vid} · unverified value: CONDITIONAL GO (visible, not NO-GO, not a silent GO)`, d.engineering === 'CONDITIONAL' && d.unverified.length > 0 && go(v(unver)), `${d.engineering}: ${d.unverified.join(' | ')}`);
+        const e = verd(reference);
+        check(`${vid} · reference build: flies; its unknown price is "?" (never $0)`, ['GO', 'CONDITIONAL'].includes(e.engineering) && computeResources(v(reference)).budget.unknownItems.length > 0, `${e.engineering}/${e.objective}/${e.program}`);
+        const f = errorsOf(v(wrongOL)).map((x) => x.gate);
+        check(`${vid} · wrong orbit / launcher: NO-GO via the orbit or launcher gate`, !go(v(wrongOL)) && (f.includes('orbit_service_compatible') || f.includes('launcher_trajectory_compatible')), f.join(', '));
+      }
+
+      // ── An incompatible part never improves feasibility (or the goal verdict)
+      const incompat = (sid, vid) => [...new Set(rulesFor(sid, vid).flatMap((r) => r.incompatibleWithAsSubstitute).filter((id) => getInstrument(id)))];
+      let improved = [];
+      for (const [sid, vid, valid, wrongP] of T) {
+        for (const base of [valid, wrongP]) {
+          const b0 = variant(base, vid);
+          const g0 = go(b0); const o0 = RANK[missionVerdicts(b0).objective] ?? 0;
+          for (const id of incompat(sid, vid)) {
+            if (b0.design.instrumentIds.includes(id)) continue;
+            const b1 = add(b0, [id]);
+            if ((go(b1) && !g0) || (RANK[missionVerdicts(b1).objective] ?? 0) > o0) improved.push(`${vid}+${id}`);
+          }
+        }
+      }
+      check('adding any incompatible / look-alike payload never turns NO-GO into GO nor raises the goal verdict', improved.length === 0, improved.slice(0, 4).join(', '));
+
+      // ── Unknown never becomes $0 or 0U
+      const unknownPriced = [...COMPONENTS, ...INSTRUMENTS].filter((x) => priceOf(x).kind === 'unknown' && x.category !== 'structure' && x.formFactor !== 'large' && x.category !== 'eol');
+      const priceLeaks = unknownPriced.filter((x) => {
+        const st = getInstrument(x.id) ? add(make(C), [x.id]) : parts(make(C), { [x.category]: x.id });
+        const b = computeResources(st).budget;
+        return !b.uncertain || !b.unknownItems.includes(x.plainName);
+      });
+      check(`every NOT PUBLIC price with no analog makes the budget uncertain — never $0 (${unknownPriced.length} items)`, unknownPriced.length > 5 && priceLeaks.length === 0, priceLeaks.map((x) => x.id).join(', '));
+      const noSize = [...COMPONENTS, ...INSTRUMENTS].filter((x) => x.volumeU == null && x.mass !== 0 && x.formFactor === 'cubesat' && x.category !== 'structure' && !x.reference);
+      const volLeaks = noSize.filter((x) => {
+        const st = getInstrument(x.id) ? add(parts(make(W), { structure: 'str_cube_12u' }), [x.id]) : parts(make(W), { structure: 'str_cube_12u', [x.category]: x.id });
+        return computeResources(st).mass.volume.validity === 'pass';
+      });
+      check(`every part with no published size keeps volume unverified — never 0U (${noSize.length} parts)`, noSize.length > 10 && volLeaks.length === 0, volLeaks.map((x) => x.id).join(', '));
+
+      // ── Same seed = same replay (every goal's valid build)
+      const diffs = T.map(([, vid, valid]) => {
+        const st = variant(valid, vid);
+        const s1 = sim(st, 42); const s2 = sim(st, 42); const s3 = runSimulation(st, 42, s1.events.map((e) => e.choiceIndex));
+        return JSON.stringify(s1) === JSON.stringify(s2) ? (JSON.stringify(s1.summary) === JSON.stringify(s3.summary) && s1.outcome === s3.outcome ? '' : `${vid}: replay ${s3.outcome}/${s3.pending?.eventId ?? ''} vs ${s1.outcome}`) : `${vid}: two runs differ`;
+      }).filter(Boolean);
+      check('same state + seed (+ decisions) = same replay, for every goal', diffs.length === 0, diffs.join(' | '));
+    }
+
     const summary = document.getElementById('summary');
     summary.textContent = `${pass} passed, ${fail} failed`;
     summary.className = `summary ${fail ? 'fail' : 'pass'}`;

@@ -19,10 +19,13 @@ Where they disagree on a catalog price, the store price is used and the others a
   (internally `PRICE ?` / `MASS ?`) for NOT PUBLIC values and "[weight] ≈" (`MASS ≈`) for a same-class
   research estimate (IoT radios borrow the research SDR mass).
 - **Unknown-value rule (options §5):** NOT PUBLIC = `null`, never 0 and never guessed.
-  - Unknown price → budget **uncertain** (amber hatched gauge, "N items have no public price"); cost
-    efficiency uses known items only; Results say "real engineers would request a quote (RFQ)".
-  - Unknown mass (or unknown frame limit) → mass gate **"cannot verify"** = NO-GO, offering a
-    **reference build**: a complete real satellite whose total mass is public (Swarm 0.4 kg, Astrocast
+  - Unknown price → if a SAME-ROLE item has a known price (`estimatedFrom`), a **rough estimate**
+    "≈ $0.35M (rough estimate, like: …)" tagged ESTIMATE (budget **ESTIMATED**); otherwise "?" → budget
+    **uncertain** (amber hatched gauge); cost efficiency uses known items only; Results say "request a quote (RFQ)".
+    Euro prices use ONE fixed labelled rate (`EUR_TO_USD`). Unknown never wins "cheapest" (`cheaperOf`).
+  - Unknown mass (or unknown frame limit), unknown size (`volumeU`), unknown eclipse, unknown data rate /
+    contact time → **UNVERIFIED** (a visible caution, `unverified: true`) → **CONDITIONAL GO** — never a
+    silent pass and never a NO-GO — offering a **reference build**: a complete real satellite whose total mass is public (Swarm 0.4 kg, Astrocast
     4.5 kg, Sateliot 10 kg, TROPICS 5.4 kg, RainCube 12 kg, GPS III 3,681 kg). Its bus + payload are
     "included"; only add-ons that really flew on it (`flewOn`) can be added.
   - Unknown data rate / contact time → link "not measurable" (info), judged on a complete chain. Details on every
@@ -44,10 +47,13 @@ Solo, or hot-seat team of 2–4 (Director, Engineer, Scientist, Flight Dynamics)
 cd space-mission-game
 python3 -m http.server        # then open http://localhost:8000
 ```
-- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 248 checks: data honesty, research
+- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 387 checks: data honesty, research
   BOM sums, power/battery/data numbers, every §10 QA case C-01…ALL-02, alternatives vs distractors,
   NO-GO rule, simulation replay, scoring, role goals, votes, sharing, badges, and every PASS build of
-  every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path, disposal strategies + planet impact, design-reactive events).
+  every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path, disposal strategies + planet impact, design-reactive events, dependency matrix,
+  three verdicts, unverified, rough estimates, system map, and a table of every goal × 6 case kinds).
+- Dependency-matrix doc: `tools/matrix-doc.sh` (or `node tools/matrix-doc.mjs`) regenerates
+  `docs/MISSION_DEPENDENCY_MATRIX.md`; the self-test fails if it drifts.
 - Dev tools: `tools/word-count.sh tools/word-count.before.json` (visible words per screen) and
   `tools/options-count.html` (selectable options per mission × step).
 - Animation debug page: `/animations.html` — plays every scene in isolation with real sample data.
@@ -159,7 +165,8 @@ failed mission (grade F).
 | `js/engine/simulation.js` | `runSimulation(state, seed, decisions, { autoChoice })`, `operatingConditions`. |
 | `js/engine/objectives.js` · `outcome.js` | Mission KPIs, `satelliteSuccess`, `constellationStatus`, `checkClaim` · captions/tips/effect chips. |
 | `js/engine/scoring.js` · `roleGoals.js` · `achievements.js` · `attempt.js` | Score/grade/insights/tips · role goals + vote rules · badges · saved-attempt records. |
-| `js/engine/matching.js` · `explain.js` | Real analog + alternative architectures · "Why?" texts + delta previews. |
+| `js/engine/matching.js` · `explain.js` | Real analog + alternative architectures · "Why?" texts (`whyCard` micro-format) + delta previews. |
+| `js/engine/dependencies.js` · `verdicts.js` · `systemMap.js` | Reads the dependency matrix · three verdicts + reasons/fixes · 6-block architecture map. |
 | `js/ui/router.js` · `steps.js` | Step list, question header, owner badge, Back/Next. |
 | `js/ui/sidebar.js` · `goalStrip.js` · `satellite.js` · `card.js` | Gauges/advisor/details · goal chips · live satellite SVG · choice cards + meters. |
 | `js/ui/icons.js` | Hand-drawn 24×24 line icon set: `icon(name, size, label?)` (HTML), `svgIcon(name, x, y, size)` (inside SVG), `initials(name)` for monograms. No emoji anywhere in the UI. |
@@ -204,14 +211,31 @@ Easy: `kit: 'standard'` = the research build list for the mission; power packs =
 Bundle mass/cost are always the sum of their parts (`bundleTotals`). Switching CubeSat ↔ large bus drops
 wrong-size parts and payloads (→ todo). Selecting another mission starts a fresh design.
 
+## Dependency matrix, three verdicts, unverified (CLARITY.md)
+- `data/missionDependencies.js` = ONE rule list per mission + goal variant (`rulesFor`): capability, `scope`
+  (`mission` → engineering gate; `goal` → objective), status required/one_of/conditional/optional/incompatible,
+  `satisfiedBy` / `partialBy` / `dependsOn` / `incompatibleWithAsSubstitute` (real ids, incl. reference builds),
+  `whyRequired` / `whyAlternatives` (≤25 words), `evidence` + `evidenceLevel`, `checkedBy` (a physical gate verifies it).
+  `engine/dependencies.js` reads it: `payloadNeeds`, the payload "why not", the ground gate, `goalObjective`
+  (MET/PARTLY/NOT MET), Why? lines, the "Change:" dependency line. No UI-only `if`s; physical gates stay in validation.
+- `engine/verdicts.js#missionVerdicts`: **engineering** GO / CONDITIONAL / NO-GO · **objective** MET / PARTLY /
+  NOT MET (matrix + simulated KPIs) · **program** FUNDED / ESTIMATED / UNCERTAIN / OVER + responsible disposal;
+  Results show these 3 lines first, then the top 3 reasons and 1–2 fixes. A wrong-goal build flies but is NOT MET.
+- Every check has `validity` pass | fail | unverified | n/a (mass, volume = whole satellite, power, battery, data);
+  `gateStatus` can be `unverified`. Data per day comes from the chosen instrument (`dataGBperDay` research model,
+  else `dataKbps × 86,400 × duty`, simulated); units MB/day or GB/day.
+- `engine/systemMap.js`: sidebar map Payload · Bus · TT&C · Downlink · Ground · Launch (chosen / missing / wrong /
+  unverified / included / not needed), click = jump, current step highlighted. Why? = `explain.js#whyCard` (≤5 lines).
+
 ## Formulas (engine/resources.js — research §8)
 - **Mass**: 6U → Σ parts × 1.15 (design reserve) vs frame/dispenser limit 3U 6 · 6U 12 · 12U 24 kg (S01);
+  volume = Σ published `volumeU` of ALL parts vs frame units (no published size → unverified, never 0U);
   Galileo-class → Σ parts incl. 110 kg propellant vs 700 kg target (no extra 15%). Launcher headline
   capacity at the chosen orbit also limits. Volume: radiometer ~4U (S07).
 - **Power**: `array_W × sunlit_fraction × 0.80` (LEO 0.60, SSO 0.67) vs mission duty-cycle load (15 W, 17 W,
   1.1 kW avg / 1.5 kW peak). MEO: array class 1.6 kW (no single eclipse value in the research).
 - **Battery**: `Wh × 0.6` vs `load × 35/60 h` (comms 36 vs 8.75 Wh; weather 48 vs 9.92 Wh).
-- **Data**: weather `Mbps × contact_s / 8 / 1000` = 2.25 GB/day theoretical vs 2 GB/day; IoT = packet
+- **Data**: weather `Mbps × contact_s / 8 / 1000` = 2.25 GB/day theoretical vs the instrument's 2 GB/day (research model on `payload_mw_radiometer`); IoT = packet
   chain; navigation = broadcast chain (not GB/day).
 - **Budget**: hardware + AIT + launch + dispenser + ground + licensing + ops; reserve = what is left
   (correct builds leave exactly the research reserve 0.59 / 2.61 / 20 $M).
