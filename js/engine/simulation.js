@@ -62,7 +62,7 @@ export function eventContext(sel, res) {
   const c = sel.components;
   const b = res.battery;
   return {
-    thrusters: (!!c.propulsion && !!c.propellant) || sel.included.has('propulsion'),
+    thrusters: (!!c.propulsion && !!c.propellant) || sel.included.has('propulsion') || !!c.eol?.deorbitThruster,
     spareComputer: c.computer?.id === 'obc_si_quad',
     radHard: c.computer?.id === 'obc_rad_hard',
     lowBattery: b.usable != null && b.needWh ? b.usable / b.needWh - 1 < 0.2 : false,

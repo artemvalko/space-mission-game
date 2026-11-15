@@ -190,7 +190,7 @@
     {
       const sCodes = SOURCES.filter((s) => s.code.startsWith('S')); const oCodes = SOURCES.filter((s) => s.code.startsWith('O'));
       const dCodes = SOURCES.filter((s) => s.code.startsWith('D'));
-      check('sources.js lists S01–S34 + O01–O56 + D01–D10 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && dCodes.length === 10 && new Set(SOURCES.map((s) => s.code)).size === 100
+      check('sources.js lists S01–S34 + O01–O56 + D01–D12 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && dCodes.length === 12 && new Set(SOURCES.map((s) => s.code)).size === 102
         && sCodes.every((s, i) => s.code === `S${String(i + 1).padStart(2, '0')}`) && oCodes.every((s, i) => s.code === `O${String(i + 1).padStart(2, '0')}`) && SOURCES.every((s) => /^https:\/\//.test(s.url)));
       const items = [...COMPONENTS, ...INSTRUMENTS, ...ORBITS, ...LAUNCHERS, ...DEPLOYERS, ...GROUND_STATIONS, ...SCENARIOS, ...REAL_MISSIONS];
       const bad = items.filter((it) => !['fact', 'catalog', 'model', 'reported'].includes(it.dataKind) || !Array.isArray(it.sources) || it.sources.some((c) => !getSource(c)));
@@ -646,6 +646,31 @@
       check('no ADEO size fits a 0.4 kg Swarm → NO-GO with a reason (never guessed)', gatesFailed(swarmSail).includes('legal_safety_disposal_plan_pass') && errorsOf(swarmSail).some((e) => /No drag sail size fits/.test(e.message)));
       check('debris text uses the 6–10× claim only qualitatively (no invented years)', /Deorbits much faster: meets the 5-year rule/.test(r.planet.explanation) && !/\d+\s*years?/.test(r.planet.explanation));
       check('effect claim is badged reported (📰) with source D10; mass is a vendor fact (D09)', SAIL_EFFECT.dataKind === 'reported' && SAIL_EFFECT.sources.includes('D10') && getComponent('eol_drag_sail').dataKind === 'fact' && getComponent('eol_drag_sail').sources.includes('D09'));
+    }
+
+    // ═══ 15. ENPULSION NANO ion thruster for active deorbit (D11, D12) ═════════
+    await tick();
+    section('15 · Ion thruster deorbit (ENPULSION NANO)');
+    {
+      const nano = (mod = (d) => d) => ({ ...make(C, (d) => mod(withParts({ eol: 'eol_nano_thruster' })(d))), design: { ...make(C, (d) => mod(withParts({ eol: 'eol_nano_thruster' })(d))).design, disposalId: 'disp_burn_up' } });
+      const st = nano(); const r = computeResources(st);
+      check('NANO adds its 0.9 kg wet mass (8.68 → 9.58 kg) and the design is GO', near(r.mass.used, 8.68 + 0.9, 0.01) && go(st), `${r.mass.used} kg`);
+      check('NANO price NOT PUBLIC → budget uncertain', r.budget.uncertain && r.budget.unknownItems.some((n) => /Ion thruster/.test(n)));
+      const noAdcs = nano(withParts({ adcs: null }));
+      check('NANO without ADCS = error (the thruster cannot aim itself, D12)', errorsOf(noAdcs).some((e) => /pointing system to aim/.test(e.message)));
+      const nanoDebris = r.planet.debrisScore;
+      const otherDebris = ['eol_natural_decay', 'eol_drag_sail', 'eol_attitude_drag'].map((e) => computeResources({ ...st, design: { ...st.design, components: { ...st.design.components, eol: e } } }).planet.debrisScore);
+      check('NANO has the best debris meter of the burn-up options (never 40/40 overall)', otherDebris.every((d) => nanoDebris > d) && r.planet.score < 40, `${nanoDebris} vs ${otherDebris}`);
+      const ocean = r.planet.options.find((o) => o.id === 'disp_controlled_ocean');
+      check('controlled ocean reentry stays greyed with NANO (thrust far too low, D05)', !ocean.valid && /far too low/.test(ocean.reason));
+      const worst = (e) => { const i = e.choices.findIndex((c) => c.effects.damage); return i >= 0 ? i : 0; };
+      let lost = null; for (let sd = 1; sd < 200 && !lost; sd++) { const x = runSimulation(st, sd, [], { autoChoice: worst }); if (x.outcome === 'lost') lost = x; }
+      const p = lost && scoreMission(st, lost).parts.find((q) => q.id === 'disposal');
+      check('NANO on a lost satellite cannot fire → space junk (debris 0/15)', !!p && p.retire === 'failed' && scoreMission(st, lost).insights.bad.includes(LOST_JUNK));
+      const deb = EVENTS.find((e) => e.id === 'debris');
+      check('debris warning offers "Dodge with a thruster burn" with NANO (not without)', eventChoices(deb, eventContext(getSelection(st), r)).some((c) => c.requires === 'thrusters') && !eventChoices(deb, eventContext(getSelection(make(C)), computeResources(make(C)))).some((c) => c.requires === 'thrusters'));
+      const swarmNano = ref(C, 'ref_swarm_spacebee', { components: { ...ref(C, 'ref_swarm_spacebee').design.components, eol: 'eol_nano_thruster' } });
+      check('Swarm 0.4 kg: NANO is too big → honest NO-GO', errorsOf(swarmNano).some((e) => /too big for this satellite/.test(e.message)));
     }
 
     const summary = document.getElementById('summary');

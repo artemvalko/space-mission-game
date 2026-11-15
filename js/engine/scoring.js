@@ -152,7 +152,7 @@ export function scoreMission(state, sim) {
 export const LOST_JUNK = 'Lost before it could retire: now it is space junk.';
 export const LOST_TUG = 'Lost, but its docking plate lets a tug remove it (price not public).';
 /** Methods that work on a dead satellite: only letting the air pull it down by itself. */
-const ACTIVE_EOL = ['eol_drag_sail', 'eol_attitude_drag'];
+const ACTIVE_EOL = ['eol_drag_sail', 'eol_attitude_drag', 'eol_nano_thruster'];
 /**
  * After an in-flight loss: null (not lost / no valid plan), 'passive' (natural decay still works),
  * 'tug' (active plan failed, docking plate saves the debris points) or 'failed' (now it is space junk).

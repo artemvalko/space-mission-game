@@ -3,6 +3,7 @@
 // gauges animate smoothly (CSS transitions) and can shake once when they go over.
 
 import { h } from './dom.js';
+import { getComponent } from '../data/components.js';
 import { term } from './tooltip.js';
 import { renderSatellite } from './satellite.js';
 import { computeResources } from '../engine/resources.js';
@@ -93,7 +94,9 @@ export function renderSidebar(container, state, dispatch) {
       const delta = formatDelta(prevRes, res);
       const b = res.battery;
       const margin = b.usable != null && b.needWh ? ` · battery margin ${pct(b.usable / b.needWh)}` : '';
-      lastChange = delta === 'no change' ? '' : `Change: ${delta}${margin}`;
+      const burst = getComponent(state.design.components.eol)?.firePowerW && res.power.consumption != null && getComponent(state.design.components.eol).firePowerW > res.power.consumption
+        ? ` · fires at ${getComponent(state.design.components.eol).firePowerW} W > ${Math.round(res.power.consumption)} W average: bursts on battery` : '';
+      lastChange = delta === 'no change' ? '' : `Change: ${delta}${margin}${burst}`;
     } else lastChange = '';
     prevRes = res;
     lastDesignKey = designKey;

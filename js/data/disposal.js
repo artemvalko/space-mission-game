@@ -44,8 +44,8 @@ export const DISPOSAL_STRATEGIES = [
 
 // Optional add-on (D07): a docking plate lets a future tug capture and remove the satellite.
 export const DOCKING_PLATE = {
-  id: 'addon_docking_plate', icon: '🧲', plainName: 'Docking plate (Astroscale)', name: 'Astroscale docking plate for future capture (ELSA-M)',
-  oneLiner: 'A future tug can remove it.', why: 'A plate a servicing spacecraft can grab and pull down (ELSA-M demo planned 2026).',
+  id: 'addon_docking_plate', icon: '🧲', plainName: 'Docking plate', brand: 'Astroscale', name: 'Astroscale docking plate for future capture (ELSA-M)',
+  oneLiner: 'A tug can remove it.', why: 'A plate a servicing spacecraft can grab and pull down (ELSA-M demo planned 2026).',
   mass: null, cost: null, dataKind: 'fact', sources: ['D07'], ref: 'DISPOSAL.md',
 };
 

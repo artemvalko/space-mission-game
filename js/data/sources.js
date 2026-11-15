@@ -109,6 +109,8 @@ export const SOURCES = [
   { code: 'D08', title: 'FCC 5-year rule (S22) and NASA SoA deorbit chapter (O55) — reused', url: 'https://regulations.justia.com/regulations/fedreg/2024/08/09/2024-17093.html', confirms: 'Reuses S22 (5-year post-mission disposal rule) and O55 (deorbit methods).' },
   { code: 'D09', title: 'HPS — ADEO drag sail, ESA Clean Space Days 2024 (Hoffmann)', url: 'https://indico.esa.int/event/516/contributions/10000/attachments/6287/10797/CSD2024_Hoffmann_ADEO.pdf', confirms: 'ADEO small: 0.45 kg, 9.8 × 9.8 × 3.6 cm, satellites 1–20 kg; ADEO: 0.8 kg, 9.5 × 9.5 × 7.2 cm, satellites 5–50 kg; ADEO-N2 (3.6 m²) deployed Dec 2022 on ION-SCV003, TRL 9.' },
   { code: 'D10', title: 'HPS / DLR — ADEO drag sail, ISSS 2023 (Stelzl)', url: 'https://www.citytech.cuny.edu/isss2023/docs/presentations/48_June_9_Stelzl.pdf', confirms: 'Manufacturer claim: deorbit about 6 to 10 times quicker than without a sail.' },
+  { code: 'D11', title: 'ENPULSION NANO — product overview (ENP2018-001.H)', url: 'https://www.enpulsion.com/wp-content/uploads/ENP2018-001.H-ENPULSION-NANO-Product-Overview.pdf', confirms: 'Dry 680 g / wet 900 g; total system power 8–40 W (40 W at nominal thrust); nominal thrust 330 µN; 220 g propellant; total impulse > 5,000 Ns; ~100 × 100 × 82.5 mm.' },
+  { code: 'D12', title: 'ESA Space Debris Conference SDC7 — paper 719 (CubeSat deorbit with electric propulsion)', url: 'https://conference.sdo.esoc.esa.int/proceedings/sdc7/paper/719/SDC7-paper719.pdf', confirms: 'Active deorbit of small satellites with a low-thrust electric thruster; the thruster gives no attitude control, so a working ADCS must point it.' },
 ];
 
 const byCode = new Map(SOURCES.map((s) => [s.code, s]));

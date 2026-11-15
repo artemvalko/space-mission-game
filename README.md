@@ -65,7 +65,7 @@ when over. 🔊 mutes sound; animations respect "reduce motion".
 - **✉️ Price on request (RFQ)**: not public, so the game never invents one.
 
 Options supplement: [`docs/OPTIONS_RESEARCH.md`](docs/OPTIONS_RESEARCH.md) (O01–O56: EnduroSat, GomSpace, CubeSpace, Blue Canyon, ISISPACE, Space Inventor, AWS, KSAT, Swarm, Astrocast, Lacuna, Rocket Lab, NASA TROPICS / TEMPEST-D / RainCube, Spire, GPS III, Galileo L12–L14).
-End-of-life sources: D01–D10 (HPS ADEO drag sail D09–D10, Ferreira 2024 GRL on aluminium oxide from reentries, NOAA/PNAS stratospheric metals, ESA re-entry safety and Clean Space, Point Nemo, Astroscale ELSA-M, FCC 5-year rule).
+End-of-life sources: D01–D12 (HPS ADEO drag sail D09–D10, ENPULSION NANO ion thruster D11–D12, Ferreira 2024 GRL on aluminium oxide from reentries, NOAA/PNAS stratospheric metals, ESA re-entry safety and Clean Space, Point Nemo, Astroscale ELSA-M, FCC 5-year rule).
 
 ### Planet impact (end of life)
 Every mission chooses how its satellite retires. Each option shows three meters — 🛰️ debris, ☁️ atmosphere, 🧍 ground risk —

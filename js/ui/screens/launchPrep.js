@@ -5,13 +5,13 @@ import { mount, h } from '../dom.js';
 import { term, whyButton } from '../tooltip.js';
 import { dataBadge, sourceLinks } from '../card.js';
 import { getScenario } from '../../data/scenarios.js';
-import { togglePrep, selectDisposal, toggleDockingPlate } from '../../state/actions.js';
+import { togglePrep, selectDisposal, toggleDockingPlate, selectComponent } from '../../state/actions.js';
 import { DISPOSAL_STRATEGIES, DOCKING_PLATE, DISPOSAL_WHY, PLANET_MAX, EMISSION_BADGE } from '../../data/disposal.js';
 import { choiceCard } from '../card.js';
 import { money, num } from '../../utils/format.js';
-import { getComponent, CATEGORY_PLAIN } from '../../data/components.js';
+import { getComponent, CATEGORY_PLAIN, COMPONENTS } from '../../data/components.js';
+import { validateDesign } from '../../engine/validation.js';
 import { computeResources } from '../../engine/resources.js';
-import { componentCards } from './common.js';
 
 export const PREP_ITEMS = [
   {
@@ -68,6 +68,65 @@ function retireCards(state, dispatch, res) {
   }));
 }
 
+// One-line reasons for the compact row (the full reason is in the tooltip).
+const shortReason = (r) => (/5-year/.test(r) ? 'Breaks 5-year rule' : /far too low/.test(r) ? 'Thrust too low' : /Needs thrusters/.test(r) ? 'Needs thrusters' : /Air never/.test(r) ? 'Air never pulls it down' : /Not in our data/.test(r) ? 'Not in our data' : r);
+
+/** Compact strategy row: valid one selectable, greyed ones keep their one-line reason. */
+function strategyRow(state, dispatch, res) {
+  const planet = res.planet;
+  return h('div', { class: 'strategy-row' }, DISPOSAL_STRATEGIES.map((d) => {
+    const o = planet.options.find((x) => x.id === d.id);
+    const selected = planet.strategyId === d.id && state.design.prep?.disposal;
+    return h('button', {
+      type: 'button', key: `strat-${d.id}`, class: ['strategy-chip', selected && 'selected', !o.valid && 'disabled'], disabled: !o.valid,
+      title: `${d.name}. ${d.why}${o.reason ? ` ${o.reason}` : ''}`, onClick: () => dispatch(selectDisposal(d.id)),
+    }, [h('strong', {}, `${d.icon} ${d.plainName}`), !o.valid && h('span', { class: 'small muted' }, `✗ ${shortReason(o.reason)}`)]);
+  }));
+}
+
+const planetMeters = (m) => [
+  { label: `Debris ${m.debris}/${PLANET_MAX.debris} (more = less junk)`, symbol: '🛰', level: level(m.debris, PLANET_MAX.debris) },
+  { label: `Atmosphere ${m.atmosphere}/${PLANET_MAX.atmosphere}${m.kg ? ` (≈ ${num(m.kg, 1)} kg Al₂O₃, ${EMISSION_BADGE})` : ''}`, symbol: '☁️', level: level(m.atmosphere, PLANET_MAX.atmosphere) },
+  { label: `Ground risk ${m.ground}/${PLANET_MAX.ground}`, symbol: '🧍', level: level(m.ground, PLANET_MAX.ground) },
+];
+
+/** The burn-up methods as main cards: planet meters + mass + power + 💰 (price marks via dataMarks). */
+function comeDownCards(state, dispatch) {
+  const current = state.design.components.eol;
+  return COMPONENTS.filter((c) => c.category === 'eol').map((c) => {
+    const hyp = { ...state, design: { ...state.design, disposalId: 'disp_burn_up', prep: { ...state.design.prep, disposal: true }, components: { ...state.design.components, eol: c.id } } };
+    const r = computeResources(hyp);
+    const o = r.planet.options.find((x) => x.id === 'disp_burn_up');
+    const err = validateDesign(hyp, r).find((e) => e.severity === 'error' && e.gate === 'legal_safety_disposal_plan_pass');
+    const massKg = c.autoSized ? r.mass.sail?.massKg ?? c.mass : c.mass;
+    const selected = current === c.id;
+    return choiceCard({
+      key: `eol-${c.id}`, icon: c.icon, title: c.plainName, realTerm: c.name, oneLiner: c.oneLiner, whatFor: c.why, data: c,
+      meters: planetMeters(o),
+      // Mass + power only when there is any (no "0" noise); price marks come from dataMarks (💰 ?).
+      extra: (massKg || c.firePowerW) ? h('p', { class: 'small muted stat-line', title: 'Mass · power when firing' }, [massKg ? `⚖️ ${num(massKg, 2)} kg` : '', massKg && c.firePowerW ? ' · ' : '', c.firePowerW ? `⚡ ${c.firePowerW} W` : ''].join('')) : null,
+      details: [['Mass', massKg ? `${num(massKg, 2)} kg${c.autoSized && r.mass.sail ? ` (${r.mass.sail.name}, sized for your satellite)` : ''}` : 'none'],
+        ...(c.firePowerW ? [['Power', `${c.powerRangeW[0]}–${c.powerRangeW[1]} W (${c.firePowerW} W at full thrust)`], ['Thrust', `${c.thrustUN} µN · ${c.propellantG} g propellant · > ${c.totalImpulseNs.toLocaleString('en')} Ns`]] : []),
+        ['Price', c.cost == null ? 'not public (?)' : c.cost === 0 ? 'free' : money(c.cost)]],
+      selected, disabled: !!err && !selected, warn: !!err && selected, disabledReason: err ? `✗ ${err.message}` : '',
+      why: c.why,
+      onSelect: () => { dispatch(selectComponent('eol', c.id)); if (state.design.disposalId !== 'disp_burn_up') dispatch(selectDisposal('disp_burn_up')); },
+    });
+  });
+}
+
+/** Docking plate as a toggle card next to the options (💰 ? ⚖️ ? — not public, D07). */
+function plateCard(state, dispatch, res) {
+  const on = !!state.design.dockingPlate;
+  return choiceCard({
+    key: 'docking-plate', icon: DOCKING_PLATE.icon, title: DOCKING_PLATE.plainName, realTerm: DOCKING_PLATE.name,
+    oneLiner: DOCKING_PLATE.oneLiner, whatFor: DOCKING_PLATE.why, data: DOCKING_PLATE,
+    details: [['Mass', 'not public (?)'], ['Price', 'not public (?)'], ['Effect', 'better debris score; saves the debris points if the satellite is lost']],
+    selected: on, why: `${DOCKING_PLATE.why} Mass and price not public (D07).`,
+    onSelect: () => dispatch(toggleDockingPlate(!on)),
+  });
+}
+
 export function render(container, state, dispatch) {
   const scenario = getScenario(state.scenarioId);
   const prep = state.design.prep ?? {};
@@ -75,6 +134,7 @@ export function render(container, state, dispatch) {
   const res = computeResources(state);
   const planet = res.planet;
   const burning = planet.strategyId === 'disp_burn_up' && planet.valid;
+  const single = planet.options.filter((o) => o.valid).length === 1;
   mount(container,
     h('p', { class: 'step-hint', title: 'Real missions pass tests, licensing and a disposal plan before the Flight Readiness Review says GO.' }, ['Missing any = NO-GO. ', term('deorbit', 'ⓘ')]),
     h('div', { class: 'prep-list' }, PREP_ITEMS.filter((it) => it.id !== 'disposal').map((it) => {
@@ -94,16 +154,12 @@ export function render(container, state, dispatch) {
     // Retirement: no choice is perfect — pick the best compromise (DISPOSAL.md).
     h('div', { class: 'subq' }, h('h2', {}, ['♻️ How will it retire? ',
       whyButton('Why does retirement matter?', () => [...DISPOSAL_WHY, h('p', {}, sourceLinks(['D01', 'D03', 'D04']))])])),
-    retireCards(state, dispatch, res),
+    // Only one strategy possible (CubeSat in LEO → burn up; MEO → disposal orbit): show the strategies as a
+    // compact row and make the real choice — HOW it comes down — the main cards.
+    single ? strategyRow(state, dispatch, res) : retireCards(state, dispatch, res),
     planet.valid && planet.fleetKg != null && h('p', { class: 'small muted', title: 'Reentries in 2022 made ~17 t; full mega-constellations could make >360 t per year (D01, science estimate).' },
       `🛰×${planet.fleet} If all ${planet.fleet} satellites burn up: ≈ ${num(planet.fleetKg, 1)} kg.`),
-    // Burn-up speed: the existing end-of-life methods are its sub-options (CubeSats in LEO).
-    isCube && burning && h('details', { class: 'fold', title: CATEGORY_PLAIN.eol.whatFor }, [
-      h('summary', {}, `🔥 How fast? ${getComponent(state.design.components.eol)?.plainName ?? 'choose'}`),
-      componentCards(state, dispatch, 'eol', [{ label: 'Mass', symbol: '●', value: (c) => c.mass ?? 0 }], res, { max: 3, compare: false })]),
-    h('label', { class: ['prep-item', state.design.dockingPlate && 'done'], key: 'docking-plate', title: `${DOCKING_PLATE.why} Mass and price not public (D07).` }, [
-      h('input', { type: 'checkbox', checked: !!state.design.dockingPlate, onChange: (e) => dispatch(toggleDockingPlate(e.target.checked)) }),
-      h('strong', {}, `${DOCKING_PLATE.icon} ${DOCKING_PLATE.plainName}`), h('span', { class: 'muted small' }, ' 💰 ?'),
-    ]),
+    isCube && burning && h('div', { class: 'subq' }, h('h2', { title: CATEGORY_PLAIN.eol.whatFor }, '🔥 How will it come down?')),
+    h('div', { class: 'choices' }, [...(isCube && burning ? comeDownCards(state, dispatch) : []), plateCard(state, dispatch, res)]),
   );
 }

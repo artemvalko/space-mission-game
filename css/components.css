@@ -445,3 +445,8 @@ details.fold > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
 .advisor-change { margin: 2px 0 6px; color: var(--accent-2); }
 .planet-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .retire-failed { color: var(--bad, #ff6b6b); margin: 4px 0 0; }
+.strategy-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.strategy-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 12px; border-radius: 10px; border: 1px solid var(--line, #2a3550); background: var(--panel, #121a2b); color: inherit; cursor: pointer; text-align: left; font: inherit; font-size: .9em; }
+.strategy-chip.selected { border-color: var(--accent, #3ea0ff); background: rgba(62, 160, 255, .12); }
+.strategy-chip.disabled { opacity: .55; cursor: not-allowed; }
+.stat-line { margin: 4px 0 0; }

@@ -374,20 +374,29 @@ export const COMPONENTS = [
   {
     id: 'eol_natural_decay', category: 'eol', icon: '🍂', plainName: 'Natural decay', name: 'Do nothing: air drag slowly pulls it down', formFactor: 'cubesat',
     mass: 0, cost: 0, missions: ['mission_comms_iot', 'mission_weather_mw'], dataKind: 'fact', sources: ['O55'], ref: 'options §1.9',
-    oneLiner: 'Free — but slow from higher orbits.', why: 'Drag ends the mission; works best low down.',
+    oneLiner: 'Free but slow.', why: 'Drag slowly pulls it down; slow from higher orbits, best low down.',
   },
   {
     id: 'eol_drag_sail', category: 'eol', icon: '⛵', plainName: 'Drag sail', name: 'HPS ADEO drag sail (size picked from satellite mass)', formFactor: 'cubesat',
     // Vendor mass (D09): ADEO small 0.45 kg for 1–20 kg satellites, ADEO 0.8 kg for 5–50 kg — the engine
     // picks the size (resources.js computeMass). `mass` here = the small sail, for the card. Price NOT PUBLIC.
     mass: 0.45, autoSized: true, cost: null, missions: [], dataKind: 'fact', sources: ['D09', 'D10', 'O55'], ref: 'D09 ADEO',
-    oneLiner: 'Deorbits much faster: meets the 5-year rule.',
+    oneLiner: 'Deorbits much faster.',
     why: 'A sail unfolds at the end of the mission and adds drag, so the satellite re-enters much sooner — about 6 to 10 times quicker than without a sail (manufacturer claim, 📰 D10). ADEO-N2 deployed in orbit in Dec 2022 (TRL 9, D09). It must deploy, so the satellite has to be working. Price not public.',
   },
   {
     id: 'eol_attitude_drag', category: 'eol', icon: '🔄', plainName: 'Turn broadside', name: 'Raise drag with the pointing system', formFactor: 'cubesat', needsAdcs: true,
     mass: 0, cost: 0, missions: [], dataKind: 'fact', sources: ['O55'], ref: 'options §1.9',
-    oneLiner: 'No hardware; uses the pointing system.', why: 'Turning broadside raises drag at low altitude.',
+    oneLiner: 'No hardware.', why: 'Turning broadside raises drag at low altitude.',
+  },
+  {
+    id: 'eol_nano_thruster', category: 'eol', icon: '🚀', plainName: 'Ion thruster', name: 'ENPULSION NANO — FEEP electric thruster, active deorbit', formFactor: 'cubesat', needsAdcs: true,
+    // Vendor facts (D11): dry 0.68 kg / wet 0.9 kg, 8–40 W (40 W at nominal thrust), 330 µN, 220 g propellant,
+    // > 5,000 Ns, ~100 × 100 × 82.5 mm (≈ 1U). Price NOT PUBLIC. Added after the design reserve (vendor mass).
+    mass: 0.9, dryMassKg: 0.68, afterReserve: true, minUnits: 1, firePowerW: 40, powerRangeW: [8, 40], thrustUN: 330, propellantG: 220, totalImpulseNs: 5000, sizeMm: [100, 100, 82.5],
+    cost: null, missions: [], deorbitThruster: true, dataKind: 'fact', sources: ['D11', 'D12', 'O55'], ref: 'D11 ENPULSION NANO',
+    oneLiner: 'Lowers its orbit on command.',
+    why: 'A tiny ion thruster (330 µN) lowers the orbit on command, within the 5-year rule. It needs 40 W to fire — more than a 6U makes on average — so it fires in bursts on battery. It cannot steer itself: a working pointing system (ADCS) must aim it (D12). Its thrust is far too low for a controlled ocean reentry (D05). Price not public.',
   },
 ];
 

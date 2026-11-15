@@ -268,12 +268,13 @@ export function validateDesign(state, resources = computeResources(state)) {
   }
   if (sel.dockingPlate) add('info', null, 'mass', 'launchPrep', 'Docking plate: mass and price not public.', 'Not counted in the mass check; its price makes the budget uncertain (D07).');
   if (resources.mass.sailMisfit) add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'No drag sail size fits this satellite.', 'HPS ADEO sails are made for 1–50 kg satellites (D09).', 'Pick natural decay or turn broadside.');
+  for (const n of resources.mass.tooSmallFor ?? []) add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', `${n} is too big for this satellite.`, 'It is about 1U (100 × 100 × 82.5 mm, D11); this satellite is smaller.', 'Pick natural decay.');
   const eol = components.eol;
   if (eol?.id === 'eol_natural_decay' && orbit && ['leo_550', 'sso_550_650', 'leo_550_32deg'].includes(orbit.id)) {
     add('info', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Natural decay from 550+ km may miss the 5-year rule.', 'Higher orbits decay much slower (NASA SoA, O55). The FCC 5-year rule (S22) applies to listed US systems. Not verified with a decay model here.');
   }
   if (eol?.needsAdcs && !components.adcs && !included.has('adcs')) {
-    add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Turning broadside needs a pointing system.', eol.why, 'Add an ADCS.');
+    add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', eol.deorbitThruster ? 'The thruster needs a pointing system to aim it.' : 'Turning broadside needs a pointing system.', eol.why, 'Add an ADCS.');
   }
 
   // ── Budget (not a hard gate: the mission objective "on budget" will fail)
