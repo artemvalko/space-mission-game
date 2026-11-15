@@ -18,7 +18,10 @@ import { getInstrument } from '../data/instruments.js';
 import { getOrbit } from '../data/orbits.js';
 import { getLauncher, getDeployer, launchPrice } from '../data/launchers.js';
 import { getScenario } from '../data/scenarios.js';
-import { getGroundStation } from '../data/groundStations.js';
+import { getGroundStation, groundServes } from '../data/groundStations.js';
+
+/** Does this downlink serve this kind of data? (`serves` may be a string or a list) */
+export const downlinkServes = (dl, kind) => !!dl && (Array.isArray(dl.serves) ? dl.serves.includes(kind) : dl.serves === kind);
 import { kg, watts, wh, gbDay, money, months, pct, num } from '../utils/format.js';
 
 // Research constants (§3.3, §5.4, §8.1, §8.2) — all [model] values from the research.
@@ -190,7 +193,7 @@ function computeData(sel) {
   const { scenario, components, instruments, ground, orbit, left } = sel;
   const kind = scenario?.data.kind ?? 'gb';
   const roles = new Set(instruments.map((i) => i.role));
-  const groundOk = ground ? ground.serves === scenario?.groundServes : null;
+  const groundOk = ground ? groundServes(ground, scenario?.groundServes) : null;
   const groundBlocked = groundOk === false;
   const base = { kind, groundOk, contactHours: ground?.contactHoursPerDay ?? null };
 
@@ -221,7 +224,7 @@ function computeData(sel) {
     ? [
       ['IoT radio + antennas', roles.has('iot_transceiver') && roles.has('iot_antenna')],
       ['packet memory (computer)', !!components.computer?.storesPackets],
-      ['S-band packet downlink', components.downlink?.serves === 'iot'],
+      ['packet downlink', downlinkServes(components.downlink, 'iot')],
       ['IoT gateways on Earth', groundOk === true],
     ]
     : [

@@ -3,6 +3,8 @@
 //   'fact'    — confirmed by an official source for a specific system (ESA, NASA, SpaceX, Rocket Lab, CubeSat spec)
 //   'catalog' — a public catalog price/spec of one specific product on 15 Nov 2026 (not a quote)
 //   'model'   — an educational estimate made in the research (BOM breakdowns, budgets). Never official.
+//   'reported'— a press or third-party figure (docs/OPTIONS_RESEARCH.md), never shown as official.
+// NOT PUBLIC values are null — never 0, never guessed (shown as "?").
 
 export const SOURCES = [
   { code: 'S01', title: 'Cal Poly CubeSat Design Specification Rev 14.1 (via NASA)', url: 'https://www.nasa.gov/wp-content/uploads/2018/01/cubesatdesignspecificationrev14_12022-02-09.pdf', confirms: 'Typical CubeSat mass limits 3U 6 kg / 6U 12 kg / 12U 24 kg, dispenser, mechanics and tests.' },
@@ -39,6 +41,63 @@ export const SOURCES = [
   { code: 'S32', title: 'ESA — Celeste IOD: facts and figures', url: 'https://www.esa.int/articles/about-us/directorates/resilience-navigation-and-connectivity/navigation/celeste/celeste-iod-facts-and-figures', confirms: 'Real 12U/20 kg and 16U/30 kg satellites, L/S-band, LEO 500–600 km, Rocket Lab Electron.' },
   { code: 'S33', title: 'ESA — Celeste broadcasts first navigation signal from LEO (Apr 2026)', url: 'https://www.esa.int/articles/about-us/directorates/resilience-navigation-and-connectivity/navigation/celeste/esa-s-celeste-broadcasts-first-navigation-signal-from-low-earth-orbit', confirms: 'Launch on 28 Mar 2026 and first LEO navigation signals from both satellites in April 2026.' },
   { code: 'S34', title: 'ESA — Celeste in-orbit demonstration constellation', url: 'https://www.esa.int/articles/about-us/directorates/resilience-navigation-and-connectivity/navigation/celeste/celeste-in-orbit-demonstration-constellation', confirms: 'Precise timing tests without atomic clocks; a later test of miniature atomic clocks.' },
+  // ── Options supplement (docs/OPTIONS_RESEARCH.md, O01–O56)
+  { code: 'O01', title: 'EnduroSat CubeSat store (prices) and antennas', url: 'https://www.endurosat.com/cubesat-store/page/4/', confirms: 'Store prices for EnduroSat solar panels and arrays (15 Nov 2026).' },
+  { code: 'O02', title: 'EnduroSat — 6U Solar Panel', url: 'https://www.endurosat.com/products/6u-solar-panel/', confirms: 'Body-mounted 6U panel: up to 19.2 W in LEO, 390 g (newer page: 545 g).' },
+  { code: 'O03', title: 'satsearch — EnduroSat 6U Deployable Solar Array', url: 'https://satsearch.co/products/endurosat-6u-deployable-solar-array', confirms: 'Listing price $51,300 for the 6U deployable array.' },
+  { code: 'O04', title: 'EnduroSat — 3U Deployable Solar Array', url: 'https://www.endurosat.com/products/3u-deployable-solar-array', confirms: '3U deployable array: 8.4 W per side.' },
+  { code: 'O05', title: 'EnduroSat — 8U Solar Panel / array', url: 'https://www.endurosat.com/products/8u-solar-panel/', confirms: '8U deployable array: up to 24.0 W per side, 930–1035 g.' },
+  { code: 'O06', title: 'EnduroSat Product Catalogue 02/22 (PDF)', url: 'https://endurosat.com/wp-content/uploads/2022/02/Endurosat_Product_Catalogue_02_22.pdf', confirms: 'EPS I 10.2 Wh / 208 g, EPS I+ 20.4 Wh / 298 g, EPS II 84 Wh / 1280 g; OBC 130 g (historical catalog).' },
+  { code: 'O07', title: 'EnduroSat — UHF Transceiver II', url: 'https://endurosat.com/products/uhf-transceiver-ii', confirms: 'UHF transceiver up to 19.2 kbps, 94 g, Tx 1 W (2 W option).' },
+  { code: 'O08', title: 'satsearch — EnduroSat UHF Transceiver II', url: 'https://satsearch.co/products/endurosat-uhf-transceiver-ii', confirms: 'List price $6,300 (2026); newer UHF Transceiver 200 g.' },
+  { code: 'O09', title: 'satcatalog — UHF Transceiver II', url: 'https://www.satcatalog.com/component/uhf-transceiver-ii/', confirms: 'Average price $4,600 (FY2021).' },
+  { code: 'O10', title: 'EnduroSat — S-Band Transceiver', url: 'https://endurosat.com/products/s-band-transceiver', confirms: 'Full-duplex S-band 0.1–125 kbps, 246 g, 1.2 W idle / 12 W max.' },
+  { code: 'O11', title: 'satsearch — EnduroSat S-band transceiver', url: 'https://satsearch.co/products/endurosat-s-band-receiver', confirms: 'List price $14,000.' },
+  { code: 'O12', title: 'EnduroSat / satcatalog — S-Band Transmitter', url: 'https://endurosat.com/products/s-band-transmitter', confirms: 'S-band transmitter up to 20 Mbps, 250 g, Tx 0.5–2 W (avg 9 W, satcatalog).' },
+  { code: 'O13', title: 'EnduroSat — X-Band Transmitter', url: 'https://endurosat.com/products/x-band-transmitter/', confirms: 'X-band transmitter up to 150 Mbps, 396 g; needs an X-band ground station.' },
+  { code: 'O14', title: 'NASA SoA 2021 — Guidance, Navigation & Control (PDF)', url: 'https://www.nasa.gov/wp-content/uploads/2021/10/5.soa_gnc_2021.pdf', confirms: 'ADCS units: CubeSpace 3-Axis Small 0.55 kg; BCT XACT-15 0.885 kg; XACT-50 1.23 kg; pointing classes.' },
+  { code: 'O15', title: 'Blue Canyon Technologies — XACT', url: 'https://www.bluecanyontech.com/?p=4112', confirms: 'XACT pointing 0.007°; flew on MinXSS and ASTERIA.' },
+  { code: 'O16', title: 'eoPortal — TEMPEST-D', url: 'https://eoportal.org/satellite-missions/tempest-d', confirms: '5-ch 89–182 GHz radiometer, 1.6 kg (allocation 3 kg), 3.8 W, 8 kbps; ISS deploy 13 Jul 2018, ~400 km 51.6°.' },
+  { code: 'O17', title: 'AWS Ground Station — pricing and features', url: 'https://aws.amazon.com/ground-station/pricing/', confirms: 'Pay-per-minute antenna time; LEO and MEO; S-band up/down, X-band down.' },
+  { code: 'O18', title: 'SpaceNexus listing — AWS Ground Station (reported)', url: 'https://spacenexus.us/marketplace/listings/aws-ground-station-as-a-service-mlh3vvjv', confirms: 'Reported ~$10–15/min narrowband, $22–25/min wideband (third-party).' },
+  { code: 'O19', title: 'Blackwell — TROPICS overview (NASA GESTAR, PDF)', url: 'https://gestar2.umbc.edu/wp-content/uploads/sites/674/2023/11/Blackwell_TROPICS_CREWSR_NASA_GESTAR_26Sep2023.pdf', confirms: 'TROPICS downlink via KSAT.' },
+  { code: 'O20', title: 'ISPreview — Swarm pico-satellites', url: 'https://www.ispreview.co.uk/index.php/2021/08/spacex-and-starlink-branch-out-into-tiny-internet-pico-satellites.html', confirms: 'Swarm SpaceBEE: tiny IoT satellites; ~150 planned.' },
+  { code: 'O21', title: 'Swarm Technologies overview', url: 'https://cavac.at/cavacopedia/Swarm%20Technologies', confirms: 'SpaceBEE 0.25U, ~400 g; FCC refused the first licence in 2017 (hard to track).' },
+  { code: 'O22', title: 'KeepTrack — Swarm satellite 48890', url: 'https://keeptrack.space/satellite/48890', confirms: 'Tracking database mass 0.284 kg; ~500 km orbit.' },
+  { code: 'O23', title: "Gunter's Space Page / KeepTrack — Astrocast", url: 'https://space.skyrocket.de/doc_sdat/astrocast-0101.htm', confirms: 'Astrocast 3U, ~4.5 kg, polar LEO ~97.6°.' },
+  { code: 'O24', title: 'Astrocast — technology', url: 'https://www.astrocast.com/technology', confirms: 'Licensed L-band IoT; 64-satellite constellation planned.' },
+  { code: 'O25', title: 'Soracom — Astrocast partner page', url: 'https://soracom.io/partners/astrocast/', confirms: 'Low-power ground module (<0.35 W peak transmit).' },
+  { code: 'O26', title: 'ESA Connectivity — Lacuna Space', url: 'https://connectivity.esa.int/?p=18243', confirms: 'LoRa store-and-forward from space with standard LoRa sensors.' },
+  { code: 'O27', title: 'eoPortal — Lacuna constellation', url: 'https://www.eoportal.org/satellite-missions/lacuna-constellation', confirms: "Lacuna's sensitive LoRa space receiver." },
+  { code: 'O28', title: 'SpaceNexus — cost of a dedicated Electron launch (reported)', url: 'https://spacenexus.us/guide/cost-to-launch/dedicated-electron-mission', confirms: 'Reported ~$7.5M per dedicated Electron launch.' },
+  { code: 'O29', title: 'Orbital Radar — Electron (reported)', url: 'https://orbitalradar.com/launch-vehicles/electron', confirms: 'Reported up to ~$8.4M (2026 analyst estimate); 300 kg LEO / 200 kg SSO.' },
+  { code: 'O30', title: "Gunter's Space Page — RainCube", url: 'https://space.skyrocket.de/doc%5Fsdat/raincube.htm', confirms: 'RainCube 6U, 12 kg; ISS deploy 2018.' },
+  { code: 'O31', title: 'NASA ESTF 2016 — TEMPEST (PDF)', url: 'https://esto.nasa.gov/forums/estf2016/PRESENTATIONS/Reising_A1P4_TEMPEST_ESTF2016.pdf', confirms: 'TEMPEST-D 6U, ~14 kg class.' },
+  { code: 'O32', title: 'Wikipedia — TROPICS constellation', url: 'https://en.wikipedia.org/wiki/TROPICS_(spacecraft_constellation)', confirms: 'TROPICS 3U, 5.34–5.4 kg; 12 ch 90–205 GHz; ~32–33° orbits.' },
+  { code: 'O33', title: 'Blackwell — TROPICS (NASA GESTAR, PDF)', url: 'https://gestar2.umbc.edu/wp-content/uploads/sites/674/2023/11/Blackwell_TROPICS_CREWSR_NASA_GESTAR_26Sep2023.pdf', confirms: 'Payload in 1U, ~3 W; data latency 45 min via KSAT.' },
+  { code: 'O34', title: 'NASA EOSPSO — TROPICS', url: 'https://eospso.nasa.gov/missions/time-resolved-observations-precipitation-structure-and-storm-intensity-constellation', confirms: 'TROPICS on Electron (May 2023); first two lost on Astra 3.3 (12 Jun 2022).' },
+  { code: 'O35', title: 'IEEE — RainCube (PDF)', url: 'https://www.ieee-bv.org/wp-content/uploads/2020/09/RainCube_IEEE_MTTS_Chapter_4-21-2020.pdf', confirms: 'Ka-band 35.75 GHz radar, 7 kg, 22 W Tx; 3U + 0.5 m antenna in 1.5U.' },
+  { code: 'O36', title: 'NASA ESTO — RainCube results (PDF)', url: 'https://esto.nasa.gov/wp-content/uploads/2020/07/Joshi-RainCube.pdf', confirms: 'After losing a power tracker, the radar ran ~40 min at a time.' },
+  { code: 'O37', title: 'AMS 2018 — Spire GNSS radio occultation', url: 'https://ams.confex.com/ams/98Annual/webprogram/Paper333324.html', confirms: 'Spire STRATOS GNSS-RO on 3U; profiles without calibration.' },
+  { code: 'O38', title: 'NOAA — commercial GNSS-RO data', url: 'https://repository.library.noaa.gov/view/noaa/58772', confirms: 'NOAA buys commercial radio-occultation data.' },
+  { code: 'O39', title: 'nanosats.eu — CIRAS', url: 'https://www.nanosats.eu/sat/ciras', confirms: 'CIRAS 6U infrared sounder (needs a cryocooler) — cancelled.' },
+  { code: 'O40', title: 'US Space Force — GPS III fact sheet', url: 'https://www.losangeles.spaceforce.mil/About-Us/Fact-Sheets/Display/Article/343728/gps-iii/', confirms: 'GPS III 8,115 lb (≈3,681 kg), 3 rubidium clocks, MEO ~20,200 km, 55°, 15-yr design life.' },
+  { code: 'O41', title: 'ESA — two new Galileo satellites join', url: 'https://esa.int/Applications/Satellite_navigation/Galileo/Two_new_satellites_join_the_Galileo_constellation2', confirms: 'Galileo L12 on Falcon 9 (28 Apr 2024), two satellites.' },
+  { code: 'O42', title: 'Spaceflight Now — Galileo on Falcon 9 (reported)', url: 'https://spaceflightnow.com/?p=66030', confirms: 'Reported €180M paid for two Falcon 9 launches.' },
+  { code: 'O43', title: 'European Commission — Galileo L13', url: 'https://defence-industry-space.ec.europa.eu/successful-launch-two-new-galileo-satellites-2024-09-18_en', confirms: 'Galileo L13 on Falcon 9 (17 Sep 2024), two satellites.' },
+  { code: 'O44', title: "ESA — Galileo's first Ariane 6 launch", url: 'https://www.esa.int/Applications/Satellite_navigation/Galileo_s_first_Ariane_6_launch_strengthens_European_resilience', confirms: 'Galileo L14 on Ariane 62 (17 Dec 2025), two satellites.' },
+  { code: 'O45', title: 'Lockheed Martin — GPS III evolution (2026)', url: 'https://lockheedmartin.com/en-us/news/features/2026/From-a-Rocket-to-Your-Pocket-Behind-the-GPS-III-Evolution.html', confirms: 'Laser retroreflectors on GPS III SV09/SV10; DRAFS demo on SV10 (21 Apr 2026).' },
+  { code: 'O46', title: 'EnduroSat store — structures and platforms', url: 'https://endurosat.com/cubesat-store/page/4/', confirms: 'Structures: 3U $3,900–4,200, 6U XL $7,600, 8U $9,300, 12U XL $13,000; platforms $298k / $355k / $449k.' },
+  { code: 'O47', title: 'satcatalog — 3U CubeSat Structure II', url: 'https://www.satcatalog.com/component/3u-cubesat-structure-ii/', confirms: '3U structure 0.285 kg.' },
+  { code: 'O48', title: 'satsearch — EnduroSat 12U CubeSat Structure', url: 'https://satsearch.co/products/endurosat-12u-cubesat-structure', confirms: '12U XL structure 2.44 kg incl. fasteners and rings.' },
+  { code: 'O49', title: 'EnduroSat — platform mass table', url: 'https://www.endurosat.com/products/1u-platform', confirms: 'Bus masses 3U 2.4–3.5 kg, 6U 4.2–4.8 kg, 12U 6–8 kg; payload capacity.' },
+  { code: 'O50', title: 'satcatalog — Onboard Computer Type I', url: 'https://www.satcatalog.com/component/onboard-computer-type-i/', confirms: 'OBC Type I 58 g, 0.9 W.' },
+  { code: 'O51', title: 'EnduroSat — Onboard Computer with GNSS', url: 'https://endurosat.com/products/onboard-computer-with-gnss', confirms: 'OBC with GNSS: 180 g, 20 ns timing, 8 GB, rated up to 5 yr LEO.' },
+  { code: 'O52', title: 'SatNow — ISISPACE iOBC', url: 'https://www.satnow.com/products/on-board-computers/isispace/116-1233-iobc', confirms: 'iOBC 94 g, 0.4 W; price on request.' },
+  { code: 'O53', title: 'ISISPACE — iOBC', url: 'https://isispace.nl/?p=2263', confirms: 'iOBC flight heritage since 2012.' },
+  { code: 'O54', title: 'Space Inventor — OBC', url: 'https://space-inventor.com/modules/subsystems/guidance-navigation-control/on-board-computer', confirms: '4 independent computers, 160 g, €9,000 MSRP.' },
+  { code: 'O55', title: 'NASA SoA 2022 — Deorbit systems (PDF)', url: 'https://nasa.gov/wp-content/uploads/2023/05/13.-soa-deorbit-2022.pdf', confirms: 'Natural decay, drag sails, attitude-raised drag; 5-year post-mission rule.' },
+  { code: 'O56', title: 'arXiv 2408.13562 — drag-sail flights', url: 'https://arxiv.org/html/2408.13562v1', confirms: 'Real drag-sail flights (CanX-7 5 m², RemoveDEBRIS 0.35 m²).' },
 ];
 
 const byCode = new Map(SOURCES.map((s) => [s.code, s]));
@@ -49,6 +108,7 @@ export const DATA_KIND = {
   fact: { icon: '✔', label: 'Real fact', cls: 'fact', text: 'Confirmed by an official source for this specific system.' },
   catalog: { icon: '🏷', label: 'Catalog price', cls: 'catalog', text: 'A public catalog price/spec of one product on 15 Nov 2026 — not a quote for a whole mission.' },
   model: { icon: '≈', label: 'Estimate', cls: 'model', text: 'An educational estimate from our research. Not an official number.' },
+  reported: { icon: '📰', label: 'Reported', cls: 'reported', text: 'A press or third-party figure, not from the vendor. Never official.' },
 };
 
 // Research §12.1 — honest limits of the data (plain English).
@@ -56,7 +116,7 @@ export const DATA_LIMITATIONS = [
   'Part masses and prices in our build lists are educational estimates (≈). No manufacturer published them; only some single real products and general satellite classes are confirmed.',
   'Store prices depend on version, date, country, testing and contract — a catalog price is never the price of a whole space mission.',
   'A rocket\'s headline LEO or GTO capacity is not a guaranteed capacity to any other orbit such as MEO or SSO.',
-  'Real prices for a Rocket Lab Electron launch, a Falcon 9 MEO mission, atomic-clock kits or a NASA radiometer are not public. The game shows "Price on request (RFQ)" or a labelled estimate.',
+  'Real prices for many parts (ADCS units, clocks, IoT payloads, whole satellites) are NOT PUBLIC: the game shows "?" and an uncertain budget, never a guess. Real prices for a Rocket Lab Electron launch, a Falcon 9 MEO mission, atomic-clock kits or a NASA radiometer are not public. The game shows "Price on request (RFQ)" or a labelled estimate.',
   'ESA Celeste (navigation from low orbit) is a different architecture. It proves a small satellite can send navigation signals — not that one small satellite gives worldwide positioning.',
   'Rocket parts (engines, stages) have no public per-part prices. You learn what they do; the budget uses the launch contract price only.',
   'The game budget is not a real financial estimate. Real projects need design reviews, trajectory and link-budget analysis, thermal and power simulations, ESA/NASA standards and supplier quotes.',

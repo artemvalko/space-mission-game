@@ -438,3 +438,4 @@ details.fold > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
 .budget-bar.over > div { background: var(--danger); }
 .mini-icons { display: flex; gap: 8px; flex-wrap: wrap; font-size: 1.3rem; }
 .mini-icons .locked { opacity: .35; filter: grayscale(1); }
+.data-reported { color: #ffb4a2; border-color: rgba(255, 180, 162, .45); background: rgba(255, 180, 162, .08); }

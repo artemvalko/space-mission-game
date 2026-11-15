@@ -4,7 +4,7 @@
 import { mount, h } from '../dom.js';
 import { term } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
-import { GROUND_STATIONS, GROUND_WHY_NOT } from '../../data/groundStations.js';
+import { GROUND_STATIONS, GROUND_WHY_NOT, groundServes } from '../../data/groundStations.js';
 import { getScenario } from '../../data/scenarios.js';
 import { computeResources } from '../../engine/resources.js';
 import { whyGround, GROUND_WHY } from '../../engine/explain.js';
@@ -39,8 +39,8 @@ export function render(container, state, dispatch) {
     h('div', { class: 'subq' }, h('h2', { title: 'Receives, checks and controls — on Earth.' }, ['🌍 Ground segment ', term('groundSegment', 'ⓘ')])),
     h('div', { class: 'choices' }, GROUND_STATIONS.map((g) => {
       const selected = state.design.groundId === g.id;
-      const wrong = scenario && g.serves !== scenario.groundServes;
-      const whyNot = wrong ? GROUND_WHY_NOT[g.serves]?.[scenario.groundServes] : '';
+      const wrong = scenario && !groundServes(g, scenario.groundServes);
+      const whyNot = wrong ? GROUND_WHY_NOT[[g.serves].flat()[0]]?.[scenario.groundServes] ?? 'Not built for this mission.' : '';
       return choiceCard({
         key: `gs-${g.id}`,
         icon: g.icon,

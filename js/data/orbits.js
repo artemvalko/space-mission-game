@@ -26,6 +26,22 @@ export const ORBITS = [
     diagram: { r: (6371 + 600) / 6371, polar: true },
   },
   {
+    id: 'leo_550_32deg', icon: '🌀', plainName: 'Tropics orbit (550 km, 32°)', name: 'Low-inclination LEO (TROPICS)', altitudeKm: 550, altitudeText: '~550 km',
+    inclinationText: '32–33°', inclinationDeg: 32, sunlitFraction: 0.60, eclipseMinutes: 35,
+    dataKind: 'fact', sources: ['O32', 'O34'], ref: 'options §3.3 (power: research LEO model §3.3)',
+    oneLiner: 'Frequent tropical revisits; no poles.',
+    description: 'NASA TROPICS flies at 32–33° so it passes over tropical cyclones often — but it never sees the poles. Power uses the research LEO model (60% sunlight, 35-min shadow).',
+    diagram: { r: (6371 + 550) / 6371, tilt: 32 },
+  },
+  {
+    id: 'iss_400_516', icon: '🏠', plainName: 'ISS orbit (~400 km, 51.6°)', name: 'ISS deploy orbit', altitudeKm: 400, altitudeText: '~400 km',
+    inclinationText: '51.6°', inclinationDeg: 51.6, sunlitFraction: 0.60, eclipseMinutes: 35,
+    dataKind: 'fact', sources: ['O16', 'O30'], ref: 'options §2.3 · §3.3 (power: research LEO model §3.3)',
+    oneLiner: 'Easy ride; decays sooner; no poles.',
+    description: 'TEMPEST-D and RainCube were deployed from the ISS on 13 Jul 2018 into ~400 km, 51.6°. The easiest ride, but a lower orbit decays sooner and never covers the poles. Power uses the research LEO model.',
+    diagram: { r: (6371 + 400) / 6371, tilt: 51.6 },
+  },
+  {
     id: 'meo_gnss', icon: '🧭', plainName: 'Navigation orbit (MEO 23,222 km)', name: 'Medium Earth Orbit — Galileo', altitudeKm: 23222, altitudeText: '23,222 km',
     inclinationText: '56°', inclinationDeg: 56, sunlitFraction: null, eclipseMinutes: null,
     dataKind: 'fact', sources: ['S04'], ref: '§1.1 · §4.4',
@@ -35,11 +51,11 @@ export const ORBITS = [
   },
   {
     id: 'meo_gps_20200', icon: '🧭', plainName: 'GPS orbit (MEO ~20,200 km)', name: 'Medium Earth Orbit — GPS', altitudeKm: 20200, altitudeText: '~20,200 km',
-    inclinationText: '—', inclinationDeg: null, sunlitFraction: null, eclipseMinutes: null, infoOnly: true,
-    dataKind: 'fact', sources: ['S02'], ref: '§1.1 · §4.4',
+    inclinationText: '55°', inclinationDeg: 55, sunlitFraction: null, eclipseMinutes: null,
+    dataKind: 'fact', sources: ['S02', 'O40'], ref: '§1.1 · §4.4 · options §4.1',
     oneLiner: 'Where GPS flies.', about: 'Where GPS flies — a valid GNSS alternative with a different architecture.',
-    description: 'GPS satellites fly in MEO at about 20,200 km (24 slots in six planes). A different, also correct, navigation architecture — shown for information.',
-    diagram: { r: (6371 + 20200) / 6371 },
+    description: 'GPS satellites fly in MEO at about 20,200 km, 55°, six planes (24 slots). A different, also correct, navigation architecture.',
+    diagram: { r: (6371 + 20200) / 6371, tilt: 55 },
   },
   {
     id: 'geo', icon: '📍', plainName: 'Geostationary orbit (GEO)', name: 'Geostationary orbit (GEO)', altitudeKm: null, altitudeText: 'far above MEO, over the equator',

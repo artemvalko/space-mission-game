@@ -15,7 +15,7 @@ export const M_WX = 'mission_weather_mw';
 
 // Bus categories in design.components. Research §7.1 names in CATEGORY_PLAIN[...].researchCategory.
 export const COMPONENT_CATEGORIES = [
-  'structure', 'power', 'battery', 'comms', 'downlink', 'computer', 'adcs', 'thermal', 'sensors', 'harness', 'propulsion', 'propellant',
+  'structure', 'power', 'battery', 'comms', 'downlink', 'computer', 'adcs', 'thermal', 'sensors', 'harness', 'propulsion', 'propellant', 'eol',
 ];
 
 // Categories a working satellite cannot fly without (research §8.5 "bus_support_complete").
@@ -27,7 +27,7 @@ export const NONE = 'none';
 export const CATEGORY_LABELS = {
   structure: 'Structure', power: 'Solar array + EPS', battery: 'Battery', comms: 'TT&C radio', downlink: 'Service / science downlink',
   computer: 'On-board computer', adcs: 'Attitude control (ADCS)', thermal: 'Thermal control', sensors: 'Orbit & time sensors',
-  harness: 'Harness & integration', propulsion: 'On-board propulsion', propellant: 'On-board propellant',
+  harness: 'Harness & integration', propulsion: 'On-board propulsion', propellant: 'On-board propellant', eol: 'End of life',
 };
 
 const MODEL = 'model';
@@ -35,8 +35,8 @@ const MODEL = 'model';
 export const COMPONENTS = [
   // ── Structure. maxMassKg = typical CubeSat limit (fact S01); units = CubeSat size.
   {
-    id: 'str_cube_3u', category: 'structure', icon: '🧊', plainName: 'CubeSat 3U', name: 'CubeSat 3U structure', formFactor: 'cubesat', units: 3, maxMassKg: 6,
-    mass: null, cost: null, missions: [], dataKind: 'fact', sources: ['S01'], ref: '§1.1',
+    id: 'str_cube_3u', category: 'structure', icon: '🧊', plainName: 'CubeSat 3U', name: 'EnduroSat 3U CubeSat Structure', formFactor: 'cubesat', units: 3, maxMassKg: 6,
+    mass: 0.285, cost: 0.0042, costText: '$3,900–4,200 store (we count $4,200); avg $3,300–3,600 FY2021', missions: [], dataKind: 'catalog', sources: ['S01', 'O46', 'O47'], ref: 'options §1.7',
     oneLiner: 'Loaf-sized, up to 6 kg.', about: 'Loaf-sized: up to 6 kg and 3 units of room.', why: 'The skeleton that holds everything and survives the launch.',
   },
   {
@@ -50,8 +50,8 @@ export const COMPONENTS = [
     oneLiner: 'Shoebox: 4U radiometer + 2U bus.', about: 'Shoebox-sized: 4U for the radiometer + 2U for the bus.', why: 'Room for the 4U radiometer and the bus systems.',
   },
   {
-    id: 'str_cube_12u', category: 'structure', icon: '🧊', plainName: 'CubeSat 12U', name: 'CubeSat 12U structure', formFactor: 'cubesat', units: 12, maxMassKg: 24,
-    mass: null, cost: null, missions: [], dataKind: 'fact', sources: ['S01', 'S32'], ref: '§1.1',
+    id: 'str_cube_12u', category: 'structure', icon: '🧊', plainName: 'CubeSat 12U XL', name: 'EnduroSat 12U XL CubeSat Structure', formFactor: 'cubesat', units: 12, maxMassKg: 24,
+    mass: 2.44, cost: 0.013, missions: [], dataKind: 'catalog', sources: ['S01', 'S32', 'O46', 'O48'], ref: 'options §1.7',
     oneLiner: 'Two shoeboxes, up to 24 kg.', about: 'Two shoeboxes: up to 24 kg. ESA Celeste IOD-1 is a real 12U.', why: 'A bigger CubeSat for heavier payloads.',
   },
   {
@@ -209,6 +209,183 @@ export const COMPONENTS = [
     mass: 110, cost: 1, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: [], ref: '§4.3',
     oneLiner: 'Fuel for the satellite\'s own manoeuvres — not Falcon 9 fuel.', why: 'Manoeuvres after separation.',
   },
+
+  // ═══ Options supplement (docs/OPTIONS_RESEARCH.md). NOT PUBLIC = null, never 0. ═══════════════
+  // ── More real frames (§1.7)
+  {
+    id: 'str_es_6u_xl', category: 'structure', icon: '🧊', plainName: 'CubeSat 6U XL', name: 'EnduroSat 6U XL CubeSat Structure', formFactor: 'cubesat', units: 6, maxMassKg: 12,
+    mass: null, cost: 0.0076, missions: [], dataKind: 'catalog', sources: ['S01', 'O46'], ref: 'options §1.7',
+    oneLiner: 'Real store frame; mass not public.', why: 'Holds the electronics and survives the launch.',
+  },
+  {
+    id: 'str_es_8u', category: 'structure', icon: '🧊', plainName: 'CubeSat 8U', name: 'EnduroSat 8U CubeSat Structure', formFactor: 'cubesat', units: 8, maxMassKg: null,
+    mass: null, cost: 0.0093, missions: [], dataKind: 'catalog', sources: ['O46'], ref: 'options §1.7',
+    oneLiner: 'Roomy; mass and limit not public.', why: 'A bigger CubeSat frame.',
+  },
+  // ── Reference builds: complete REAL satellites whose total mass is public (§5 rule 4).
+  // reference.includes = categories that come with the satellite; payloadRoles = what its payload does.
+  {
+    id: 'ref_swarm_spacebee', category: 'structure', icon: '🐝', plainName: 'Swarm SpaceBEE (real)', name: 'Swarm SpaceBEE — whole satellite, 0.25U', formFactor: 'cubesat', units: 0.25, maxMassKg: null,
+    mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'reported', sources: ['O20', 'O21', 'O22'], ref: 'options §2.1',
+    reference: { totalMassKg: 0.4, massText: '~400 g (tracking database: 0.284 kg)', payloadRoles: ['iot_transceiver', 'iot_antenna'], language: 'swarm', fleet: 150, licensingNote: 'The FCC refused Swarm’s first licence in 2017: satellites this small are hard to track.' },
+    oneLiner: 'Tiny and cheap; needs ~150 sats.', why: 'A complete flown IoT satellite — you use its real total mass.',
+  },
+  {
+    id: 'ref_astrocast_3u', category: 'structure', icon: '📶', plainName: 'Astrocast 3U (real)', name: 'Astrocast — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
+    mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'reported', sources: ['O23', 'O24', 'O25'], ref: 'options §2.1',
+    reference: { totalMassKg: 4.5, massText: '~4.5 kg', payloadRoles: ['iot_transceiver', 'iot_antenna'], language: 'lband', fleet: 64 },
+    oneLiner: 'Licensed L-band; 64 sats planned.', why: 'A complete flown IoT satellite — you use its real total mass.',
+  },
+  {
+    id: 'ref_sateliot_6u', category: 'structure', icon: '📱', plainName: 'Sateliot 6U (real)', name: 'Sateliot (Alén Space) — whole satellite, 6U', formFactor: 'cubesat', units: 6, maxMassKg: 12,
+    mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['S31'], ref: '§3.1 · options §2.1',
+    reference: { totalMassKg: 10, massText: '10 kg', payloadRoles: ['iot_transceiver', 'iot_antenna'], language: 'nbiot', designLifeYears: 5 },
+    oneLiner: 'Talks to standard phone IoT chips.', why: 'A complete flown IoT satellite — you use its real total mass.',
+  },
+  {
+    id: 'ref_tropics_3u', category: 'structure', icon: '🌀', plainName: 'TROPICS 3U (real)', name: 'NASA TROPICS — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
+    mass: null, cost: null, missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1–3.2',
+    reference: { totalMassKg: 5.4, massText: '5.34–5.4 kg', payloadRoles: ['mw_radiometer', 'calibration'], sensor: 'wx_tropics_radiometer', powerW: 15 },
+    oneLiner: '12 channels in 3U; spins at 30 rpm.', why: 'A complete flown weather satellite — you use its real total mass.',
+  },
+  {
+    id: 'ref_raincube_6u', category: 'structure', icon: '🌧️', plainName: 'RainCube 6U (real)', name: 'NASA/JPL RainCube — whole satellite, 6U', formFactor: 'cubesat', units: 6, maxMassKg: 12,
+    mass: null, cost: null, missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O30', 'O35', 'O36'], ref: 'options §3.1–3.2',
+    reference: { totalMassKg: 12, massText: '12 kg — right at the 6U limit', payloadRoles: ['precip_radar'], sensor: 'wx_raincube_radar' },
+    oneLiner: 'Rain radar; right at 12 kg.', why: 'A complete flown weather satellite — you use its real total mass.',
+  },
+  {
+    id: 'ref_gps_iii', category: 'structure', icon: '🛰️', plainName: 'GPS III (real)', name: 'GPS III (Lockheed Martin) — whole satellite', formFactor: 'large', units: null, reserveFraction: 0,
+    mass: null, cost: null, missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O40'], ref: 'options §4.1',
+    reference: { totalMassKg: 3681, massText: '8,115 lb ≈ 3,681 kg (on orbit 4,764 lb)', payloadRoles: ['atomic_clocks', 'nav_signal', 'nav_antenna'], clocks: 'clk_rafs_3', designLifeYears: 15 },
+    oneLiner: '~5× heavier; 15-year design life.', why: 'A complete real navigation satellite — you use its real total mass.',
+  },
+  // ── Solar (§1.1, EnduroSat [CATALOG]). Where listings disagree we count the higher mass and show both.
+  {
+    id: 'pwr_6u_fixed', category: 'power', icon: '☀️', plainName: '6U fixed panel', name: 'EnduroSat 6U Solar Panel (body-mounted)', formFactor: 'cubesat', arrayW: 19.2, fitsUnits: [6, 8, 12],
+    mass: 0.545, cost: 0.0162, costText: '$16,200 store · $20,000 (research S09)', massText: '390 g · newer page 545 g (we count 545 g)',
+    missions: [], dataKind: 'catalog', sources: ['O01', 'O02', 'S09'], ref: 'options §1.1',
+    oneLiner: 'Cheap, nothing to unfold; half the power.', why: 'Makes electricity in sunlight.',
+  },
+  {
+    id: 'pwr_6u_deploy', category: 'power', icon: '🔆', plainName: '6U deployable wings', name: 'EnduroSat 6U Deployable Solar Array', formFactor: 'cubesat', arrayW: 38.4, fitsUnits: [6, 8, 12],
+    mass: 1.065, cost: 0.0484, costText: '$48,400 store · $51,300 satsearch · $59–88k (research S08)', massText: '655–1065 g (we count 1065 g)',
+    missions: [], dataKind: 'catalog', sources: ['O01', 'O03', 'S08'], ref: 'options §1.1',
+    oneLiner: 'Double power; must unfold correctly.', why: 'Makes electricity in sunlight — 19.2 W per side.',
+  },
+  {
+    id: 'pwr_3u_deploy', category: 'power', icon: '🔆', plainName: '3U deployable wings', name: 'EnduroSat 3U Deployable Solar Array', formFactor: 'cubesat', arrayW: 16.8, fitsUnits: [3],
+    mass: null, cost: 0.0333, costText: '$19,800–33,300 store (we count $33,300)',
+    missions: [], dataKind: 'catalog', sources: ['O01', 'O04'], ref: 'options §1.1',
+    oneLiner: 'For a 3U only; mass not public.', why: 'Makes electricity in sunlight — 8.4 W per side.',
+  },
+  {
+    id: 'pwr_8u_deploy', category: 'power', icon: '🔆', plainName: '8U deployable wings', name: 'EnduroSat 8U Deployable Solar Array', formFactor: 'cubesat', arrayW: 48, fitsUnits: [6, 8, 12],
+    mass: 1.035, cost: 0.0604, costText: '$20,100–60,400 store (we count $60,400)', massText: '930–1035 g (we count 1035 g)',
+    missions: [], dataKind: 'catalog', sources: ['O01', 'O05'], ref: 'options §1.1',
+    oneLiner: 'More power than a 6U needs.', why: 'Makes electricity in sunlight — 24 W per side.',
+  },
+  // ── EPS + battery (§1.2, EnduroSat 2022 catalog — historical; prices NOT PUBLIC)
+  {
+    id: 'bat_eps1', category: 'battery', icon: '🔋', plainName: 'EPS I · 10.2 Wh', name: 'EnduroSat EPS I (power board + battery)', formFactor: 'cubesat', capacityWh: 10.2,
+    mass: 0.208, cost: null, missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
+    oneLiner: 'Lightest — too small for a long shadow?', why: 'Power board + battery for the shadow.',
+  },
+  {
+    id: 'bat_eps1plus', category: 'battery', icon: '🔋', plainName: 'EPS I+ · 20.4 Wh', name: 'EnduroSat EPS I+ (power board + battery)', formFactor: 'cubesat', capacityWh: 20.4,
+    mass: 0.298, cost: null, missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
+    oneLiner: 'Just enough, thin margin.', why: 'Power board + battery for the shadow.',
+  },
+  {
+    id: 'bat_eps2', category: 'battery', icon: '🔋', plainName: 'EPS II · 84 Wh', name: 'EnduroSat EPS II (redundant buses)', formFactor: 'cubesat', capacityWh: 84,
+    mass: 1.28, cost: null, missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
+    oneLiner: 'Huge margin, ~1 kg heavier.', why: 'Power board + battery with redundant buses.',
+  },
+  // ── Control radio (§1.3)
+  {
+    id: 'ttc_es_uhf2', category: 'comms', icon: '📻', plainName: 'UHF Transceiver II', name: 'EnduroSat UHF Transceiver II (19.2 kbps)', formFactor: 'cubesat', rateMbps: 0.0192,
+    mass: 0.094, cost: 0.0063, costText: '$6,300 list (2026) · $4,600 avg FY2021', missions: [], dataKind: 'catalog', sources: ['O07', 'O08', 'O09'], ref: 'options §1.3',
+    oneLiner: 'Light, cheap, slow: commands only.', why: 'Controlling the satellite.',
+  },
+  {
+    id: 'ttc_gom_ax100', category: 'comms', icon: '📻', plainName: 'GomSpace AX100', name: 'GomSpace NanoCom AX100 (VHF/UHF)', formFactor: 'cubesat',
+    mass: 0.0245, cost: null, missions: [], dataKind: 'catalog', sources: ['S18'], ref: 'options §1.3',
+    oneLiner: 'Only 24.5 g; price not public.', why: 'Controlling the satellite.',
+  },
+  {
+    id: 'ttc_es_sband_trx', category: 'comms', icon: '📡', plainName: 'S-band transceiver', name: 'EnduroSat S-Band Transceiver (full duplex, 125 kbps)', formFactor: 'cubesat', rateMbps: 0.125, peakW: 12,
+    mass: 0.246, cost: 0.014, missions: [], dataKind: 'catalog', sources: ['O10', 'O11'], ref: 'options §1.3',
+    oneLiner: 'Faster; can carry data too. 12 W peak.', why: 'Controlling the satellite (and small data).',
+  },
+  // ── Data downlink (§1.4)
+  {
+    id: 'dl_es_sband_tx', category: 'downlink', icon: '📶', plainName: 'S-band transmitter', name: 'EnduroSat S-Band Transmitter (20 Mbps)', formFactor: 'cubesat', serves: ['iot', 'weather'], rateMbps: 20,
+    mass: 0.25, cost: null, missions: [], dataKind: 'catalog', sources: ['O12'], ref: 'options §1.4',
+    oneLiner: 'Fast enough for science data.', why: 'Sends the mission data to Earth (needs S-band ground).',
+  },
+  {
+    id: 'dl_es_xband_tx', category: 'downlink', icon: '📶', plainName: 'X-band transmitter', name: 'EnduroSat X-Band Transmitter (150 Mbps)', formFactor: 'cubesat', serves: ['iot', 'weather'], rateMbps: 150, needsXband: true,
+    mass: 0.396, cost: null, missions: [], dataKind: 'catalog', sources: ['O13'], ref: 'options §1.4',
+    oneLiner: 'Overkill here; needs X-band ground.', why: 'Very fast downlink — far more than bytes or 8 kbps need.',
+  },
+  {
+    id: 'dl_reuse_sband_trx', category: 'downlink', icon: '♻️', plainName: 'Reuse the S-band transceiver', name: 'S-Band Transceiver used as downlink (125 kbps)', formFactor: 'cubesat', serves: ['iot', 'weather'], rateMbps: 0.125, requiresComms: 'ttc_es_sband_trx',
+    mass: 0, cost: 0, missions: [], dataKind: 'catalog', sources: ['O10'], ref: 'options §1.4',
+    oneLiner: 'No extra box; fine for bytes.', why: 'One radio for control AND data — only if it is your control radio.',
+  },
+  // ── Pointing (§1.5; prices NOT PUBLIC)
+  {
+    id: 'adcs_cubespace_small', category: 'adcs', icon: '🧭', plainName: 'CubeSpace 3-Axis Small', name: 'CubeSpace CubeADCS 3-Axis Small (~0.1° class)', formFactor: 'cubesat',
+    mass: 0.55, cost: null, missions: [], dataKind: 'fact', sources: ['O14'], ref: 'options §1.5',
+    oneLiner: 'Light; enough to point down.', why: 'Points antennas and sensors.',
+  },
+  {
+    id: 'adcs_bct_xact15', category: 'adcs', icon: '🎯', plainName: 'Blue Canyon XACT-15', name: 'Blue Canyon XACT-15 (0.007°)', formFactor: 'cubesat',
+    mass: 0.885, cost: null, missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
+    oneLiner: 'Very precise; flew on ASTERIA.', why: 'Points antennas and sensors very precisely.',
+  },
+  {
+    id: 'adcs_bct_xact50', category: 'adcs', icon: '🎯', plainName: 'Blue Canyon XACT-50', name: 'Blue Canyon XACT-50 (0.007°, big wheels)', formFactor: 'cubesat',
+    mass: 1.23, cost: null, missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
+    oneLiner: 'For heavy sats; overkill on a light 6U.', why: 'Points heavier satellites.',
+  },
+  // ── On-board computer (§1.8)
+  {
+    id: 'obc_es_type1', category: 'computer', icon: '💻', plainName: 'OBC Type I', name: 'EnduroSat Onboard Computer Type I (0.9 W)', formFactor: 'cubesat', storesPackets: true, powerW: 0.9,
+    mass: 0.13, cost: null, massText: '58 g (satcatalog) · 130 g (2022 catalog; we count 130 g)', missions: [], dataKind: 'catalog', sources: ['O50', 'O06'], ref: 'options §1.8',
+    oneLiner: 'Light; stores data on microSD.', why: 'Runs the satellite and stores data.',
+  },
+  {
+    id: 'obc_es_gnss', category: 'computer', icon: '🛰️', plainName: 'OBC with GNSS', name: 'EnduroSat Onboard Computer with GNSS (8 GB)', formFactor: 'cubesat', storesPackets: true, providesGnss: true,
+    mass: 0.18, cost: null, missions: [], dataKind: 'catalog', sources: ['O51'], ref: 'options §1.8',
+    oneLiner: 'Built-in GNSS: no separate receiver.', why: 'Runs the satellite, stores data and knows its own position (20 ns time).',
+  },
+  {
+    id: 'obc_isis_iobc', category: 'computer', icon: '💻', plainName: 'ISISPACE iOBC', name: 'ISISPACE iOBC (0.4 W)', formFactor: 'cubesat', storesPackets: true, powerW: 0.4,
+    mass: 0.094, cost: null, costText: 'price on request (RFQ)', missions: [], dataKind: 'catalog', sources: ['O52', 'O53'], ref: 'options §1.8',
+    oneLiner: 'Lowest power; flying since 2012.', why: 'Runs the satellite and stores data.',
+  },
+  {
+    id: 'obc_si_quad', category: 'computer', icon: '🧮', plainName: 'Space Inventor OBC (4 cores)', name: 'Space Inventor OBC — 4 independent computers', formFactor: 'cubesat', storesPackets: true,
+    mass: 0.16, cost: null, costText: '€9,000 MSRP (euro price: not converted, counted as unknown)', missions: [], dataKind: 'catalog', sources: ['O54'], ref: 'options §1.8',
+    oneLiner: 'Built-in redundancy: 4 computers.', why: 'Runs the satellite with spare brains.',
+  },
+  // ── End of life (§1.9, CubeSats in LEO)
+  {
+    id: 'eol_natural_decay', category: 'eol', icon: '🍂', plainName: 'Natural decay', name: 'Do nothing: air drag slowly pulls it down', formFactor: 'cubesat',
+    mass: 0, cost: 0, missions: ['mission_comms_iot', 'mission_weather_mw'], dataKind: 'fact', sources: ['O55'], ref: 'options §1.9',
+    oneLiner: 'Free — but slow from higher orbits.', why: 'Drag ends the mission; works best low down.',
+  },
+  {
+    id: 'eol_drag_sail', category: 'eol', icon: '⛵', plainName: 'Drag sail', name: 'Passive drag sail (like CanX-7)', formFactor: 'cubesat',
+    mass: null, cost: null, missions: [], dataKind: 'fact', sources: ['O55', 'O56'], ref: 'options §1.9',
+    oneLiner: 'Falls faster; mass not public.', why: 'A sail adds drag so the satellite re-enters sooner (5-year rule).',
+  },
+  {
+    id: 'eol_attitude_drag', category: 'eol', icon: '🔄', plainName: 'Turn broadside', name: 'Raise drag with the pointing system', formFactor: 'cubesat', needsAdcs: true,
+    mass: 0, cost: 0, missions: [], dataKind: 'fact', sources: ['O55'], ref: 'options §1.9',
+    oneLiner: 'No hardware; uses the pointing system.', why: 'Turning broadside raises drag at low altitude.',
+  },
 ];
 
 const byId = new Map(COMPONENTS.map((c) => [c.id, c]));
@@ -231,6 +408,7 @@ export const CATEGORY_PLAIN = {
   sensors: { icon: '🧭', plainName: 'Position & time sensors', realTerm: 'Orbit / Sun / time sensors', researchCategory: 'adcs', glossary: 'gnss', whatFor: 'Knows where the satellite is and when.', noneText: 'No extra sensors', noneWhy: 'measurements cannot be geolocated.' },
   harness: { icon: '🔌', plainName: 'Cables & integration', realTerm: 'Harness & integration', researchCategory: 'structure', glossary: 'bus', whatFor: 'Connects every box into one working satellite.' },
   propulsion: { icon: '💨', plainName: 'Thrusters', realTerm: 'On-board propulsion', researchCategory: 'onboard_propulsion', glossary: 'deltaV', whatFor: 'Orbit corrections and moving away safely at end of life.', noneText: 'No thrusters', noneWhy: 'it cannot keep or leave a MEO orbit.' },
+  eol: { icon: '♻️', plainName: 'End of life', realTerm: 'Deorbit / disposal method', researchCategory: 'operations', glossary: 'deorbit', whatFor: 'How the satellite leaves orbit when the mission ends.' },
   propellant: { icon: '🛢️', plainName: 'Propellant', realTerm: 'On-board propellant', researchCategory: 'onboard_propulsion', glossary: 'propellant', whatFor: 'Fuel for the satellite\'s own thrusters (never the rocket\'s fuel).', noneText: 'No propellant', noneWhy: 'thrusters without fuel do nothing.' },
 };
 
@@ -238,8 +416,17 @@ export const CATEGORY_PLAIN = {
 export const SIZE_CLASSES = [
   { id: '3u', icon: '🧊', plainName: 'CubeSat 3U', structures: ['str_cube_3u'] },
   { id: '6u', icon: '🧊', plainName: 'CubeSat 6U', structures: ['str_6u', 'str_6u_weather'] },
-  { id: '12u', icon: '🧊', plainName: 'CubeSat 12U', structures: ['str_cube_12u'] },
-  { id: 'large', icon: '🏗️', plainName: 'Large bus (~700 kg class)', structures: ['str_gnss_meo'] },
+  { id: '6uxl', icon: '🧊', plainName: 'CubeSat 6U XL', structures: ['str_es_6u_xl'] },
+  { id: '8u', icon: '🧊', plainName: 'CubeSat 8U', structures: ['str_es_8u'] },
+  { id: '12u', icon: '🧊', plainName: 'CubeSat 12U XL', structures: ['str_cube_12u'] },
+  { id: 'large', icon: '🏗️', plainName: 'Galileo FOC bus (~700 kg)', structures: ['str_gnss_meo'] },
+  // Reference builds: a complete real satellite with a public total mass.
+  { id: 'ref_swarm', icon: '🐝', plainName: 'Swarm SpaceBEE', structures: ['ref_swarm_spacebee'], reference: true },
+  { id: 'ref_astrocast', icon: '📶', plainName: 'Astrocast 3U', structures: ['ref_astrocast_3u'], reference: true },
+  { id: 'ref_sateliot', icon: '📱', plainName: 'Sateliot 6U', structures: ['ref_sateliot_6u'], reference: true },
+  { id: 'ref_tropics', icon: '🌀', plainName: 'TROPICS 3U', structures: ['ref_tropics_3u'], reference: true },
+  { id: 'ref_raincube', icon: '🌧️', plainName: 'RainCube 6U', structures: ['ref_raincube_6u'], reference: true },
+  { id: 'ref_gps', icon: '🛰️', plainName: 'GPS III', structures: ['ref_gps_iii'], reference: true },
 ];
 export const sizeClassOf = (structureId) => SIZE_CLASSES.find((s) => s.structures.includes(structureId)) ?? null;
 /** The structure part a size class resolves to for this mission. */

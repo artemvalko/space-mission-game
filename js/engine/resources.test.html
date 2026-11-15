@@ -183,14 +183,17 @@
     // ═══ 1. Data honesty ═══════════════════════════════════════════════════════
     section('1 · Real data only: dataKind + sources on every data item');
     {
-      check('sources.js lists S01–S34 (34 entries, unique codes, URLs)', SOURCES.length === 34 && new Set(SOURCES.map((s) => s.code)).size === 34 && SOURCES.every((s, i) => s.code === `S${String(i + 1).padStart(2, '0')}` && /^https:\/\//.test(s.url)));
+      const sCodes = SOURCES.filter((s) => s.code.startsWith('S')); const oCodes = SOURCES.filter((s) => s.code.startsWith('O'));
+      check('sources.js lists S01–S34 + O01–O56 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && new Set(SOURCES.map((s) => s.code)).size === 90
+        && sCodes.every((s, i) => s.code === `S${String(i + 1).padStart(2, '0')}`) && oCodes.every((s, i) => s.code === `O${String(i + 1).padStart(2, '0')}`) && SOURCES.every((s) => /^https:\/\//.test(s.url)));
       const items = [...COMPONENTS, ...INSTRUMENTS, ...ORBITS, ...LAUNCHERS, ...DEPLOYERS, ...GROUND_STATIONS, ...SCENARIOS, ...REAL_MISSIONS];
-      const bad = items.filter((it) => !['fact', 'catalog', 'model'].includes(it.dataKind) || !Array.isArray(it.sources) || it.sources.some((c) => !getSource(c)));
+      const bad = items.filter((it) => !['fact', 'catalog', 'model', 'reported'].includes(it.dataKind) || !Array.isArray(it.sources) || it.sources.some((c) => !getSource(c)));
       check(`every data item has dataKind + valid source codes (${items.length} items)`, bad.length === 0, bad.map((b) => b.id).join(', '));
       const ex = items.filter((it) => it.realExample);
       check('real product examples are badged and sourced (kept out of the model price)', ex.length >= 4 && ex.every((it) => it.realExample.sources.length && ['fact', 'catalog'].includes(it.realExample.dataKind)), `${ex.length} examples`);
       check('no launcher carries a reliability number (§8.6)', LAUNCHERS.every((l) => !('reliability' in l)));
-      check('RFQ launchers have no price (Electron, Falcon Heavy)', LAUNCHERS.filter((l) => l.costType === 'rfq').map((l) => l.id).join() === 'lv_electron_kickstage,lv_falcon_heavy' && LAUNCHERS.filter((l) => l.costType === 'rfq').every((l) => l.priceM == null));
+      check('RFQ launchers have no price (Falcon Heavy, Ariane 62, ISS deploy); Electron is 📰 reported ~$7.5M', LAUNCHERS.filter((l) => l.costType === 'rfq').map((l) => l.id).join() === 'lv_falcon_heavy,lv_ariane62,lv_iss_deploy'
+        && LAUNCHERS.filter((l) => l.costType === 'rfq').every((l) => l.priceM == null) && getLauncher('lv_electron_kickstage').costType === 'reported' && getLauncher('lv_electron_kickstage').priceM === 7.5 && getLauncher('lv_electron_kickstage').dataKind === 'reported');
       check('F9 MEO package = $90M model with the $74M published GTO anchor shown', getLauncher('lv_f9_dedicated_meo').priceM === 90 && getLauncher('lv_f9_dedicated_meo').costType === 'modeled' && getLauncher('lv_f9_dedicated_meo').publishedAnchor.priceM === 74);
       check('rideshare: $350k per 50 kg + $7k/kg (published, S11)', near(getLauncher('lv_falcon9_rideshare').priceFn(8.68), 0.35) && near(getLauncher('lv_falcon9_rideshare').priceFn(60), 0.42));
       const old = ['str_compact', 'str_honeycomb', 'str_composite', 'pwr_rtg', 'com_xband', 'com_hga', 'ins_camera', 'ins_relay', 'ins_ir_telescope', 'lv_sparrow', 'lv_kestrel', 'lv_leviathan', 'lv_rideshare', 'gs_dsn', 'l2', 'mars', 'lunar', 'heo', 'wildfire', 'cubesat_classroom', 'deep_sky', 'mars_orbiter', 'sandbox', 'lunar_relay'];
@@ -298,9 +301,9 @@
     {
       const sso = make(C, (d) => ({ ...d, orbitId: 'sso_550_650' }));
       check('comms in SSO (valid alternative, §7.2) → still GO', canLaunch(validateDesign(sso)), validateDesign(sso).filter((i) => i.severity !== 'todo').map((i) => i.message).join(' | '));
-      const el = make(C, (d) => ({ ...d, launcherId: 'lv_electron_kickstage' }));
+      const el = make(C, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }));
       const elRes = computeResources(el);
-      check('comms on Electron (RFQ): GO, launch price unknown and left out ("not comparable on cost")', canLaunch(validateDesign(el)) && elRes.budget.launchUnknown && elRes.budget.lines.find((l) => l.id === 'launch').value == null);
+      check('comms deployed from the ISS (RFQ): GO, launch price unknown and left out ("not comparable on cost")', canLaunch(validateDesign(el)) && elRes.budget.launchUnknown && elRes.budget.lines.find((l) => l.id === 'launch').value == null);
       const elScore = scoreMission(el, sim(el));
       const massPowerOnly = (marginQuality(1 - elRes.mass.used / elRes.mass.available) + marginQuality(elRes.power.margin)) / 2;
       check('RFQ price: the budget term is left out of efficiency (no penalty, no bonus)', near(elScore.parts.find((p) => p.id === 'efficiency').score, massPowerOnly, 1e-9), `${elScore.parts.find((p) => p.id === 'efficiency').score.toFixed(3)} = mass & power terms only`);

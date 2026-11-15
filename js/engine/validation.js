@@ -12,7 +12,7 @@
 import { CATEGORY_PLAIN, isCubeSat } from '../data/components.js';
 import { ROLE_INFO } from '../data/instruments.js';
 import { payloadWhyNot } from '../data/scenarios.js';
-import { GROUND_WHY_NOT } from '../data/groundStations.js';
+import { GROUND_WHY_NOT, groundServes } from '../data/groundStations.js';
 import { computeResources, getSelection } from './resources.js';
 import { kg, num, pct, money, watts } from '../utils/format.js';
 
@@ -188,9 +188,9 @@ export function validateDesign(state, resources = computeResources(state)) {
   }
 
   // ── Gate: ground network
-  if (ground && ground.serves !== scenario.groundServes) {
+  if (ground && !groundServes(ground, scenario.groundServes)) {
     add('error', 'ground_network_compatible', 'ground', 'comms', 'Wrong ground segment: nobody receives and checks the signal.',
-      `${GROUND_WHY_NOT[ground.serves]?.[scenario.groundServes] ?? ''} Each service needs its own receiving / monitoring network.`.trim(), 'Pick the ground segment made for this mission.');
+      `${GROUND_WHY_NOT[[ground.serves].flat()[0]]?.[scenario.groundServes] ?? ''} Each service needs its own receiving / monitoring network.`.trim(), 'Pick the ground segment made for this mission.');
   }
 
   // ── Gate: power (average + peak)

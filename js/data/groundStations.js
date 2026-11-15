@@ -25,6 +25,18 @@ export const GROUND_STATIONS = [
     oneLiner: 'Receives and checks the measurements.', about: 'Receives the measurements, calibrates them and compares them with NASA GPM data.',
     description: 'Science receiving stations, weather-data processing, calibration, time and position tagging, and comparison with reference data (NASA GPM IMERG). The research example uses about 1 hour of contact per day.',
   },
+  {
+    id: 'gs_aws', icon: '☁️', plainName: 'AWS Ground Station', name: 'AWS Ground Station — rent antenna time', serves: ['iot', 'weather'], xband: true,
+    cost: null, costText: 'pay per minute: ~$10–15/min narrowband, $22–25/min wideband (reported, third-party)', missions: [], dataKind: 'fact', sources: ['O17', 'O18'], ref: 'options §1.6',
+    oneLiner: 'Pay per minute; S- and X-band.',
+    description: 'Rent antenna time by the minute: LEO and MEO, S-band up/down and X-band down. Total cost depends on minutes used — not public for your mission.',
+  },
+  {
+    id: 'gs_ksat', icon: '🏔️', plainName: 'KSAT network', name: 'KSAT ground station network', serves: ['iot', 'weather'],
+    cost: null, missions: [], dataKind: 'fact', sources: ['O19', 'O33'], ref: 'options §1.6 · §3.5',
+    oneLiner: 'Used by TROPICS; price not public.',
+    description: 'A commercial global network. NASA TROPICS used KSAT for its downlink (data latency ~45 min). Price not public.',
+  },
 ];
 
 // Honest reasons why a ground segment does not fit another mission (§7.2).
@@ -35,4 +47,6 @@ export const GROUND_WHY_NOT = {
 };
 
 const byId = new Map(GROUND_STATIONS.map((g) => [g.id, g]));
+/** Does this ground segment serve this kind of mission ('iot' | 'gnss' | 'weather')? */
+export const groundServes = (g, kind) => !!g && (Array.isArray(g.serves) ? g.serves.includes(kind) : g.serves === kind);
 export const getGroundStation = (id) => (id ? byId.get(id) ?? null : null);

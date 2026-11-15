@@ -8,7 +8,7 @@
 // Plus: service period, model budget, schedule.
 
 import { ROLE_INFO } from '../data/instruments.js';
-import { computeResources, getSelection } from './resources.js';
+import { computeResources, getSelection, downlinkServes } from './resources.js';
 import { money, months, pct } from '../utils/format.js';
 
 const MIN_VISIBLE_FOR_3D = 4; // research §1.1 / §4.5 (fact, S02)
@@ -35,7 +35,7 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
     const delivery = flew && chain ? avail : 0;
     out.push(kpi('packet_delivery', '📨', 'Packets delivered ≥95%', delivery >= scenario.data.target,
       `Simulated: ${pct(delivery)} of accepted test packets delivered (target 95%).${chain ? '' : ' The store-and-forward chain is incomplete.'}`));
-    out.push(kpi('ground_contact', '📡', 'Ground contact (gateway passes)', flew && res.data.groundOk === true && sel.components.downlink?.serves === 'iot',
+    out.push(kpi('ground_contact', '📡', 'Ground contact (gateway passes)', flew && res.data.groundOk === true && downlinkServes(sel.components.downlink, 'iot'),
       res.data.groundOk ? 'Gateways collect the stored packets on each pass.' : 'No IoT gateway receives the packets.'));
     out.push(kpi('latency', '⏱️', 'Latency reported honestly', flew && chain,
       'One LEO satellite: a message waits until the next gateway pass — minutes to hours, not instant.'));
