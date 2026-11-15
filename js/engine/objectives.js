@@ -10,6 +10,7 @@
 import { ROLE_INFO, getInstrument } from '../data/instruments.js';
 import { computeResources, getSelection, downlinkServes, payloadNeeds } from './resources.js';
 import { money, months, pct } from '../utils/format.js';
+import { evaluateDependencies } from './dependencies.js';
 
 const MIN_VISIBLE_FOR_3D = 4; // research §1.1 / §4.5 (fact, S02)
 
@@ -76,6 +77,11 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
       'The processing chain compares the (simulated) measurements with the real NASA GPM IMERG reference.'));
   }
 
+  // The chosen goal (objective variant): judged by the dependency matrix — a physically valid build for the
+  // wrong goal flies (engineering GO) but does NOT meet this goal, with the reason.
+  const goal = goalObjective(sel);
+  if (goal) out.push(goal);
+
   // Service period
   if (scenario.minMonths) {
     out.push({ id: 'lifetime', icon: 'hourglass', label: `Works ≥${scenario.minMonths} months`, met: flew && s.monthsOperated >= scenario.minMonths,
@@ -93,6 +99,16 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
       why: `Planned ready at month ${lo}${s.delayMonths ? ` + ${s.delayMonths} months of delay` : ''}; window ends at month ${hi}.` });
   }
   return out;
+}
+
+/** "Meets the goal: …" from the dependency matrix (not a KPI). met only when every goal rule is satisfied. */
+export function goalObjective(sel) {
+  const v = sel.variant;
+  if (!v) return null;
+  const deps = evaluateDependencies(sel);
+  const VERDICT_WHY = { met: 'This design has what the goal needs.', todo: 'Not chosen yet.' };
+  return { id: 'goal', icon: v.icon, label: `Meets the goal: ${v.label}`, met: deps.verdict === 'met', verdict: deps.verdict,
+    why: deps.reasons.length ? deps.reasons.join(' ') : VERDICT_WHY[deps.verdict] ?? '' };
 }
 
 /** satellite_success: all mission KPIs met (one satellite doing its own job). */

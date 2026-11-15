@@ -5,7 +5,8 @@ import { mount, h } from '../dom.js';
 import { icon } from '../icons.js';
 import { term, infoTerm } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
-import { GROUND_STATIONS, GROUND_WHY_NOT, groundServes } from '../../data/groundStations.js';
+import { GROUND_STATIONS } from '../../data/groundStations.js';
+import { matrixWhyNot } from '../../engine/dependencies.js';
 import { getScenario } from '../../data/scenarios.js';
 import { computeResources } from '../../engine/resources.js';
 import { whyGround, GROUND_WHY } from '../../engine/explain.js';
@@ -23,10 +24,13 @@ export function render(container, state, dispatch) {
   const fixedRadios = scenario?.size === 'large' || !!getComponent(state.design.components.structure)?.reference;
 
   const before2 = before;
+  // Which network serves this mission comes from the dependency matrix ('' = it fits).
+  const groundWhyNot = (g) => (scenario ? matrixWhyNot(scenario.id, state.design.variantId, g.id) : '');
+  const groundServes = (g) => !groundWhyNot(g);
   const groundCard = (g) => {
       const selected = state.design.groundId === g.id;
-      const wrong = scenario && !groundServes(g, scenario.groundServes);
-      const whyNot = wrong ? GROUND_WHY_NOT[[g.serves].flat()[0]]?.[scenario.groundServes] ?? 'Not built for this mission.' : '';
+      const whyNot = groundWhyNot(g);
+      const wrong = !!whyNot;
       return choiceCard({
         key: `gs-${g.id}`,
         icon: g.icon,
@@ -66,10 +70,10 @@ export function render(container, state, dispatch) {
       return h('details', { class: 'panel map-panel fold' }, [h('summary', {}, [icon('map', 16), ' Map']), box]);
     })(),
     h('div', { class: 'subq' }, h('h2', { title: 'Receives, checks and controls — on Earth.' }, [icon('dish', 18), ' Ground segment ', infoTerm('groundSegment')])),
-    h('div', { class: 'choices' }, GROUND_STATIONS.filter((g) => groundServes(g, scenario?.groundServes) || g.id === state.design.groundId).map(groundCard)),
-    GROUND_STATIONS.some((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId) && h('details', { class: 'fold' }, [
-      h('summary', {}, `Other missions (${GROUND_STATIONS.filter((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId).length})`),
-      h('div', { class: 'choices' }, GROUND_STATIONS.filter((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId).map(groundCard))]),
-    compareToggle('comms', [...(fixedRadios ? [] : [...optionsFor(state, 'comms'), ...(needsDownlink ? optionsFor(state, 'downlink') : [])]), ...GROUND_STATIONS.filter((g) => groundServes(g, scenario?.groundServes))], scenario?.id),
+    h('div', { class: 'choices' }, GROUND_STATIONS.filter((g) => groundServes(g) || g.id === state.design.groundId).map(groundCard)),
+    GROUND_STATIONS.some((g) => !groundServes(g) && g.id !== state.design.groundId) && h('details', { class: 'fold' }, [
+      h('summary', {}, `Other missions (${GROUND_STATIONS.filter((g) => !groundServes(g) && g.id !== state.design.groundId).length})`),
+      h('div', { class: 'choices' }, GROUND_STATIONS.filter((g) => !groundServes(g) && g.id !== state.design.groundId).map(groundCard))]),
+    compareToggle('comms', [...(fixedRadios ? [] : [...optionsFor(state, 'comms'), ...(needsDownlink ? optionsFor(state, 'downlink') : [])]), ...GROUND_STATIONS.filter((g) => groundServes(g))], scenario?.id),
   );
 }

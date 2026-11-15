@@ -20,7 +20,8 @@ import { getLauncher, getDeployer, launchPrice } from '../data/launchers.js';
 import { getScenario, variantOf } from '../data/scenarios.js';
 import { INCLUDED_IN_REFERENCE } from '../data/bundles.js';
 import { DISPOSAL_STRATEGIES, DOCKING_PLATE, PLANET_MAX, LOW_ORBITS, HIGH_ORBITS, al2o3Kg, EMISSION_BADGE, dragSailFor, SAIL_EFFECT } from '../data/disposal.js';
-import { getGroundStation, groundServes } from '../data/groundStations.js';
+import { getGroundStation } from '../data/groundStations.js';
+import { missionPayloadNeeds, groundRuleOk } from './dependencies.js';
 
 /** Does this downlink serve this kind of data? (`serves` may be a string or a list) */
 export const downlinkServes = (dl, kind) => !!dl && (Array.isArray(dl.serves) ? dl.serves.includes(kind) : dl.serves === kind);
@@ -80,13 +81,12 @@ export const massOf = (it) => (it.mass != null ? it.mass : it.massClassOf ? getI
  * GNSS-RO do not (options §3.1: GNSS-RO "needs no calibration").
  */
 export function payloadNeeds(sel) {
-  const { scenario, instruments, reference, roles } = sel;
+  const { scenario, instruments, reference } = sel;
   if (!scenario) return { needed: [], missing: [] };
-  const needed = [...scenario.requiredRoles];
+  // The mission dependency matrix decides (data/missionDependencies.js) — one source of truth.
+  const { needed, missing } = missionPayloadNeeds(sel);
   const sensors = [...instruments.filter((i) => i.sensor), ...(reference?.sensor ? [getInstrument(reference.sensor)] : [])];
-  if (needed.includes('atmo_sensor') && instruments.some((i) => i.sensor && i.passive) && !reference) needed.push('calibration');
-  const has = (r) => (r === 'atmo_sensor' ? sensors.length > 0 || [...roles].some((x) => ['mw_radiometer', 'precip_radar', 'gnss_ro'].includes(x)) : roles.has(r));
-  return { needed, missing: needed.filter((r) => !has(r)), sensors };
+  return { needed, missing, sensors };
 }
 
 function barStatus(used, available) {
@@ -263,7 +263,7 @@ const SERVE_NAME = { iot: 'IoT gateways', gnss: 'GNSS monitoring network', weath
 function computeData(sel) {
   const { scenario, components, instruments, ground, orbit, left, roles } = sel;
   const kind = scenario?.data.kind ?? 'gb';
-  const groundOk = ground ? groundServes(ground, scenario?.groundServes) : null;
+  const groundOk = groundRuleOk(sel); // the dependency matrix decides which network serves this mission
   const groundBlocked = groundOk === false;
   const base = { kind, groundOk, contactHours: ground?.contactHoursPerDay ?? null };
 

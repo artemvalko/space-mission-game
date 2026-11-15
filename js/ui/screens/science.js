@@ -8,10 +8,11 @@ import { icon } from '../icons.js';
 import { term } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
 import { INSTRUMENTS, PAYLOAD_PLAIN, ROLE_INFO, getInstrument } from '../../data/instruments.js';
-import { getScenario, payloadWhyNot } from '../../data/scenarios.js';
+import { getScenario } from '../../data/scenarios.js';
+import { matrixWhyNot } from '../../engine/dependencies.js';
 import { getComponent } from '../../data/components.js';
 import { computeResources } from '../../engine/resources.js';
-import { whyInstrument } from '../../engine/explain.js';
+import { whyCard } from '../../engine/explain.js';
 import { addInstrument, removeInstrument } from '../../state/actions.js';
 import { kg, money } from '../../utils/format.js';
 import { instrumentView, drawView, viewKind, VIEW_CAPTION } from '../animations/instrumentView.js';
@@ -55,6 +56,7 @@ export function render(container, state, dispatch) {
   const scenario = getScenario(state.scenarioId);
   const structure = getComponent(state.design.components.structure);
   const chosen = new Set(state.design.instrumentIds);
+  const payloadWhyNot = (sc, ins) => (sc ? matrixWhyNot(sc.id, state.design.variantId, ins.id) : '');
 
   const card = (ins) => {
     const selected = chosen.has(ins.id);
@@ -79,7 +81,9 @@ export function render(container, state, dispatch) {
       disabledReason: ins.cancelled ? 'Cancelled: never flew.' : ins.leoOnly ? 'LEO demo only — not MEO.' : 'Wrong size for your frame.',
       delta: `${selected ? 'If removed' : 'If added'}: ${previewDelta(state, action, before)}`,
       whyTitle: whyNot ? `Why not the ${ins.plainName.toLowerCase()}?` : ins.plainName,
-      why: whyNot ? `${cap(whyNot)} ${ins.formFactor !== 'any' && !fits ? `It is built for a ${ins.formFactor === 'large' ? '~700 kg satellite' : 'CubeSat'}. ` : ''}Fix: use the payload this mission needs. ${whyInstrument(ins, null)}` : whyInstrument(ins, scenario),
+      // Why? micro-format (≤5 lines): what / why this goal (dependency matrix) / what it changes / better alternative / data level.
+      why: () => whyCard(ins, { scenarioId: scenario?.id, variantId: state.design.variantId, change: previewDelta(state, action, before),
+        unverified: ins.mass == null && !ins.massClassOf && ins.formFactor !== 'any' && !ins.flewOn }),
       onSelect: () => dispatch(action),
     });
     const hover = () => {

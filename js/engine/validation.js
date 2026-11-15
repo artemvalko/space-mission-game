@@ -11,9 +11,8 @@
 
 import { CATEGORY_PLAIN, isCubeSat } from '../data/components.js';
 import { ROLE_INFO } from '../data/instruments.js';
-import { payloadWhyNot } from '../data/scenarios.js';
-import { GROUND_WHY_NOT, groundServes } from '../data/groundStations.js';
 import { computeResources, getSelection, payloadNeeds } from './resources.js';
+import { evaluateDependencies } from './dependencies.js';
 import { getComponent } from '../data/components.js';
 import { getInstrument } from '../data/instruments.js';
 import { kg, num, pct, money, watts } from '../utils/format.js';
@@ -58,6 +57,10 @@ export function validateDesign(state, resources = computeResources(state)) {
   const { mass, power, battery, data, budget } = resources;
   const structure = components.structure;
   const { missing: missingRoles } = payloadNeeds(sel);
+  // The mission dependency matrix (data/missionDependencies.js) judges payload, timing, calibration and ground.
+  const deps = evaluateDependencies(sel);
+  const depRule = (cap) => deps.mission.find((r) => r.capability === cap);
+  const wrongPayload = depRule('other_mission_payload');
 
   // ── To do (in step order) — never errors
   if (!structure) add('todo', 'spacecraft_size_mass_volume_compatible', 'design', 'size', 'Choose how big your satellite is.');
@@ -145,7 +148,7 @@ export function validateDesign(state, resources = computeResources(state)) {
       if (ins.cancelled) add('error', 'mandatory_payload_complete', 'science', 'science', `${plain(ins)} was cancelled and never flew.`, ins.why, `Remove the ${plain(ins).toLowerCase()}.`);
       if (ins.flewOn && ins.flewOn.startsWith('ref_') && reference?.payloadRoles && structure.id === ins.flewOn) continue;
       if (ins.demo) add('caution', 'mandatory_payload_complete', 'science', 'science', `${plain(ins)}: new technology demo — extra risk.`, ins.why);
-      const why = payloadWhyNot(scenario, ins);
+      const why = wrongPayload?.result === 'wrong' && wrongPayload.items.includes(ins.id) ? wrongPayload.whyNotById?.[ins.id] ?? wrongPayload.whyAlternatives : '';
       if (why) add('error', 'mandatory_payload_complete', 'science', 'science', `${plain(ins)}: ${why}`,
         'It does not serve this mission. A bigger or extra instrument cannot replace the one the mission physically needs.', `Remove the ${plain(ins).toLowerCase()}.`);
     }
@@ -158,7 +161,7 @@ export function validateDesign(state, resources = computeResources(state)) {
               : role === 'atmo_sensor' ? 'No atmosphere sensor: add a radiometer, radar or GNSS-RO.'
                 : `Missing: the ${info.plainName.toLowerCase()}.`;
         add('error', 'mandatory_payload_complete', 'science', 'science', msg,
-          role === 'atomic_clocks' ? 'No precise reference time → no navigation signal (applies to this MEO Galileo-class build).' : role === 'iot_transceiver' ? 'TT&C is not the commercial service payload.' : 'This part does the mission itself.',
+          role === 'atomic_clocks' ? 'No precise reference time → no navigation signal (applies to this MEO Galileo-class build).' : role === 'iot_transceiver' ? `TT&C is not the commercial service payload. ${depRule(role)?.reason ?? ''}`.trim() : depRule(role)?.reason ?? 'This part does the mission itself.',
           `Add the ${info.plainName.toLowerCase()} on the Mission payload step.`,
           role === 'atomic_clocks' ? 'ESA Celeste tests precise time WITHOUT atomic clocks — but as a LEO demo, not a Galileo node.' : null);
       }
@@ -208,9 +211,10 @@ export function validateDesign(state, resources = computeResources(state)) {
   }
 
   // ── Gate: ground network
-  if (ground && !groundServes(ground, scenario.groundServes)) {
+  const groundDep = depRule('ground_network');
+  if (ground && groundDep && groundDep.result !== 'ok') {
     add('error', 'ground_network_compatible', 'ground', 'comms', 'Wrong ground segment: nobody receives and checks the signal.',
-      `${GROUND_WHY_NOT[[ground.serves].flat()[0]]?.[scenario.groundServes] ?? ''} Each service needs its own receiving / monitoring network.`.trim(), 'Pick the ground segment made for this mission.');
+      `${groundDep.reason} Each service needs its own receiving / monitoring network.`.trim(), 'Pick the ground segment made for this mission.');
   }
 
   // ── Gate: power (average + peak)

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>matrix-doc</title></head>
+<body>
+<pre id="md"></pre>
+<script type="module">
+  import { matrixMarkdown } from './matrix-doc.mjs';
+  try {
+    document.getElementById('md').textContent = `MATRIX-BEGIN\n${matrixMarkdown()}\nMATRIX-END`;
+    document.title = 'matrix-doc OK';
+  } catch (e) {
+    document.getElementById('md').textContent = `ERROR ${e.message}`;
+    document.title = 'matrix-doc ERROR';
+  }
+</script>
+</body>
+</html>

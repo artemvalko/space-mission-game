@@ -27,6 +27,7 @@
   <link rel="modulepreload" href="../../js/data/groundStations.js">
   <link rel="modulepreload" href="../../js/data/instruments.js">
   <link rel="modulepreload" href="../../js/data/launchers.js">
+  <link rel="modulepreload" href="../../js/data/missionDependencies.js">
   <link rel="modulepreload" href="../../js/data/orbits.js">
   <link rel="modulepreload" href="../../js/data/realMissions.js">
   <link rel="modulepreload" href="../../js/data/roles.js">
@@ -35,6 +36,7 @@
   <link rel="modulepreload" href="../../js/engine/achievements.js">
   <link rel="modulepreload" href="../../js/engine/advisor.js">
   <link rel="modulepreload" href="../../js/engine/attempt.js">
+  <link rel="modulepreload" href="../../js/engine/dependencies.js">
   <link rel="modulepreload" href="../../js/engine/explain.js">
   <link rel="modulepreload" href="../../js/engine/goals.js">
   <link rel="modulepreload" href="../../js/engine/matching.js">
@@ -143,6 +145,9 @@
     import { POWER_PACKS, KITS, bundleTotals } from '../data/bundles.js';
     import { EVENTS } from '../data/events.js';
     import { dragSailFor, SAIL_EFFECT } from '../data/disposal.js';
+    import { MISSION_DEPENDENCIES, RULE_STATUS, EVIDENCE_LEVELS, rulesFor } from '../data/missionDependencies.js';
+    import { evaluateDependencies, matrixWhyNot, dependencyLine, rulesForItem } from './dependencies.js';
+    import { matrixMarkdown } from '../../tools/matrix-doc.mjs';
 
     const out = document.getElementById('out');
     const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -470,9 +475,12 @@
       const fitBest = variantFit(variant(weatherBuilds.hurricanes[0][1], 'hurricanes')).value;
       const fitSub = variantFit(variant(make(W), 'hurricanes')).value;
       check('variant fit: TROPICS 3U at 32° is the best fit for "Watch hurricanes often"; SSO radiometer is valid but lower', fitBest === 1 && fitSub < 1 && go(variant(make(W), 'hurricanes')), `${fitBest} vs ${fitSub}`);
-      const sBest = scoreMission(variant(make(W), 'global_humidity'), sim(make(W))); const sSub = scoreMission(variant(make(W), 'rain_inside'), sim(make(W)));
-      check('a sub-optimal variant fit lowers only the Mission performance part', sSub.parts.find((p) => p.id === 'science').points < sBest.parts.find((p) => p.id === 'science').points
-        && ['objectives', 'efficiency', 'survivability'].every((id) => sSub.parts.find((p) => p.id === id).points === sBest.parts.find((p) => p.id === id).points) && sSub.outcome === 'success');
+      const subSt = variant(make(W), 'hurricanes');
+      const sBest = scoreMission(variant(make(W), 'global_humidity'), sim(variant(make(W), 'global_humidity'))); const sSub = scoreMission(subSt, sim(subSt));
+      check('a partly-fitting goal (SSO radiometer for hurricanes): still GO, goal PARTLY → lower performance + objectives, outcome partial (not "lower score only")',
+        go(subSt) && sSub.parts.find((p) => p.id === 'science').points < sBest.parts.find((p) => p.id === 'science').points
+        && sSub.parts.find((p) => p.id === 'objectives').points < sBest.parts.find((p) => p.id === 'objectives').points
+        && ['efficiency', 'survivability'].every((id) => sSub.parts.find((p) => p.id === id).points === sBest.parts.find((p) => p.id === id).points) && sSub.outcome === 'partial' && sBest.outcome === 'success');
 
       // ── Battery thresholds (real EnduroSat EPS numbers vs the research 8.75 Wh need)
       const eps1 = computeResources(make(C, withParts({ battery: 'bat_eps1' })));
@@ -672,6 +680,64 @@
       check('debris warning offers "Dodge with a thruster burn" with NANO (not without)', eventChoices(deb, eventContext(getSelection(st), r)).some((c) => c.requires === 'thrusters') && !eventChoices(deb, eventContext(getSelection(make(C)), computeResources(make(C)))).some((c) => c.requires === 'thrusters'));
       const swarmNano = ref(C, 'ref_swarm_spacebee', { components: { ...ref(C, 'ref_swarm_spacebee').design.components, eol: 'eol_nano_thruster' } });
       check('Swarm 0.4 kg: NANO is too big → honest NO-GO', errorsOf(swarmNano).some((e) => /too big for this satellite/.test(e.message)));
+    }
+
+    // ═══ 16. Mission dependency matrix (CLARITY Phase 1) ════════════════════════
+    await tick();
+    section('16 · Dependency matrix: one source of truth for payload, timing, calibration, ground and the goal');
+    {
+      const allIds = new Set([...COMPONENTS, ...INSTRUMENTS, ...ORBITS, ...GROUND_STATIONS].map((x) => x.id));
+      const words = (t) => (t ? t.trim().split(/\s+/).length : 0);
+      const variants = SCENARIOS.flatMap((s) => s.variants.map((v) => [s.id, v.id]));
+      check('all 8 goal variants have rules (real variant ids, none renamed)', variants.length === 8 && variants.every(([m, v]) => rulesFor(m, v).some((r) => r.variantId === v)), variants.map((x) => x[1]).join(', '));
+      const badIds = MISSION_DEPENDENCIES.flatMap((r) => [...r.satisfiedBy, ...r.partialBy, ...r.dependsOn, ...r.incompatibleWithAsSubstitute].filter((id) => !allIds.has(id)).map((id) => `${r.id}:${id}`));
+      check('every id in the matrix is a real data item (nothing invented)', badIds.length === 0, badIds.slice(0, 5).join(', '));
+      const badRule = MISSION_DEPENDENCIES.filter((r) => !RULE_STATUS.includes(r.status) || !EVIDENCE_LEVELS.includes(r.evidenceLevel) || r.evidence.some((c) => !getSource(c)) || !r.whyRequired
+        || words(r.whyRequired) > 25 || words(r.whyAlternatives) > 25 || !['mission', 'goal'].includes(r.scope));
+      check('every rule: valid status, evidence codes + level, why texts ≤ 25 words', badRule.length === 0, badRule.map((r) => r.id).join(', '));
+      const doc = await fetch('../../docs/MISSION_DEPENDENCY_MATRIX.md').then((r) => (r.ok ? r.text() : '')).catch(() => '');
+      check('docs/MISSION_DEPENDENCY_MATRIX.md is generated from the JS matrix (no drift — run tools/matrix-doc.sh)', doc === `${matrixMarkdown()}\n`, `${doc.length} vs ${matrixMarkdown().length + 1} chars`);
+
+      // ── Vertical slice: weather · "Measure rain inside storms"
+      const goalOf = (st) => evaluateDependencies(getSelection(st));
+      const goalObj = (st) => evaluateObjectives(st, sim(st)).find((o) => o.id === 'goal');
+      const rain = (st) => variant(st, 'rain_inside');
+      const radar12 = rain(make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] })));
+      const tempest = rain(make(W));
+      check('rain_inside + RainCube radar (12U part build) → goal MET', goalOf(radar12).verdict === 'met' && goalObj(radar12).met);
+      check('rain_inside + TEMPEST-D radiometer only → engineering GO, goal NOT MET with the reason', go(tempest) && goalOf(tempest).verdict === 'not_met'
+        && /measures humidity, not the rain profile; choose a radar/.test(goalObj(tempest).why) && sim(tempest).outcome === 'partial', goalObj(tempest).why);
+      check('the payload gate reads the matrix: radar needs no calibration, a passive radiometer does', !payloadNeeds(getSelection(radar12)).needed.includes('calibration')
+        && payloadNeeds(getSelection(make(W, (d) => ({ ...d, instrumentIds: ['payload_mw_radiometer'] })))).missing.includes('calibration'));
+      check('the ground gate reads the matrix (IoT gateways on weather → reason from the matrix)', errorsOf(make(W, (d) => ({ ...d, groundId: 'gs_iot_gateways' }))).some((e) => e.gate === 'ground_network_compatible' && /not a science receiving/.test(e.why)));
+      check('UI "why not" comes from the matrix too (matrixWhyNot)', /cloud tops/.test(matrixWhyNot(W, 'rain_inside', 'dist_rgb_camera')) && matrixWhyNot(W, 'rain_inside', 'wx_raincube_radar') === '' && /science/.test(matrixWhyNot(W, null, 'gs_iot_gateways')));
+      check('dependency line: "RainCube radar → needs deployable wings + science downlink"', dependencyLine(W, 'rain_inside', 'wx_raincube_radar') === 'RainCube radar → needs deployable wings + science downlink', dependencyLine(W, 'rain_inside', 'wx_raincube_radar'));
+      check('look-alikes explained: TT&C ≠ IoT payload, sun sensor ≠ weather sensor', rulesForItem(C, null, 'ttc_uhf').notASubstitute.some((r) => /never users' messages/.test(r.whyAlternatives))
+        && rulesForItem(W, null, 'sun_orbit_sensors').notASubstitute.some((r) => /Neither measures the air/.test(r.whyAlternatives)));
+
+      // ── Every variant: 1 valid build, 1 obvious wrong choice, 1 trade-off
+      const swap = (st, ids) => ({ ...st, design: { ...st.design, instrumentIds: ids } });
+      const orbitTo = (st, orbitId) => ({ ...st, design: { ...st.design, orbitId } });
+      const CASES = [
+        [C, 'cheapest', ref(C, 'ref_swarm_spacebee'), swap(make(C), ['ant_iot_deploy']), make(C), 'met'],
+        [C, 'phone_chips', swap(make(C), ['iot_nbiot_ntn', 'ant_iot_deploy']), swap(make(C), ['iot_lora', 'ant_iot_deploy']), ref(C, 'ref_sateliot_6u'), 'met'],
+        [C, 'licensed', swap(make(C), ['iot_lband', 'ant_iot_deploy']), make(C), ref(C, 'ref_astrocast_3u'), 'met'],
+        [W, 'global_humidity', make(W), make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] })), orbitTo(make(W), 'leo_550'), 'partly'],
+        [W, 'hurricanes', ref(W, 'ref_tropics_3u', { orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }), swap(make(W), ['wx_gnss_ro']), make(W), 'partly'],
+        [W, 'rain_inside', radar12, make(W), ref(W, 'ref_raincube_6u', { orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }), 'met'],
+        [N, 'galileo', make(N), swap(make(N), ['nav_signal_rf', 'antenna_lband_nav']), orbitTo(make(N), 'meo_gps_20200'), 'partly'],
+        [N, 'gps', ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' }), swap(make(N), ['clk_none_leo', 'nav_signal_rf', 'antenna_lband_nav']), make(N), 'partly'],
+      ];
+      for (const [sid, vid, valid, wrong, trade, tradeVerdict] of CASES) {
+        const v = (st) => variant(st, vid);
+        const wv = goalOf(v(wrong)).verdict;
+        check(`${sid} · ${vid}: valid build → goal MET and GO`, goalOf(v(valid)).verdict === 'met' && go(v(valid)), goalOf(v(valid)).reasons.join(' | '));
+        check(`${sid} · ${vid}: obvious wrong choice → NOT MET or NO-GO, with a reason`, (wv === 'not_met' && goalObj(v(wrong)).why.length > 10) || (!go(v(wrong)) && errorsOf(v(wrong)).some((e) => e.why)), `${wv}`);
+        check(`${sid} · ${vid}: trade-off build → goal ${tradeVerdict.toUpperCase()}, still flies`, goalOf(v(trade)).verdict === tradeVerdict && canLaunch(validateDesign(v(trade))), `${goalOf(v(trade)).verdict}`);
+      }
+      check('phone_chips + LoRa → NOT MET', goalOf(variant(swap(make(C), ['iot_lora', 'ant_iot_deploy']), 'phone_chips')).verdict === 'not_met');
+      check('licensed + generic SDR → NOT MET (reason names the L-band payload)', goalOf(variant(make(C), 'licensed')).verdict === 'not_met' && /L-band IoT payload/.test(goalOf(variant(make(C), 'licensed')).reasons[0]));
+      check('one GNSS satellite: node success, constellation never claimed', satelliteSuccess(evaluateObjectives(make(N), sim(make(N)))) && !constellationStatus(1).met && goalOf(make(N)).limits.some((l) => /≠ 3D positioning/.test(l.text)));
     }
 
     const summary = document.getElementById('summary');
