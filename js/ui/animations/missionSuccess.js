@@ -11,7 +11,7 @@ export function missionSuccess(container, { name, team, orbitId, grade = 'A', ca
     scene: 'mission-success', label: 'Mission success', duration: 3800, caption, hold,
     setup({ svg }) {
       svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(120, 31));
-      const planet = s('circle', { cx: 160, cy: 330, r: 70, class: orbitId === 'mars' ? 'an-mars' : orbitId === 'lunar' ? 'an-moon' : 'an-earth' });
+      const planet = s('circle', { cx: 160, cy: 330, r: 70, class: 'an-earth' });
       const ring = s('ellipse', { cx: 160, cy: 330, rx: 120, ry: 40, class: 'an-orbit' });
       const sat = miniSat(1.2);
       const patch = missionPatch({ name, team, orbitId, r: 110 });

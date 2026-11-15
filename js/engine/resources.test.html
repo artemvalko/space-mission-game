@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Resources Self-Test</title>
+  <title>Mission Control Self-Test</title>
   <style>
     :root { color-scheme: dark; --bg: #070b14; --text: #e6edf7; --muted: #8a9bb8; --ok: #3ddc84; --bad: #ff5c5c; --border: #22314f; }
     body { margin: 0; padding: 20px 16px; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, sans-serif; }
@@ -30,10 +30,10 @@
   <link rel="modulepreload" href="../../js/data/realMissions.js">
   <link rel="modulepreload" href="../../js/data/roles.js">
   <link rel="modulepreload" href="../../js/data/scenarios.js">
+  <link rel="modulepreload" href="../../js/data/sources.js">
   <link rel="modulepreload" href="../../js/engine/achievements.js">
   <link rel="modulepreload" href="../../js/engine/advisor.js">
   <link rel="modulepreload" href="../../js/engine/attempt.js">
-  <link rel="modulepreload" href="../../js/engine/costs.js">
   <link rel="modulepreload" href="../../js/engine/explain.js">
   <link rel="modulepreload" href="../../js/engine/goals.js">
   <link rel="modulepreload" href="../../js/engine/matching.js">
@@ -51,6 +51,7 @@
   <link rel="modulepreload" href="../../js/state/store.js">
   <link rel="modulepreload" href="../../js/ui/animations/balanceScale.js">
   <link rel="modulepreload" href="../../js/ui/animations/cardFlip.js">
+  <link rel="modulepreload" href="../../js/ui/animations/constellation.js">
   <link rel="modulepreload" href="../../js/ui/animations/core.js">
   <link rel="modulepreload" href="../../js/ui/animations/countdown.js">
   <link rel="modulepreload" href="../../js/ui/animations/debris.js">
@@ -61,7 +62,6 @@
   <link rel="modulepreload" href="../../js/ui/animations/hardwareFailure.js">
   <link rel="modulepreload" href="../../js/ui/animations/index.js">
   <link rel="modulepreload" href="../../js/ui/animations/instrumentView.js">
-  <link rel="modulepreload" href="../../js/ui/animations/launchFailure.js">
   <link rel="modulepreload" href="../../js/ui/animations/launchSuccess.js">
   <link rel="modulepreload" href="../../js/ui/animations/missionLost.js">
   <link rel="modulepreload" href="../../js/ui/animations/missionPartial.js">
@@ -81,6 +81,7 @@
   <link rel="modulepreload" href="../../js/ui/screens/common.js">
   <link rel="modulepreload" href="../../js/ui/screens/comms.js">
   <link rel="modulepreload" href="../../js/ui/screens/finalCheck.js">
+  <link rel="modulepreload" href="../../js/ui/screens/launchPrep.js">
   <link rel="modulepreload" href="../../js/ui/screens/operations.js">
   <link rel="modulepreload" href="../../js/ui/screens/orbit.js">
   <link rel="modulepreload" href="../../js/ui/screens/pickMission.js">
@@ -102,360 +103,335 @@
   <!-- modulepreload:end -->
 </head>
 <body>
-  <h1>computeResources — self-test</h1>
-  <p class="muted">Serve the project root with <code>python3 -m http.server</code> and open <code>/js/engine/resources.test.html</code>. Expected values are hand-computed from the data files and the formulas in CLAUDE.md.</p>
+  <h1>Mission Control — self-test</h1>
+  <p class="muted">Serve the project root with <code>python3 -m http.server</code> and open <code>/js/engine/resources.test.html</code>. Expected values come from docs/NASA_Hackathon_Mission_Control_Deep_Research_UA.md (BOMs §3.2/§4.3/§5.3, power §3.3/§5.4, budgets §3.5/§4.6/§5.5, QA cases §10).</p>
   <div id="summary" class="summary">Running…</div>
   <div id="out"></div>
 
   <script type="module">
-    import { computeResources } from './resources.js';
-    import { validateDesign, hasBlockingErrors } from './validation.js';
+    import { computeResources, getSelection } from './resources.js';
+    import { validateDesign, hasBlockingErrors, canLaunch, gateStatus, GATES } from './validation.js';
     import { runSimulation } from './simulation.js';
-    import { scoreMission } from './scoring.js';
+    import { scoreMission, marginQuality, weightsFor, gradeFor, DISPOSAL_BONUS } from './scoring.js';
+    import { evaluateObjectives, satelliteSuccess, constellationStatus, checkClaim } from './objectives.js';
     import { describeOutcome } from './outcome.js';
-    import { marginQuality, weightsFor, gradeFor } from './scoring.js';
     import { evaluateRoleGoals, voteStatus } from './roleGoals.js';
     import { attemptRecord } from './attempt.js';
     import { encodeDesign, decodeDesign } from '../utils/share.js';
     import { earnedBadges, BADGES } from './achievements.js';
+    import { advise } from './advisor.js';
+    import { goalChecklist } from './goals.js';
     import { trackPoints } from '../ui/animations/groundTrack.js';
     import { scaleAngle } from '../ui/animations/balanceScale.js';
     import { endOfLifeKind } from '../ui/animations/endOfLife.js';
-    import { createInitialState } from '../state/initialState.js';
+    import { createInitialState, emptyDesign } from '../state/initialState.js';
     import { reducer } from '../state/reducer.js';
     import * as A from '../state/actions.js';
-    import { advise } from './advisor.js';
-    import { goalChecklist } from './goals.js';
-    import { canLaunch } from './validation.js';
+    import { COMPONENTS, getComponent, costFor } from '../data/components.js';
+    import { INSTRUMENTS } from '../data/instruments.js';
+    import { ORBITS } from '../data/orbits.js';
+    import { LAUNCHERS, DEPLOYERS, getLauncher } from '../data/launchers.js';
+    import { GROUND_STATIONS } from '../data/groundStations.js';
+    import { SCENARIOS } from '../data/scenarios.js';
+    import { REAL_MISSIONS } from '../data/realMissions.js';
+    import { SOURCES, getSource } from '../data/sources.js';
+    import { POWER_PACKS, KITS, bundleTotals } from '../data/bundles.js';
+    import { EVENTS } from '../data/events.js';
 
     const out = document.getElementById('out');
-    const tick = () => new Promise((r) => setTimeout(r, 0)); // yield so the page stays responsive
+    const tick = () => new Promise((r) => setTimeout(r, 0));
     let pass = 0, fail = 0;
     const el = (tag, html) => Object.assign(document.createElement(tag), { innerHTML: html });
-
-    function makeState(scenarioId, components, instrumentIds, orbitId, launcherId, groundId) {
-      const s = createInitialState();
-      return { ...s, scenarioId, design: { components, instrumentIds, orbitId, launcherId, groundId } };
-    }
-
-    const WILDFIRE_BUS = {
-      structure: 'str_compact', power: 'pwr_body_solar', battery: 'bat_small', comms: 'com_xband',
-      computer: 'cpu_basic', adcs: 'adcs_rw', propulsion: 'prop_coldgas',
-    };
-    const MARS_BUS = {
-      structure: 'str_honeycomb', power: 'pwr_deploy_solar', battery: 'bat_small', comms: 'com_xband',
-      computer: 'cpu_basic', adcs: 'adcs_fine', propulsion: 'prop_hydrazine',
-    };
-    const CUBE_BUS = {
-      structure: 'str_cube_6u', power: 'pwr_cube_solar', battery: 'bat_cube', comms: 'com_cube_sband',
-      computer: 'cpu_cube', adcs: 'adcs_cube', propulsion: 'prop_cube',
-    };
-
-    const SAMPLES = [
-      {
-        title: 'Sample 1 — Wildfire Watch, sensible small SSO satellite, single ground station',
-        state: makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera'], 'sso', 'lv_sparrow', 'gs_single'),
-        expect: {
-          'mass.dry': 162, 'mass.propellant': 1.62, 'mass.margin': 24.3, 'mass.used': 187.92, 'mass.available': 400, 'mass.status': 'ok',
-          'power.used': 170, 'power.available': 201, 'power.status': 'caution',
-          'battery.used': 93.5, 'battery.available': 300, 'battery.status': 'ok',
-          'data.used': 30, 'data.contactHours': 2, 'data.available': 45, 'data.lostFraction': 0,
-          'budget.ops': 3, 'budget.used': 71, 'budget.available': 150,
-          'time.used': 20, 'time.available': 30,
-          'lifetime.value': 8, 'science.value': 97.175,
-          'health.value': 0.981667, 'health.failuresPerYear': 0.146667, 'launch.value': 0.94,
-        },
-        blocking: false,
-      },
-      {
-        title: 'Sample 2 — Red Planet Orbiter, overloaded, small rocket, no deep-space ground',
-        state: makeState('mars_orbiter', MARS_BUS, ['ins_sar', 'ins_hires', 'ins_spectrometer'], 'mars', 'lv_sparrow', 'gs_global'),
-        expect: {
-          'mass.dry': 457, 'mass.propellant': 100.54, 'mass.used': 626.09, 'mass.status': 'blocked',
-          'power.used': 675, 'power.available': 335.4, 'power.status': 'over',
-          'battery.used': 450, 'battery.available': 300, 'battery.status': 'over',
-          'data.used': 165, 'data.available': 0, 'data.status': 'blocked', 'data.lostFraction': 1, 'data.deepSpaceProblem': true,
-          'budget.used': 196, 'time.used': 32, 'lifetime.value': 9, 'science.value': 0,
-          'health.value': 0.9725, 'health.stress': 0.6, 'health.failuresPerYear': 0.82,
-        },
-        blocking: true,
-        errorMatch: /can't reach Around Mars at all/,
-      },
-      {
-        title: 'Sample 3 — Wildfire Watch, everything bolted on (over budget / late / overloaded)',
-        state: makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera', 'ins_sar'], 'sso', 'lv_leviathan', 'gs_single'),
-        expect: {
-          'mass.used': 292.32, 'mass.payload.used': 125, 'mass.payload.ok': false,
-          'power.used': 570, 'power.status': 'over', 'battery.used': 313.5, 'battery.status': 'over',
-          'data.used': 110, 'data.lostFraction': 0.590909,
-          'budget.used': 251, 'budget.status': 'over', 'time.used': 32, 'time.status': 'over',
-          'science.value': 82.5648, 'health.value': 0.9785, 'health.failuresPerYear': 0.772,
-          'launch.value': 0.96,
-        },
-        blocking: true,
-      },
-      {
-        title: 'Sample 4 — CubeSat Classroom, 6U, single ground station (data bottleneck)',
-        state: makeState('cubesat_classroom', CUBE_BUS, ['ins_cubecam'], 'leo', 'lv_rideshare', 'gs_single'),
-        expect: {
-          'mass.dry': 5.5, 'mass.used': 6.3525, 'mass.available': 24, 'mass.payload.available': 4,
-          'power.used': 19, 'power.available': 24.8, 'battery.used': 11.4, 'battery.available': 48,
-          'data.used': 2, 'data.contactHours': 1.5, 'data.available': 1.35, 'data.lostFraction': 0.325, 'data.status': 'over',
-          'budget.used': 4.2, 'budget.available': 8, 'time.used': 14, 'lifetime.value': 5.5,
-          'health.value': 0.9525, 'health.failuresPerYear': 0.38, 'launch.value': 0.95,
-          'science.value': 19.305, 'science.ok': false,
-        },
-        blocking: false,
-      },
-      {
-        title: 'Sample 5 — same CubeSat with a Global Station Network',
-        state: makeState('cubesat_classroom', CUBE_BUS, ['ins_cubecam'], 'leo', 'lv_rideshare', 'gs_global'),
-        expect: {
-          'data.contactHours': 4.5, 'data.available': 4.05, 'data.lostFraction': 0, 'data.status': 'ok',
-          'budget.ops': 3, 'budget.used': 6.2, 'science.value': 28.6, 'science.ok': true,
-        },
-        blocking: false,
-      },
-      {
-        title: 'Sample 6 — Mars with a deep-space ground segment + high-gain antenna',
-        state: makeState('mars_orbiter', { ...MARS_BUS, comms: 'com_hga' }, ['ins_sar', 'ins_hires', 'ins_spectrometer'], 'mars', 'lv_kestrel', 'gs_dsn'),
-        expect: { 'data.contactHours': 10, 'data.available': 1.35, 'data.status': 'over', 'data.deepSpaceProblem': false, 'budget.ops': 24 },
-        blocking: false,
-      },
-      {
-        title: 'Sample 7 — CubeSat with a full-size battery + an incompatible telescope',
-        state: makeState('cubesat_classroom', { ...CUBE_BUS, battery: 'bat_small' }, ['ins_cubecam', 'ins_uv_telescope'], 'leo', 'lv_rideshare', 'gs_global'),
-        expect: { 'mass.payload.ok': false },
-        blocking: true,
-        errorMatch: /Small battery is too big for a CubeSat[\s\S]*Small UV telescope doesn't help this mission|Small UV telescope doesn't help this mission[\s\S]*Small battery is too big for a CubeSat/,
-      },
-    ];
-
-    const get = (obj, path) => path.split('.').reduce((o, k) => o?.[k], obj);
-    const close = (a, b) => typeof b === 'number' ? Math.abs(a - b) <= Math.max(0.01, Math.abs(b) * 1e-4) : a === b;
-    const fmt = (v) => typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : String(v);
-
-    for (const sample of SAMPLES) {
-      const res = computeResources(sample.state);
-      const issues = validateDesign(sample.state, res);
-      out.append(el('h2', sample.title));
-
-      const rows = Object.entries(sample.expect).map(([path, exp]) => {
-        const got = get(res, path);
-        const ok = close(got, exp);
-        ok ? pass++ : fail++;
-        return `<tr><td>${path}</td><td class="num">${fmt(exp)}</td><td class="num">${fmt(got)}</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</td></tr>`;
-      });
-      const blockOk = hasBlockingErrors(issues) === sample.blocking;
-      blockOk ? pass++ : fail++;
-      if (sample.errorMatch) {
-        const text = issues.filter((i) => i.severity === 'error').map((i) => i.message).join('\n');
-        const ok = sample.errorMatch.test(text);
-        ok ? pass++ : fail++;
-        rows.push(`<tr><td>blocking messages match</td><td class="num">${sample.errorMatch.source.slice(0, 40)}…</td><td class="num">${text.split('\n').length} errors</td><td class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</td></tr>`);
-      }
-      rows.push(`<tr><td>has blocking errors</td><td class="num">${sample.blocking}</td><td class="num">${hasBlockingErrors(issues)}</td><td class="${blockOk ? 'pass' : 'fail'}">${blockOk ? 'PASS' : 'FAIL'}</td></tr>`);
-      out.append(el('div', `<div class="wrap"><table><thead><tr><th>Value</th><th>Expected</th><th>Got</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`));
-
-      out.append(el('div', `<strong>Explanations</strong><ul>${
-        ['mass', 'power', 'battery', 'data', 'budget', 'time', 'lifetime', 'health', 'launch', 'science']
-          .map((k) => `<li><strong>${k}</strong>: ${res[k].explanation}</li>`).join('')}</ul>`));
-      out.append(el('div', `<strong>Validation (${issues.length})</strong><ul>${
-        issues.map((i) => `<li><span class="${i.severity === 'error' || i.severity === 'warning' ? 'fail' : 'muted'}">[${i.severity}]</span> ${i.message}</li>`).join('')}</ul>`));
-    }
-
-    // ── Phase 1: friendly validation, advisor, Easy bundles
-    await tick();
-    out.append(el('h2', 'Guided flow (Phase 1)'));
-    const check1 = (label, ok, detail = '') => {
+    const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const check = (label, ok, detail = '') => {
       ok ? pass++ : fail++;
-      out.append(el('p', `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span> — ${label} <span class="muted">${detail}</span>`));
+      out.append(el('p', `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span> — ${esc(label)} <span class="muted">${esc(detail)}</span>`));
     };
+    const section = (t) => out.append(el('h2', esc(t)));
+    const near = (a, b, eps = 0.005) => a != null && Math.abs(a - b) <= eps;
+    const errorsOf = (st) => validateDesign(st).filter((i) => i.severity === 'error');
+    const gatesFailed = (st) => [...new Set(errorsOf(st).map((i) => i.gate))];
+
+    // ── Correct builds (research §13) as plain designs
+    const C = 'mission_comms_iot', N = 'mission_navigation_meo', W = 'mission_weather_mw';
+    const PREP = { tests: true, licence: true, disposal: true };
+    const BUILD = {
+      [C]: {
+        components: { structure: 'str_6u', power: 'eps_solar_6u', battery: 'battery_6u_60wh', comms: 'ttc_uhf', downlink: 'dl_sband', computer: 'obc_6u', adcs: 'adcs_6u', thermal: 'thermal_6u', sensors: 'gnss_receiver_bus', harness: 'harness_mech_6u', propulsion: 'none', propellant: 'none' },
+        instrumentIds: ['payload_iot_sdr', 'ant_iot_deploy'], orbitId: 'leo_550', launcherId: 'lv_falcon9_rideshare', deployerId: 'dep_cubesat', groundId: 'gs_iot_gateways',
+      },
+      [W]: {
+        components: { structure: 'str_6u_weather', power: 'eps_solar_6u', battery: 'battery_6u_80wh', comms: 'ttc_uhf', downlink: 'science_sband', computer: 'obc_weather', adcs: 'adcs_weather', thermal: 'thermal_weather', sensors: 'sun_orbit_sensors', harness: 'harness_misc_weather', propulsion: 'none', propellant: 'none' },
+        instrumentIds: ['payload_mw_radiometer', 'radiometer_calibration'], orbitId: 'sso_550_650', launcherId: 'lv_falcon9_rideshare', deployerId: 'dep_cubesat', groundId: 'gs_weather_science',
+      },
+      [N]: {
+        components: { structure: 'str_gnss_meo', power: 'pwr_gnss_solar', battery: 'bat_gnss_2500wh', comms: 'ttc_c_s_band', downlink: null, computer: 'obc_rad_hard', adcs: 'adcs_precision_meo', thermal: 'thermal_meo', sensors: 'none', harness: 'integration_harness_meo', propulsion: 'prop_meo_stationkeeping', propellant: 'propellant_meo' },
+        instrumentIds: ['clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'], orbitId: 'meo_gnss', launcherId: 'lv_f9_dedicated_meo', deployerId: 'dep_large_adapter', groundId: 'gs_gnss_monitoring',
+      },
+    };
+    /** State for a mission build; `mod(design)` returns overrides. */
+    function make(sid, mod = (d) => d, prep = PREP) {
+      const base = BUILD[sid];
+      const d = { ...emptyDesign(), ...base, components: { ...emptyDesign().components, ...base.components }, prep: { ...prep } };
+      return { ...createInitialState(), scenarioId: sid, design: mod({ ...d, components: { ...d.components } }) };
+    }
+    const withParts = (patch) => (d) => ({ ...d, components: { ...d.components, ...patch } });
+    // Answer events with the gentlest option (no damage, best service) so the run measures the design.
+    const best = (ev) => { let bi = 0, bs = -1; ev.choices.forEach((c, i) => { const sc = (c.effects.damage ? -1 : 0) + (c.effects.performance ?? 1) - (c.effects.reserveShare ?? 0) * 0.01; if (sc > bs) { bs = sc; bi = i; } }); return bi; };
+    const sim = (st, seed = 3, opts = {}) => runSimulation(st, seed, [], { autoChoice: best, ...opts });
+
+    // ═══ 1. Data honesty ═══════════════════════════════════════════════════════
+    section('1 · Real data only: dataKind + sources on every data item');
+    {
+      check('sources.js lists S01–S34 (34 entries, unique codes, URLs)', SOURCES.length === 34 && new Set(SOURCES.map((s) => s.code)).size === 34 && SOURCES.every((s, i) => s.code === `S${String(i + 1).padStart(2, '0')}` && /^https:\/\//.test(s.url)));
+      const items = [...COMPONENTS, ...INSTRUMENTS, ...ORBITS, ...LAUNCHERS, ...DEPLOYERS, ...GROUND_STATIONS, ...SCENARIOS, ...REAL_MISSIONS];
+      const bad = items.filter((it) => !['fact', 'catalog', 'model'].includes(it.dataKind) || !Array.isArray(it.sources) || it.sources.some((c) => !getSource(c)));
+      check(`every data item has dataKind + valid source codes (${items.length} items)`, bad.length === 0, bad.map((b) => b.id).join(', '));
+      const ex = items.filter((it) => it.realExample);
+      check('real product examples are badged and sourced (kept out of the model price)', ex.length >= 4 && ex.every((it) => it.realExample.sources.length && ['fact', 'catalog'].includes(it.realExample.dataKind)), `${ex.length} examples`);
+      check('no launcher carries a reliability number (§8.6)', LAUNCHERS.every((l) => !('reliability' in l)));
+      check('RFQ launchers have no price (Electron, Falcon Heavy)', LAUNCHERS.filter((l) => l.costType === 'rfq').map((l) => l.id).join() === 'lv_electron_kickstage,lv_falcon_heavy' && LAUNCHERS.filter((l) => l.costType === 'rfq').every((l) => l.priceM == null));
+      check('F9 MEO package = $90M model with the $74M published GTO anchor shown', getLauncher('lv_f9_dedicated_meo').priceM === 90 && getLauncher('lv_f9_dedicated_meo').costType === 'modeled' && getLauncher('lv_f9_dedicated_meo').publishedAnchor.priceM === 74);
+      check('rideshare: $350k per 50 kg + $7k/kg (published, S11)', near(getLauncher('lv_falcon9_rideshare').priceFn(8.68), 0.35) && near(getLauncher('lv_falcon9_rideshare').priceFn(60), 0.42));
+      const old = ['str_compact', 'str_honeycomb', 'str_composite', 'pwr_rtg', 'com_xband', 'com_hga', 'ins_camera', 'ins_relay', 'ins_ir_telescope', 'lv_sparrow', 'lv_kestrel', 'lv_leviathan', 'lv_rideshare', 'gs_dsn', 'l2', 'mars', 'lunar', 'heo', 'wildfire', 'cubesat_classroom', 'deep_sky', 'mars_orbiter', 'sandbox', 'lunar_relay'];
+      const ids = new Set(items.map((i) => i.id));
+      check('no deleted fictional ids remain in the data', old.every((id) => !ids.has(id)), old.filter((id) => ids.has(id)).join(', '));
+      check('exactly three missions: comms ★, weather ★★, navigation ★★★', SCENARIOS.map((s) => `${s.id}:${s.stars}`).join() === `${C}:1,${W}:2,${N}:3`);
+      check('events are game rates only (no probability field shown as statistics)', EVENTS.every((e) => typeof e.perYear === 'number' && !('probability' in e)));
+    }
+
+    // ═══ 2. BOM sums, budgets, bundles ═════════════════════════════════════════
+    section('2 · Research BOM sums, cost tables, bundles');
+    for (const [sid, kgParts, kgChecked, hw, budget, reserve] of [[C, 7.55, 8.68, 1.36, 6.00, 0.59], [W, 8.60, 9.89, 5.54, 18.00, 2.61], [N, 700, 700, 112, 280, 20]]) {
+      const st = make(sid);
+      const r = computeResources(st);
+      check(`${sid}: parts ${kgParts} kg → checked ${kgChecked} kg`, near(r.mass.parts, kgParts) && near(r.mass.used, kgChecked, 0.006), `${r.mass.parts} → ${r.mass.used}`);
+      check(`${sid}: hardware $${hw}M`, near(r.budget.hardware, hw), `$${r.budget.hardware}M`);
+      check(`${sid}: all budget lines + planned reserve = $${budget}M`, near(r.budget.used + reserve, budget) && near(r.budget.reserveLeft, reserve) && r.budget.status === 'ok', `used ${r.budget.used} + reserve ${r.budget.reserveLeft}`);
+    }
+    {
+      const n = computeResources(make(N));
+      check('navigation: 700 kg already includes 110 kg propellant — no extra 15%', n.mass.reserve === 0 && n.mass.propellant === 110 && n.mass.used === 700);
+      check('6U: 15% design reserve is applied (§8.1)', near(computeResources(make(C)).mass.reserve, 1.1325) && near(computeResources(make(W)).mass.reserve, 1.29));
+      for (const p of POWER_PACKS) {
+        const manual = Object.values(p.parts).map(getComponent).filter(Boolean);
+        const tot = bundleTotals(p.parts, C);
+        check(`power pack ${p.id}: mass/cost = sum of parts`, near(tot.mass, manual.reduce((a, c) => a + c.mass, 0)) && near(tot.cost, manual.reduce((a, c) => a + costFor(c, C), 0)), `${tot.mass} kg, $${tot.cost}M`);
+      }
+      for (const [sid, kit] of Object.entries(KITS[0].byMission)) {
+        const parts = Object.values(kit).map(getComponent).filter(Boolean);
+        const tot = bundleTotals(kit, sid);
+        check(`standard kit (${sid}): mass/cost = sum of its research parts`, near(tot.mass, parts.reduce((a, c) => a + c.mass, 0)) && near(tot.cost, parts.reduce((a, c) => a + costFor(c, sid), 0)), `${tot.mass.toFixed(2)} kg, $${tot.cost.toFixed(2)}M`);
+      }
+      check('UHF TT&C costs $0.05M in the comms build and $0.06M in the weather build', costFor(getComponent('ttc_uhf'), C) === 0.05 && costFor(getComponent('ttc_uhf'), W) === 0.06);
+    }
+
+    // ═══ 3. Power, battery, data (§8.2, §8.4) ══════════════════════════════════
+    section('3 · Power, battery and data formulas');
+    {
+      const c = computeResources(make(C));
+      check('comms: 38.4 W × 0.60 × 0.80 = 18.43 W available vs 15 W load', near(c.power.available, 18.432) && c.power.used === 15 && near(c.power.margin, 1 - 15 / 18.432), `${c.power.available} W, margin ${(c.power.margin * 100).toFixed(1)}%`);
+      check('comms: battery 60 Wh × 0.6 = 36 Wh usable vs 15 W × 35/60 h = 8.75 Wh', near(c.battery.available, 36) && near(c.battery.used, 8.75));
+      const w = computeResources(make(W));
+      check('weather: 38.4 W × 0.67 × 0.80 = 20.6 W available vs 17 W load', near(w.power.available, 20.6, 0.03) && w.power.used === 17, `${w.power.available} W`);
+      check('weather: 80 Wh × 0.6 = 48 Wh usable vs 17 W × 35/60 h = 9.92 Wh', near(w.battery.available, 48) && near(w.battery.used, 9.92, 0.005), `${w.battery.used} Wh`);
+      check('weather data: 5 Mbps × 1 h × 3600 / 8 / 1000 = 2.25 GB/day (theoretical) vs 2 GB/day made', near(w.data.available, 2.25) && w.data.used === 2 && w.data.lostFraction === 0);
+      check('IoT is judged as a packet chain, not GB/day', c.data.kind === 'packets' && c.data.chainOk && c.data.used == null);
+      const n = computeResources(make(N));
+      check('navigation is not judged by GB/day; 1.1 kW avg & 1.5 kW peak vs 1.6 kW array', n.data.kind === 'nav' && n.data.chainOk && n.power.used === 1100 && n.power.peak === 1500 && n.power.peakOk && n.power.available === 1600);
+      check('MEO has no single eclipse value: battery is checked present, not with an invented number', n.battery.needWh == null && n.battery.status === 'ok');
+      check('lifetime: no "thrusters add years" bonus — plan comes from the mission', computeResources(make(N)).lifetime.plannedMonths === 12 && computeResources(make(C)).lifetime.plannedMonths === 12 && computeResources(make(W)).lifetime.plannedMonths === 24);
+    }
+
+    // ═══ 4. QA cases §10 ═══════════════════════════════════════════════════════
+    await tick();
+    section('4 · Research §10 QA cases (hard gates before score)');
+    const passCase = (id, st) => {
+      const errs = errorsOf(st);
+      const go = canLaunch(validateDesign(st));
+      const s = sim(st);
+      const objs = evaluateObjectives(st, s);
+      check(`${id}: PASS (GO, all KPIs met)`, go && errs.length === 0 && satelliteSuccess(objs) && s.outcome === 'success', `${s.outcome}; ${errs.map((e) => e.message).join(' | ')}`);
+      return s;
+    };
+    const failCase = (id, st, gates, msgRe = null) => {
+      const errs = errorsOf(st);
+      const got = gatesFailed(st);
+      const ok = !canLaunch(validateDesign(st)) && gates.every((g) => got.includes(g)) && (!msgRe || msgRe.test(errs.map((e) => e.message).join(' ')));
+      check(`${id}: FAIL via ${gates.join(' + ')}`, ok, errs.map((e) => e.message).join(' | ') || validateDesign(st).filter((i) => i.severity === 'todo').map((i) => i.message).join(' | '));
+      check(`${id}: every failed gate says (a) requirement, (b) fixing card, (c) alternative-or-none`, errs.length > 0 && errs.every((e) => e.why && e.fix && 'alternative' in e));
+    };
+    {
+      passCase('C-01 full IoT build, LEO 550, 6U, F9 rideshare', make(C));
+      // C-02: control radio only — no IoT payload at all, then with only the antenna
+      const c2 = make(C, (d) => ({ ...d, instrumentIds: [] }));
+      check('C-02: only UHF TT&C, no IoT payload → NO-GO (payload gate open)', !canLaunch(validateDesign(c2)) && gateStatus(validateDesign(c2)).find((g) => g.id === 'mandatory_payload_complete').status !== 'pass');
+      failCase('C-02b TT&C + antennas but no IoT transceiver', make(C, (d) => ({ ...d, instrumentIds: ['ant_iot_deploy'] })), ['mandatory_payload_complete'], /does not receive users' messages/);
+      failCase('C-03 IoT 6U + GEO, same 38.4 W, rideshare to SSO', make(C, (d) => ({ ...d, orbitId: 'geo' })), ['orbit_service_compatible', 'launcher_trajectory_compatible', 'power_peak_and_average_pass']);
+      const c4 = make(C, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'payload_mw_radiometer', 'radiometer_calibration'] }));
+      failCase(`C-04 IoT 6U over 12 kg through extra components (${computeResources(c4).mass.used.toFixed(2)} kg)`, c4, ['spacecraft_size_mass_volume_compatible'], /Too heavy for the CubeSat 6U dispenser/);
+      const n1 = passCase('N-01 GNSS 700 kg + clocks/signal/ground + contracted MEO injection', make(N));
+      check('N-01: PASS as a single spacecraft (satellite_success)', satelliteSuccess(evaluateObjectives(make(N), n1)));
+      check('N-02: the same satellite claiming global 3D coordinates → FAIL constellation (needs ≥4 visible)', !constellationStatus(1).met && !checkClaim(make(N), 'global_3d_fix').met && constellationStatus(4).met && constellationStatus(1).needed === 4);
+      failCase('N-03 clocks removed, L-band transmitter kept', make(N, (d) => ({ ...d, instrumentIds: ['nav_signal_rf', 'antenna_lband_nav'] })), ['mandatory_payload_complete'], /precise on-board time/);
+      check('N-03: alternative architecture named (Celeste: precise time without atomic clocks)', errorsOf(make(N, (d) => ({ ...d, instrumentIds: ['nav_signal_rf', 'antenna_lband_nav'] }))).some((e) => /Celeste/.test(e.alternative ?? '')));
+      failCase('N-04 GNSS 700 kg + Electron', make(N, (d) => ({ ...d, launcherId: 'lv_electron_kickstage', deployerId: 'dep_cubesat' })), ['launcher_trajectory_compatible'], /even to low orbit \(~300 kg/);
+      failCase('N-05 GNSS + Falcon 9 standard GTO, no transfer stage', make(N, (d) => ({ ...d, launcherId: 'lv_f9_gto_standard' })), ['launcher_trajectory_compatible'], /GTO/);
+      passCase('W-01 full weather build, radiometer + calibration, SSO, F9 rideshare', make(W));
+      failCase('W-02 RGB camera instead of the radiometer', make(W, (d) => ({ ...d, instrumentIds: ['dist_rgb_camera', 'radiometer_calibration'] })), ['mandatory_payload_complete'], /cloud tops/);
+      failCase('W-03 4U radiometer in a 3U body', make(W, withParts({ structure: 'str_cube_3u' })), ['spacecraft_size_mass_volume_compatible'], /needs 4U but the CubeSat 3U has only 3U/);
+      failCase('W-04 radiometer without calibration', make(W, (d) => ({ ...d, instrumentIds: ['payload_mw_radiometer'] })), ['mandatory_payload_complete'], /calibration/);
+      check('W-05 SSO 6U but "every tropical cyclone every hour" → FAIL revisit (constellation needed)', !checkClaim(make(W), 'hourly_cyclone_revisit').met && /TROPICS/.test(checkClaim(make(W), 'hourly_cyclone_revisit').why));
+      for (const sid of [C, N, W]) {
+        failCase(`ALL-01 ${sid} without TT&C`, make(sid, withParts({ comms: 'none' })), ['bus_support_complete']);
+        failCase(`ALL-01 ${sid} without battery`, make(sid, withParts({ battery: 'none' })), ['battery_eclipse_pass']);
+        const noPaper = make(sid, (d) => d, { tests: true, licence: false, disposal: false });
+        const g = gateStatus(validateDesign(noPaper)).find((x) => x.id === 'legal_safety_disposal_plan_pass');
+        check(`ALL-02 ${sid} without licence + disposal plan → NO-GO before launch`, !canLaunch(validateDesign(noPaper)) && g.status === 'todo' && /NO-GO/.test(g.issues[0].message));
+      }
+      check('all 11 hard gates of §8.5 are defined', GATES.length === 11);
+      check('the correct builds pass all 11 gates', [C, N, W].every((sid) => gateStatus(validateDesign(make(sid))).every((g) => g.status === 'pass')));
+    }
+
+    // ═══ 5. Valid alternatives & distractors ═══════════════════════════════════
+    section('5 · Valid alternatives are not punished; distractors fail honestly');
+    {
+      const sso = make(C, (d) => ({ ...d, orbitId: 'sso_550_650' }));
+      check('comms in SSO (valid alternative, §7.2) → still GO', canLaunch(validateDesign(sso)), validateDesign(sso).filter((i) => i.severity !== 'todo').map((i) => i.message).join(' | '));
+      const el = make(C, (d) => ({ ...d, launcherId: 'lv_electron_kickstage' }));
+      const elRes = computeResources(el);
+      check('comms on Electron (RFQ): GO, launch price unknown and left out ("not comparable on cost")', canLaunch(validateDesign(el)) && elRes.budget.launchUnknown && elRes.budget.lines.find((l) => l.id === 'launch').value == null);
+      const elScore = scoreMission(el, sim(el));
+      const massPowerOnly = (marginQuality(1 - elRes.mass.used / elRes.mass.available) + marginQuality(elRes.power.margin)) / 2;
+      check('RFQ price: the budget term is left out of efficiency (no penalty, no bonus)', near(elScore.parts.find((p) => p.id === 'efficiency').score, massPowerOnly, 1e-9), `${elScore.parts.find((p) => p.id === 'efficiency').score.toFixed(3)} = mass & power terms only`);
+      const fh = make(N, (d) => ({ ...d, launcherId: 'lv_falcon_heavy' }));
+      check('navigation on Falcon Heavy: physically valid (GO) but flagged as overkill', canLaunch(validateDesign(fh)) && validateDesign(fh).some((i) => /overkill/.test(i.message)));
+      const big = make(C, (d) => ({ ...d, launcherId: 'lv_f9_dedicated_meo' }));
+      check('comms on a $90M dedicated Falcon 9: valid physically, but the real consequence is the budget', canLaunch(validateDesign(big)) && computeResources(big).budget.status === 'over');
+      check('6U frame for the Galileo node → NO-GO size gate', gatesFailed(make(N, withParts({ structure: 'str_6u' }))).includes('spacecraft_size_mass_volume_compatible'));
+      check('Galileo-class bus for the IoT mission → NO-GO (overkill)', gatesFailed(make(C, withParts({ structure: 'str_gnss_meo' }))).includes('spacecraft_size_mass_volume_compatible'));
+      check('wrong-mission ground segment → NO-GO ground gate', gatesFailed(make(W, (d) => ({ ...d, groundId: 'gs_iot_gateways' }))).includes('ground_network_compatible'));
+      check('no thermal control → NO-GO bus gate', gatesFailed(make(N, withParts({ thermal: 'none' }))).includes('bus_support_complete'));
+      check('IoT payload on the weather mission → NO-GO with the honest reason', errorsOf(make(W, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'payload_iot_sdr'] }))).some((e) => /makes no measurements/.test(e.message)));
+    }
+
+    // ═══ 6. Guided flow & reducer ═════════════════════════════════════════════
+    await tick();
+    section('6 · Guided flow, Easy bundles, NO-GO rule');
     const run = (state, ...actions) => actions.reduce((s, a) => reducer(s, a), state);
     {
       const s0 = createInitialState();
-      check1('no mission → advisor says pick a mission', advise(s0).step === 'pickMission', advise(s0).text);
-      const fresh = run(s0, A.selectScenario('wildfire'));
+      check('no mission → advisor says pick a mission', advise(s0).step === 'pickMission');
+      const fresh = run(s0, A.selectScenario(C));
       const issues = validateDesign(fresh);
-      const red = issues.filter((i) => ['error', 'warning', 'caution'].includes(i.severity));
-      check1('fresh mission shows zero red (only "to do")', red.length === 0 && issues.every((i) => ['todo', 'info'].includes(i.severity)), `${issues.length} to-dos`);
-      check1('fresh mission cannot launch yet', !canLaunch(issues));
-      check1('advisor on a fresh mission is friendly (tone ok)', advise(fresh).tone === 'ok', advise(fresh).text);
-      check1('goal chips are neutral on a fresh mission', goalChecklist(fresh).every((c) => c.status === 'todo'), goalChecklist(fresh).map((c) => c.label).join(', '));
-
-      const easy = run(s0, A.setDifficulty('easy'), A.selectScenario('wildfire'), A.selectComponent('structure', 'str_compact'), A.selectOrbit('sso'));
+      check('fresh mission shows zero red (only "to do")', issues.every((i) => ['todo', 'info'].includes(i.severity)), `${issues.length} to-dos`);
+      check('goal chips are neutral on a fresh mission', goalChecklist(fresh).every((c) => c.status === 'todo'));
+      const easy = run(s0, A.setDifficulty('easy'), A.selectScenario(W), A.selectComponent('structure', 'str_6u_weather'));
       const ec = easy.design.components;
-      check1('Easy standard kit fills computer + pointing + thrusters', ec.computer === 'cpu_basic' && ec.adcs === 'adcs_rw' && ec.propulsion === 'prop_coldgas', JSON.stringify([ec.computer, ec.adcs, ec.propulsion]));
-      const toMars = run(easy, A.selectOrbit('mars'));
-      check1('Easy kit picks thrusters strong enough for the orbit', toMars.design.components.propulsion === 'prop_biprop', toMars.design.components.propulsion);
-      const packed = run(easy, A.selectPowerPack('medium'));
-      check1('power pack sets power + battery', packed.design.components.power === 'pwr_deploy_solar' && packed.design.components.battery === 'bat_medium');
-      const shrunk = run(packed, A.selectComponent('structure', 'str_cube_6u'));
-      const sc = shrunk.design.components;
-      check1('switching to a CubeSat swaps bundles to CubeSat parts', sc.power === 'pwr_cube_solar' && sc.battery === 'bat_cube' && sc.computer === 'cpu_cube' && shrunk.design.powerPack === 'small', JSON.stringify(sc));
-      const normal = run(s0, A.setDifficulty('normal'), A.selectScenario('wildfire'), A.selectComponent('structure', 'str_compact'), A.selectComponent('comms', 'com_xband'), A.selectComponent('structure', 'str_cube_6u'));
-      check1('Normal: switching frame size clears parts that no longer fit (to do, not error)', normal.design.components.comms === null && !validateDesign(normal).some((i) => i.severity === 'error'));
-      const classroom = run(s0, A.setDifficulty('easy'), A.selectScenario('cubesat_classroom'));
-      check1('Easy CubeSat Classroom starts with a 6U CubeSat', classroom.design.components.structure === 'str_cube_6u');
-      const heavy = run(easy, A.addInstrument('ins_thermal'), A.selectLauncher('lv_rideshare'));
-      const adv = advise(heavy);
-      check1('advisor points a too-heavy design to the Rocket step', adv.tone === 'bad' && adv.step === 'rocket' && /too heavy/.test(adv.text), adv.text);
-    }
-
-    // ── Simulation checks
-    const check = (label, ok, detail) => {
-      ok ? pass++ : fail++;
-      out.append(el('p', `<span class="${ok ? 'pass' : 'fail'}">${ok ? 'PASS' : 'FAIL'}</span> — ${label} <span class="muted">${detail}</span>`));
-    };
-    await tick();
-    out.append(el('h2', 'Simulation'));
-
-    // Determinism: same state + seed + decisions → identical output.
-    const a = JSON.stringify(runSimulation(SAMPLES[0].state, 42, [], { autoChoice: 0 }));
-    const b = JSON.stringify(runSimulation(SAMPLES[0].state, 42, [], { autoChoice: 0 }));
-    check('runSimulation is deterministic', a === b, '(seed 42, twice)');
-
-    // Pause/replay: answering pending events one by one equals auto-resolving them.
-    let seedWithEvents = 1;
-    while (!runSimulation(SAMPLES[3].state, seedWithEvents).pending || !runSimulation(SAMPLES[3].state, seedWithEvents).launched) seedWithEvents++;
-    let sim = runSimulation(SAMPLES[3].state, seedWithEvents);
-    let steps = 0;
-    while (sim.pending && steps < 50) { sim = runSimulation(SAMPLES[3].state, seedWithEvents, [...sim.decisions, 0]); steps++; }
-    const auto = runSimulation(SAMPLES[3].state, seedWithEvents, [], { autoChoice: 0 });
-    check('step-by-step decisions replay identically to auto-resolve', JSON.stringify(sim) === JSON.stringify({ ...auto, decisions: sim.decisions }) && sim.complete,
-      `(seed ${seedWithEvents}, ${steps} decisions)`);
-
-    // Monte Carlo: launch uses only the launcher; health drives failure events.
-    async function monteCarlo(state, runs = 1000) {
-      let launched = 0, success = 0, failures = 0, ops = 0;
-      for (let seed = 1; seed <= runs; seed++) {
-        if (seed % 100 === 0) await tick();
-        const r = runSimulation(state, seed, [], { autoChoice: 0 });
-        if (r.launched) launched++;
-        if (r.reachedOrbit) { ops++; failures += r.summary.hardwareFailures; }
-        if (r.outcome === 'success') success++;
+      check('Easy: the standard kit fills the weather bus from the research build', ec.computer === 'obc_weather' && ec.adcs === 'adcs_weather' && ec.thermal === 'thermal_weather' && ec.sensors === 'sun_orbit_sensors' && ec.harness === 'harness_misc_weather');
+      const nav = run(s0, A.setDifficulty('easy'), A.selectScenario(N), A.selectComponent('structure', 'str_gnss_meo'), A.selectPowerPack('pack_gnss'));
+      check('Easy: Galileo-class kit includes thrusters + 110 kg propellant; power pack sets array + battery', nav.design.components.propulsion === 'prop_meo_stationkeeping' && nav.design.components.propellant === 'propellant_meo' && nav.design.components.battery === 'bat_gnss_2500wh');
+      const swapped = run(nav, A.addInstrument('clock_phm_rubidium_4'), A.selectComponent('structure', 'str_6u'));
+      check('switching to a CubeSat drops large parts and payloads (to do, not error)', swapped.design.instrumentIds.length === 0 && swapped.design.components.power !== 'pwr_gnss_solar');
+      const ready = { ...make(C), mode: 'solo' };
+      const noBattery = make(C, withParts({ battery: 'none' }));
+      check('RUN_SIMULATION on a NO-GO design is refused…', reducer(noBattery, A.runSimulation(1)) === noBattery);
+      const anyway = reducer(noBattery, A.runSimulation(1, true));
+      check('…but "Simulate what would happen" plays it out and records a failed mission', anyway.simulation.noGo && anyway.simulation.outcome === 'lost' && anyway.simulation.failureCause === 'power' && anyway.score.grade === 'F' && !anyway.score.success);
+      const go = reducer(ready, A.runSimulation(1));
+      check('a GO design launches normally', go.simulation && !go.simulation.noGo && go.screen === 'operations');
+      const cases = [
+        ['too heavy (C-04)', make(C, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'payload_mw_radiometer', 'radiometer_calibration'] })), 'too_heavy'],
+        ['GTO instead of MEO (N-05)', make(N, (d) => ({ ...d, launcherId: 'lv_f9_gto_standard' })), 'wrong_orbit'],
+        ['no ground link', make(W, (d) => ({ ...d, groundId: 'gs_gnss_monitoring' })), 'lost'],
+        ['no licence / disposal plan', make(C, (d) => d, { tests: true, licence: false, disposal: false }), 'scrubbed'],
+        ['camera instead of radiometer (W-02)', make(W, (d) => ({ ...d, instrumentIds: ['dist_rgb_camera', 'radiometer_calibration'] })), 'partial'],
+      ];
+      for (const [label, st, want] of cases) {
+        let r = reducer(st, A.runSimulation(5, true));
+        for (let k = 0; r.simulation.pending && k < 30; k++) r = reducer(r, A.chooseEventOption(0));
+        check(`simulate anyway: ${label} → ${want} + failure caption`, r.simulation.outcome === want && r.simulation.noGo && /NO-GO/.test(describeOutcome(st, r.simulation).caption), `${r.simulation.outcome}: ${describeOutcome(st, r.simulation).caption}`);
       }
-      return { launch: launched / runs, success: success / runs, failuresPerMission: failures / Math.max(1, ops) };
-    }
-    const sensible = await monteCarlo(SAMPLES[0].state);
-    const sloppy = await monteCarlo(makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera', 'ins_hires'], 'sso', 'lv_sparrow', 'gs_global'));
-    const cube = await monteCarlo(SAMPLES[4].state);
-    const f = (x) => x.toFixed(3);
-    check('launch rate ≈ launcher reliability (Sparrow-1 94%)', Math.abs(sensible.launch - 0.94) < 0.02, `(${f(sensible.launch)})`);
-    check('sensible Wildfire design succeeds ≥ 90%', sensible.success >= 0.9, `(${f(sensible.success)}, ${f(sensible.failuresPerMission)} hw failures/mission)`);
-    check('sloppy design (power over, extra advanced camera) suffers more hardware failures per year', (sloppy.failuresPerMission / 8) > 2 * (sensible.failuresPerMission / 8),
-      `(sloppy ${f(sloppy.failuresPerMission)} vs sensible ${f(sensible.failuresPerMission)} per 8-yr mission)`);
-    check('cheap CubeSat parts fail more often per year than flight-proven parts', cube.failuresPerMission / 5.5 > sensible.failuresPerMission / 8,
-      `(CubeSat ${f(cube.failuresPerMission / 5.5)}/yr vs ${f(sensible.failuresPerMission / 8)}/yr)`);
-
-    // ── Phase 2: explicit outcomes + failure causes
-    await tick();
-    out.append(el('h2', 'Outcomes (Phase 2)'));
-    const firstLaunched = (state) => { for (let sd = 1; sd < 500; sd++) { const r = runSimulation(state, sd, [], { autoChoice: 0 }); if (r.launched) return r; } return null; };
-    const firstFailed = (state) => { for (let sd = 1; sd < 500; sd++) { const r = runSimulation(state, sd, [], { autoChoice: 0 }); if (r.launched === false) return { r, sd }; } return null; };
-    {
-      const heavy = firstLaunched(SAMPLES[5].state);
-      check('too heavy for the rocket → outcome too_heavy (mass)', heavy.outcome === 'too_heavy' && heavy.failureCause === 'mass' && !heavy.reachedOrbit, heavy.outcome);
-      check('too-heavy caption explains with engine numbers', /couldn't lift 658 kg — it was built for 500 kg/.test(describeOutcome(SAMPLES[5].state, heavy).caption), describeOutcome(SAMPLES[5].state, heavy).caption);
-      const weakState = makeState('lunar_relay', { ...WILDFIRE_BUS, structure: 'str_honeycomb', comms: 'com_hga' }, ['ins_relay'], 'lunar', 'lv_kestrel', 'gs_dsn');
-      const weak = firstLaunched(weakState);
-      check('thrusters too weak → outcome wrong_orbit (thrusters)', weak.outcome === 'wrong_orbit' && weak.failureCause === 'thrusters', weak.outcome);
-      const powerState = makeState('wildfire', WILDFIRE_BUS, ['ins_thermal', 'ins_camera', 'ins_sar'], 'sso', 'lv_kestrel', 'gs_global');
-      const pw = firstLaunched(powerState);
-      check('big power deficit → lost (power) in month 1', pw.outcome === 'lost' && pw.failureCause === 'power' && pw.summary.monthsOperated === 1, `${pw.outcome}/${pw.failureCause}`);
-      const commsState = makeState('mars_orbiter', { ...MARS_BUS, propulsion: 'prop_biprop', power: 'pwr_rtg' }, ['ins_spectrometer'], 'mars', 'lv_leviathan', 'gs_dsn');
-      const cm = firstLaunched(commsState);
-      check('near-Earth radio at Mars → lost (comms)', cm.outcome === 'lost' && cm.failureCause === 'comms', `${cm.outcome}/${cm.failureCause}`);
-      check('comms caption explains why', /radio was far too weak for deep space/.test(describeOutcome(commsState, cm).caption), describeOutcome(commsState, cm).caption);
-      const failed = firstFailed(SAMPLES[0].state);
-      check('launch reliability roll → launch_failure (launch)', failed.r.outcome === 'launch_failure' && failed.r.failureCause === 'launch', `seed ${failed.sd}`);
-      let st = { ...SAMPLES[0].state, simulation: failed.r };
-      st = reducer(st, A.relaunch(failed.sd + 1000));
-      check('relaunch after a failure costs a new rocket + half the hardware', st.relaunches === 1 && Math.abs(st.simulation.summary.extraCostM - (15 + 53 * 0.5)) < 0.01, `${st.simulation.summary.extraCostM}`);
-      const ok = firstLaunched(SAMPLES[0].state);
-      check('sensible design completes as success or partial (never pending)', ['success', 'partial'].includes(ok.outcome) && ok.complete, ok.outcome);
-      const ignore = (ev) => (ev.id === 'hardware_failure' ? 2 : 0);
-      let lostHw = 0;
-      for (let sd = 1; sd <= 300; sd++) { const r = runSimulation(SAMPLES[4].state, sd, [], { autoChoice: ignore }); if (r.failureCause === 'hardware') { lostHw++; if (r.summary.finalHealth >= 0.85) lostHw = -999; } }
-      check('ignoring hardware failures can lose a cheap CubeSat (health < 85%)', lostHw > 0, `${lostHw} of 300 runs lost`);
-      const pend = runSimulation(SAMPLES[3].state, seedWithEvents);
-      check('pending run reports outcome "pending"', pend.outcome === 'pending');
     }
 
-    // ── Phase 3: scoring, role goals, votes, saving/sharing
+    // ═══ 7. Simulation ═════════════════════════════════════════════════════════
     await tick();
-    out.append(el('h2', 'Scoring & teamwork (Phase 3)'));
+    section('7 · Simulation: seeded, replayable, no launch-failure roll');
     {
-      const near = (a, b) => Math.abs(a - b) < 1e-9;
-      check('margin curve: 20% best, 0% risky, over = 0, 60% wasteful', near(marginQuality(0.2), 1) && near(marginQuality(0), 0.3) && near(marginQuality(-0.1), 0) && near(marginQuality(0.6), 0.5) && near(marginQuality(0.1), 1), '');
+      const st = make(C);
+      check('runSimulation is deterministic', JSON.stringify(runSimulation(st, 42, [], { autoChoice: 0 })) === JSON.stringify(runSimulation(st, 42, [], { autoChoice: 0 })));
+      let seed = 1;
+      while (!runSimulation(st, seed).pending) seed++;
+      let s = runSimulation(st, seed); let n = 0;
+      while (s.pending && n < 50) { s = runSimulation(st, seed, [...s.decisions, 0]); n++; }
+      const auto = runSimulation(st, seed, [], { autoChoice: 0 });
+      check('step-by-step decisions replay identically to auto-resolve', JSON.stringify(s) === JSON.stringify({ ...auto, decisions: s.decisions }) && s.complete, `(seed ${seed}, ${n} decisions)`);
+      let launched = 0, success = 0;
+      for (let sd = 1; sd <= 300; sd++) { const r = sim(st, sd); if (r.launched && r.reachedOrbit) launched++; if (r.outcome === 'success') success++; }
+      check('a GO design always reaches orbit (no random launch failure)', launched === 300, `${launched}/300`);
+      check('the correct comms build succeeds in most simulated runs with careful decisions', success >= 270, `${success}/300`);
+      let lost = 0;
+      for (let sd = 1; sd <= 300; sd++) { const r = runSimulation(make(W), sd, [], { autoChoice: (ev) => ev.choices.findIndex((c) => c.effects.damage) >= 0 ? ev.choices.findIndex((c) => c.effects.damage) : 0 }); if (r.failureCause === 'hardware') lost++; }
+      check('ignoring faults and storms can lose the satellite (simulated damage)', lost > 0, `${lost}/300 lost`);
+      check('pending run reports outcome "pending"', runSimulation(st, seed).outcome === 'pending');
+    }
+
+    // ═══ 8. Scoring, role goals, teamwork, sharing ═════════════════════════════
+    await tick();
+    section('8 · Scoring, role goals, votes, sharing, badges');
+    {
+      const nearly = (a, b) => Math.abs(a - b) < 1e-9;
+      check('margin curve: 20% best, 0% risky, over = 0, 60% wasteful', nearly(marginQuality(0.2), 1) && nearly(marginQuality(0), 0.3) && nearly(marginQuality(-0.1), 0) && nearly(marginQuality(0.6), 0.5));
       const wt = weightsFor('team'); const ws = weightsFor('solo');
       const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
-      check('team weights 35/25/15/15/10 sum to 1', near(sum(wt), 1) && near(wt.science, 0.35) && near(wt.teamwork, 0.1));
-      check('solo redistributes teamwork proportionally', near(sum(ws), 1) && ws.teamwork === 0 && near(ws.science, 0.35 / 0.9));
-      check('grades: 905 success → S; 905 partial → A; 340 → F', gradeFor(905, 'success') === 'S' && gradeFor(905, 'partial') === 'A' && gradeFor(340, 'lost') === 'F' && gradeFor(700, 'success') === 'B');
-
-      const okSim = firstLaunched(SAMPLES[0].state);
-      const sc = scoreMission(SAMPLES[0].state, okSim);
-      check('score total is 0–1000 and equals the sum of parts', sc.total >= 0 && sc.total <= 1000 && sc.total === sc.parts.reduce((a, p) => a + p.points, 0), `${sc.total} ${sc.grade}`);
-      check('solo score has 4 parts (no teamwork)', sc.parts.length === 4 && !sc.parts.some((p) => p.id === 'teamwork'));
-      check('sensible Wildfire scores grade B or better', ['S', 'A', 'B'].includes(sc.grade), `${sc.grade} (${sc.parts.map((p) => `${p.id} ${p.points}/${p.max}`).join(', ')})`);
-      check('insights have numbers; at most 3 tips', [...sc.insights.good, ...sc.insights.bad].every((t) => /\d/.test(t)) && sc.tips.length <= 3, `${sc.insights.good.length} good / ${sc.insights.bad.length} bad`);
-      const failSc = scoreMission(SAMPLES[0].state, firstFailed(SAMPLES[0].state).r);
-      check('launch failure: no science or survivability, grade D or F', failSc.parts.find((p) => p.id === 'science').points === 0 && failSc.parts.find((p) => p.id === 'survivability').points === 0 && ['D', 'F'].includes(failSc.grade), `${failSc.total} ${failSc.grade}`);
-      const goals = evaluateRoleGoals(SAMPLES[0].state);
-      check('sensible Wildfire meets all 4 role goals (live)', goals.length === 4 && goals.every((g) => g.met), goals.map((g) => `${g.roleId}:${g.met}`).join(' '));
-      const heavyGoals = evaluateRoleGoals(SAMPLES[2].state);
-      check('overloaded design fails the engineer and director goals', !heavyGoals.find((g) => g.roleId === 'engineer').met && !heavyGoals.find((g) => g.roleId === 'director').met);
-
-      let team = { ...SAMPLES[0].state, mode: 'team', players: [{ name: 'A', roleId: 'director' }, { name: 'B', roleId: 'engineer' }, { name: 'C', roleId: 'scientist' }, { name: 'D', roleId: 'flight' }] };
+      check('team weights 35/25/15/15/10; "Mission performance" keeps 35%', nearly(sum(wt), 1) && nearly(wt.science, 0.35) && nearly(wt.teamwork, 0.1));
+      check('solo redistributes teamwork proportionally', nearly(sum(ws), 1) && ws.teamwork === 0 && nearly(ws.science, 0.35 / 0.9));
+      check('grades: 905 success → S; 905 partial → A; 340 → F', gradeFor(905, 'success') === 'S' && gradeFor(905, 'partial') === 'A' && gradeFor(340, 'lost') === 'F');
+      for (const sid of [C, N, W]) {
+        const st = make(sid); const s = sim(st); const sc = scoreMission(st, s);
+        check(`${sid}: score 0–1000 = sum of parts; Mission performance part present; disposal bonus +${DISPOSAL_BONUS}`, sc.total <= 1000 && sc.total === Math.min(1000, sc.parts.reduce((a, p) => a + p.points, 0)) && sc.parts.some((p) => p.label === 'Mission performance') && sc.parts.find((p) => p.id === 'disposal').points === DISPOSAL_BONUS, `${sc.total} ${sc.grade}`);
+        check(`${sid}: correct build grades A or S`, ['S', 'A'].includes(sc.grade), sc.parts.map((p) => `${p.id} ${p.points}/${p.max}`).join(', '));
+        const goals = evaluateRoleGoals(st);
+        check(`${sid}: correct build meets all 4 role goals (live)`, goals.length === 4 && goals.every((g) => g.met), goals.map((g) => `${g.roleId}:${g.met} (${g.reason})`).join(' · '));
+      }
+      const noDisp = make(C, (d) => d, { tests: true, licence: true, disposal: false });
+      check('no disposal plan → no responsible-disposal bonus (and NO-GO)', !canLaunch(validateDesign(noDisp)));
+      let team = { ...make(C), mode: 'team', players: [{ name: 'A', roleId: 'director' }, { name: 'B', roleId: 'engineer' }, { name: 'C', roleId: 'scientist' }, { name: 'D', roleId: 'flight' }] };
       team = run(team, A.castVote('director', 'go'), A.castVote('engineer', 'go'));
-      check('team of 4: 2 Go is not a majority — launch is refused', !voteStatus(team).majority && reducer(team, A.runSimulation(1)) === team);
-      const noReason = run(team, A.castVote('scientist', 'nogo'));
-      check('a No-Go without a reason is ignored', noReason.votes.scientist === undefined);
+      check('team of 4: 2 Go is not a majority — launch refused', !voteStatus(team).majority && reducer(team, A.runSimulation(1)) === team);
+      check('a No-Go without a reason is ignored', run(team, A.castVote('scientist', 'nogo')).votes.scientist === undefined);
       team = run(team, A.castVote('scientist', 'nogo', 'science'), A.castVote('flight', 'go'));
-      check('3 Go + 1 reasoned No-Go → majority, launch allowed', voteStatus(team).majority && team.voteReasons.scientist === 'science' && reducer(team, A.runSimulation(1)).simulation != null);
+      check('3 Go + 1 reasoned No-Go → majority, launch allowed', voteStatus(team).majority && reducer(team, A.runSimulation(1)).simulation != null);
       const allGo = run(team, A.castVote('scientist', 'go'));
-      const teamSim = firstLaunched(allGo);
-      const ts = scoreMission(allGo, teamSim);
-      check('team score has a teamwork part with the unanimous bonus', ts.parts.some((p) => p.id === 'teamwork') && ts.votes.unanimous && ts.parts.find((p) => p.id === 'teamwork').points === 100, ts.parts.map((p) => `${p.id} ${p.points}`).join(', '));
-
-      const hash = encodeDesign(SAMPLES[0].state);
-      const dec = decodeDesign('#' + hash);
+      const ts = scoreMission(allGo, sim(allGo));
+      check('team score has a teamwork part with the unanimous bonus', ts.votes.unanimous && ts.parts.find((p) => p.id === 'teamwork').points === 100);
+      const st = make(W);
+      const dec = decodeDesign('#' + encodeDesign(st));
       const loaded = reducer(createInitialState(), A.loadDesign(dec));
-      check('share link round-trips the design', JSON.stringify(loaded.design.components) === JSON.stringify(SAMPLES[0].state.design.components) && loaded.design.orbitId === 'sso' && loaded.screen === 'finalCheck', hash.slice(0, 40) + '…');
-      const bad = reducer(createInitialState(), A.loadDesign({ scenarioId: 'wildfire', design: { components: { structure: 'nope', power: 'str_compact' }, instrumentIds: ['ins_camera', 'zzz'], orbitId: 'pluto' } }));
-      check('loading a tampered link drops unknown ids', bad.design.components.structure === null && bad.design.components.power === null && bad.design.instrumentIds.join() === 'ins_camera' && bad.design.orbitId === null);
+      check('share link round-trips the design (incl. adapter + launch prep)', JSON.stringify(loaded.design.components) === JSON.stringify(st.design.components) && loaded.design.deployerId === 'dep_cubesat' && loaded.design.prep.disposal === true && loaded.screen === 'finalCheck');
+      const bad = reducer(createInitialState(), A.loadDesign({ scenarioId: W, design: { components: { structure: 'nope', power: 'str_6u' }, instrumentIds: ['payload_mw_radiometer', 'zzz'], orbitId: 'pluto' } }));
+      check('a tampered link drops unknown ids', bad.design.components.structure === null && bad.design.components.power === null && bad.design.instrumentIds.join() === 'payload_mw_radiometer' && bad.design.orbitId === null);
       check('garbage hash decodes to null', decodeDesign('#d=%%%') === null && decodeDesign('') === null);
-      const rec = attemptRecord({ ...SAMPLES[0].state, simulation: okSim, score: sc }, 1700000000000);
-      check('attempt record has score, grade, team and summary', rec.total === sc.total && rec.grade === sc.grade && rec.team === 'Player 1' && rec.summary.spent > 0 && typeof rec.key === 'string');
+      const s = sim(st); const sc = scoreMission(st, s);
+      const rec = attemptRecord({ ...st, simulation: s, score: sc }, 1700000000000);
+      check('attempt record has score, grade, team and summary', rec.total === sc.total && rec.grade === sc.grade && rec.team === 'Player 1' && typeof rec.key === 'string');
+      const b = earnedBadges(st, sc, s);
+      check('5 badges evaluated; a correct solo weather run earns "Every Bit Home", not "Perfect Team"', b.length === BADGES.length && b.find((x) => x.id === 'zero_data').earned && !b.find((x) => x.id === 'perfect_team').earned);
     }
 
-    // ── Phase 4: badges + pure animation helpers
-    await tick();
-    out.append(el('h2', 'Fun extras (Phase 4)'));
+    // ═══ 9. Pure animation helpers ═══════════════════════════════════════════
+    section('9 · Animation helpers');
     {
-      const okSim = firstLaunched(SAMPLES[0].state);
-      const sc = scoreMission(SAMPLES[0].state, okSim);
-      const b = earnedBadges(SAMPLES[0].state, sc, okSim);
-      const get = (id) => b.find((x) => x.id === id);
-      check('5 badges evaluated', b.length === BADGES.length && BADGES.length === 5);
-      check('Wildfire design: Penny Pincher + Zero Data Lost + Featherweight; no Perfect Team in solo', get('penny').earned && get('zero_data').earned && get('featherweight').earned && !get('perfect_team').earned, b.filter((x) => x.earned).map((x) => x.id).join(','));
-      const failSim = firstFailed(SAMPLES[0].state).r;
-      check('a failed launch earns no badges', earnedBadges(SAMPLES[0].state, scoreMission(SAMPLES[0].state, failSim), failSim).every((x) => !x.earned));
-      const sso = trackPoints('sso'); const leo = trackPoints('leo');
       const maxLat = (pts) => Math.max(...pts.map((p) => Math.abs(p[1])));
-      check('ground tracks: SSO reaches the poles (>80°), LEO stays below 52°', maxLat(sso) > 80 && maxLat(leo) <= 51.7 && maxLat(leo) > 50, `${maxLat(sso).toFixed(1)}° / ${maxLat(leo).toFixed(1)}°`);
-      const heo = trackPoints('heo');
-      const north = heo.filter((p) => p[1] > 40).length / heo.length;
-      check('Molniya track spends most of its time over the far north', north > 0.6, `${Math.round(north * 100)}% of points above 40°N`);
-      check('balance scale: fits → tilts to the rocket side, over → slams to the satellite side', scaleAngle(188, 400) < 0 && scaleAngle(500, 400) === 16 && scaleAngle(100, null) === 0);
-      check('end of life: LEO deorbits, GEO goes to the graveyard, Mars says goodbye', endOfLifeKind('leo') === 'deorbit' && endOfLifeKind('geo') === 'graveyard' && endOfLifeKind('mars') === 'farewell');
+      check('ground tracks: SSO reaches the poles (>80°), LEO illustration ≤ 52°, MEO tilted 56°', maxLat(trackPoints('sso_550_650')) > 80 && maxLat(trackPoints('leo_550')) <= 51.7 && near(maxLat(trackPoints('meo_gnss')), 56, 0.3));
+      check('balance scale: fits → rocket side, over → satellite side', scaleAngle(8.68, 12) < 0 && scaleAngle(13, 12) === 16 && scaleAngle(5, null) === 0);
+      check('end of life: LEO/SSO deorbit, MEO/GEO move out of the busy orbit', endOfLifeKind('leo_550') === 'deorbit' && endOfLifeKind('sso_550_650') === 'deorbit' && endOfLifeKind('meo_gnss') === 'graveyard');
     }
 
     const summary = document.getElementById('summary');
     summary.textContent = `${pass} passed, ${fail} failed`;
     summary.className = `summary ${fail ? 'fail' : 'pass'}`;
-    document.title = fail ? `FAIL (${fail}) — Resources Self-Test` : 'PASS — Resources Self-Test';
+    document.title = fail ? `FAIL (${fail}) — Mission Control Self-Test` : 'PASS — Mission Control Self-Test';
   </script>
 </body>
 </html>

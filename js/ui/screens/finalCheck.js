@@ -3,36 +3,56 @@
 
 import { mount, h } from '../dom.js';
 import { renderSatellite } from '../satellite.js';
-import { previewDelta } from '../card.js';
 import { ROLES, NO_GO_REASONS, getNoGoReason } from '../../data/roles.js';
 import { evaluateRoleGoals, voteStatus } from '../../engine/roleGoals.js';
 import { rerender } from '../view.js';
 import { computeResources } from '../../engine/resources.js';
-import { validateDesign, canLaunch } from '../../engine/validation.js';
+import { validateDesign, canLaunch, gateStatus } from '../../engine/validation.js';
 import { goalChecklist } from '../../engine/goals.js';
-import { castVote, runSimulation, goToScreen, setKit } from '../../state/actions.js';
+import { getScenario } from '../../data/scenarios.js';
+import { dataBadge } from '../card.js';
+import { money } from '../../utils/format.js';
+import { castVote, runSimulation, goToScreen } from '../../state/actions.js';
 import { newSeed } from '../../utils/random.js';
 import { getStep } from '../steps.js';
 
 const SEV = { error: { icon: '⛔', cls: 'bad' }, warning: { icon: '⚠️', cls: 'bad' }, caution: { icon: '◐', cls: 'tight' }, todo: { icon: '○', cls: 'todo' } };
 
-function report(issues, dispatch) {
-  const shown = issues.filter((i) => i.severity !== 'info');
-  if (!shown.length) return h('div', { class: 'report report-ok' }, [h('strong', {}, '✓ All systems go! '), 'Every gauge is green and your goal is reachable.']);
-  return h('ul', { class: 'report' }, shown.map((i) => h('li', { class: `report-${SEV[i.severity].cls}` }, [
-    h('span', { class: 'report-icon', 'aria-hidden': 'true' }, SEV[i.severity].icon),
-    h('span', { class: 'report-text' }, i.message),
-    i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `${i.severity === 'todo' ? 'Go' : 'Fix'}: ${getStep(i.step).label} →`),
+/** Hard-gate list (research §8.5): each failed gate → (a) broken requirement, (b) fixing card, (c) alternative. */
+function gatesPanel(issues, dispatch) {
+  const gates = gateStatus(issues);
+  return h('ul', { class: 'gate-list' }, gates.map((g) => h('li', { class: g.status }, [
+    h('strong', {}, `${g.status === 'pass' ? '✓' : g.status === 'fail' ? '⛔' : '○'} ${g.label}`),
+    ...g.issues.map((i) => h('div', { class: 'gate-detail' }, [
+      h('div', {}, i.message),
+      i.severity === 'error' && i.why && h('div', { class: 'muted' }, ['(a) Requirement: ', i.why]),
+      i.severity === 'error' && i.fix && h('div', {}, ['(b) Fix: ', i.fix, ' ', i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `${getStep(i.step).label} →`)]),
+      i.severity === 'error' && h('div', { class: 'muted' }, ['(c) Another correct architecture? ', i.alternative ?? 'Not for this mission — fix the design.']),
+      i.severity === 'todo' && i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `Go: ${getStep(i.step).label} →`),
+    ])),
   ])));
 }
 
-function kitToggle(state, dispatch, before) {
-  if (state.difficulty !== 'easy') return null;
-  const other = state.design.kit === 'upgraded' ? 'standard' : 'upgraded';
-  return h('div', { class: 'kit-toggle' }, [
-    h('div', {}, [h('strong', {}, '🧠 Brains & steering: '), state.design.kit === 'upgraded' ? 'Upgraded kit (radiation-proof computer, super-steady pointing)' : 'Standard kit (picked for you)']),
-    h('button', { class: 'btn btn-small', type: 'button', key: 'kit-toggle', onClick: () => dispatch(setKit(other)) },
-      other === 'upgraded' ? `⬆ Upgrade (${previewDelta(state, setKit('upgraded'), before)})` : '⬇ Back to standard kit'),
+function report(issues, dispatch) {
+  const shown = issues.filter((i) => ['warning', 'caution'].includes(i.severity) || (i.severity === 'error' && !i.gate));
+  if (!shown.length) return null;
+  return h('ul', { class: 'report' }, shown.map((i) => h('li', { class: `report-${SEV[i.severity].cls}` }, [
+    h('span', { class: 'report-icon', 'aria-hidden': 'true' }, SEV[i.severity].icon),
+    h('span', { class: 'report-text' }, i.message),
+    i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `Fix: ${getStep(i.step).label} →`),
+  ])));
+}
+
+/** Full cost breakdown: hardware is only one line (research §3.5, §4.6, §5.5). */
+export function costTable(res, scenario) {
+  const b = res.budget;
+  return h('table', { class: 'cost-table' }, [
+    h('thead', {}, h('tr', {}, [h('th', {}, 'Budget line'), h('th', {}, ''), h('th', { class: 'num' }, '$M')])),
+    h('tbody', {}, [
+      ...b.lines.map((l) => h('tr', {}, [h('td', {}, [l.label, l.note ? h('span', { class: 'muted small' }, ` — ${l.note}`) : '']), h('td', {}, dataBadge(l.dataKind)), h('td', { class: 'num' }, l.value == null ? 'RFQ' : money(l.value))])),
+      h('tr', {}, [h('td', {}, 'Project reserve left'), h('td', {}, dataBadge('model')), h('td', { class: ['num', b.reserveLeft < 0 && 'error-text'] }, money(b.reserveLeft ?? 0))]),
+      h('tr', { class: 'total' }, [h('td', {}, 'Model budget'), h('td', {}, dataBadge('model')), h('td', { class: 'num' }, money(scenario.budgetM))]),
+    ]),
   ]);
 }
 
@@ -84,11 +104,14 @@ export function render(container, state, dispatch) {
   const res = computeResources(state);
   const issues = validateDesign(state, res);
   const vs = voteStatus(state);
-  const ready = canLaunch(issues) && vs.majority;
+  const go = canLaunch(issues);
+  const ready = go && vs.majority;
   const chips = goalChecklist(state, res);
-  const todos = issues.filter((i) => i.severity === 'todo');
+  const scenario = getScenario(state.scenarioId);
+  const todos = issues.filter((i) => i.severity === 'todo' && i.step !== 'launchPrep');
+  const canSimulate = !go && todos.length === 0;
 
-  mount(container, 
+  mount(container,
     h('div', { class: 'final-grid' }, [
       h('div', { class: 'panel final-sat' }, [
         (() => {
@@ -102,22 +125,27 @@ export function render(container, state, dispatch) {
         ]))),
       ]),
       h('div', { class: 'panel' }, [
-        h('h2', {}, '🧑‍🚀 Flight Director\'s report'),
+        h('h2', {}, `🧑‍🚀 Flight Readiness Review: ${go ? 'GO ✓' : 'NO-GO ⛔'}`),
+        h('p', { class: 'muted small' }, 'Hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.'),
+        gatesPanel(issues, dispatch),
         report(issues, dispatch),
-        kitToggle(state, dispatch, res),
       ]),
     ]),
+    scenario && h('div', { class: 'panel' }, [h('h2', {}, '💰 Full cost breakdown (model budget)'), costTable(res, scenario),
+      h('p', { class: 'muted small' }, 'Hardware is only one line. All lines are educational estimates from our research — not real quotes.')]),
     roleGoals(state),
     votes(state, dispatch),
     h('div', { class: 'launch-box' }, [
       h('button', {
         class: 'btn btn-launch', type: 'button', disabled: !ready, key: 'launch',
         onClick: () => dispatch(runSimulation(newSeed())),
-      }, '🚀 LAUNCH'),
+      }, go ? '🚀 LAUNCH' : '⛔ NO-GO'),
       !ready && h('p', { class: 'muted' }, todos.length
-        ? `Finish ${todos.length === 1 ? 'this step' : 'these steps'} first: ${todos.map((t) => getStep(t.step).label).join(', ')}.`
-        : !canLaunch(issues) ? 'Fix the ⛔ problems above first.' : `The team needs a majority Go: ${vs.go} of ${vs.needed} so far.`),
-      ready && issues.some((i) => i.severity === 'warning') && h('p', { class: 'muted' }, 'You can launch with ⚠️ warnings — but your mission will suffer. Your call!'),
+        ? `Finish ${todos.length === 1 ? 'this step' : 'these steps'} first: ${[...new Set(todos.map((t) => getStep(t.step).label))].join(', ')}.`
+        : !go ? 'NO-GO: fix the ⛔ gates above. Real missions never launch like this.' : `The team needs a majority Go: ${vs.go} of ${vs.needed} so far.`),
+      canSimulate && h('button', { class: 'btn btn-ghost', type: 'button', key: 'simulate-anyway', onClick: () => dispatch(runSimulation(newSeed(), true)) }, '🧪 Simulate what would happen'),
+      canSimulate && h('p', { class: 'muted small' }, 'Plays out the first failed gate as an animation and records a failed mission — so you can see why real missions never fly a NO-GO.'),
+      ready && issues.some((i) => i.severity === 'warning') && h('p', { class: 'muted' }, 'You can launch with ⚠️ warnings — but an objective will be missed.'),
     ]),
   );
 }

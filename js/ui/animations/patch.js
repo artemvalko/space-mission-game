@@ -4,14 +4,14 @@
 import { s } from '../dom.js';
 import { newId } from './core.js';
 
-const BODY = { mars: ['#c1502e', '#f08a5d'], lunar: ['#9aa3b2', '#d0d6e0'], l2: ['#ffcf4a', '#fff1b8'] };
+const BODY = { meo_gnss: ['#2a9d8f', '#7fe0d0'], sso_550_650: ['#3a6ee8', '#9cc0ff'] };
 
 export function missionPatch({ name = 'MISSION', team = 'MISSION CONTROL', orbitId = 'leo', r = 90, cracked = false } = {}) {
   const idTop = newId('ptop');
   const idBot = newId('pbot');
   const grad = newId('pg');
   const [body, rim] = BODY[orbitId] ?? ['#2a7de1', '#7cc0ff'];
-  const ring = orbitId === 'heo' ? { rx: r * 0.62, ry: r * 0.22 } : orbitId === 'geo' ? { rx: r * 0.66, ry: r * 0.3 } : { rx: r * 0.55, ry: r * 0.2 };
+  const ring = orbitId === 'meo_gnss' ? { rx: r * 0.62, ry: r * 0.22 } : orbitId === 'geo' ? { rx: r * 0.66, ry: r * 0.3 } : { rx: r * 0.55, ry: r * 0.2 };
   const nodes = [
     s('defs', {}, [
       s('path', { id: idTop, d: `M ${-r * 0.78} 0 A ${r * 0.78} ${r * 0.78} 0 0 1 ${r * 0.78} 0` }),

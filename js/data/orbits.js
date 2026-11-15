@@ -1,78 +1,57 @@
-// Orbits and destinations.
-// Schema: { id, name, altitudeKm, altitudeText, eclipseFraction, eclipseMinutes, solarIntensity,
-//           contactFactor, requiresDeepSpaceGround?, distanceFactor, baseLifetimeYears, requiredDeltaV,
-//           coverage, goodFor, description, diagram }
-// contactFactor × groundStation.contactHours = contact hours/day (capped at 24).
-//   (low orbits zoom past stations quickly; GEO/HEO stay in view for hours)
-// requiresDeepSpaceGround: only a deep-space ground segment can talk to it (blocking otherwise).
-// distanceFactor multiplies the antenna data rate (1 = LEO reference; tiny = far away).
-// diagram.kind drives the schematic SVG on the orbit screen.
+// Orbits — REAL DATA ONLY (research §1.1, §3.4, §4.4, §5.4, §7.2).
+// Schema: { id, icon, plainName, name, oneLiner, altitudeText, altitudeKm (number | [min, max] | null),
+//           inclinationText, inclinationDeg | null, sunlitFraction | null, eclipseMinutes | null,
+//           infoOnly?, dataKind, sources, ref, description, diagram }
+// sunlitFraction / eclipseMinutes are the values the research uses in its 6U power calculations (model);
+// for MEO/GEO the research gives no single eclipse value (it changes with the season), so they are null.
+// diagram.r = drawing radius relative to Earth (true relative scale of altitudes where known).
+
+export const EARTH_RADIUS_KM = 6371; // used only to draw orbits to scale (well-known constant, drawing only)
 
 export const ORBITS = [
   {
-    id: 'leo', icon: "🌍", plainName: "Low orbit", oneLiner: "Low and close: sharp photos, short contact with Earth.", name: 'Low Earth Orbit (LEO)', altitudeKm: 500, altitudeText: '500 km',
-    eclipseFraction: 0.38, eclipseMinutes: 36, solarIntensity: 1,
-    contactFactor: 0.75, distanceFactor: 1, baseLifetimeYears: 5, requiredDeltaV: 50,
-    coverage: 'Passes over a ground station a few times a day; sees most of Earth over time.',
-    goodFor: ['imaging', 'radar', 'magnetometer'],
-    description: 'Close to Earth: cheap to reach and fast to talk to, but in Earth\'s shadow ~38% of every 95-minute orbit.',
-    diagram: { kind: 'circle', body: 'earth', radius: 1.25 },
+    id: 'leo_550', icon: '🌍', plainName: 'Low orbit (~550 km)', name: 'Low Earth Orbit (LEO)', altitudeKm: 550, altitudeText: '~550 km',
+    inclinationText: 'chosen for your users\' region', inclinationDeg: null, sunlitFraction: 0.60, eclipseMinutes: 35,
+    dataKind: 'model', sources: [], ref: '§3.3 · §3.4',
+    oneLiner: 'Close and cheap to reach — but it races past any spot in minutes.',
+    description: 'A low orbit: the satellite flies over a place for a few minutes, so it must store messages and dump them over a ground station.',
+    diagram: { r: (6371 + 550) / 6371 },
   },
   {
-    id: 'sso', icon: "🌗", plainName: "Same-time-every-day orbit", oneLiner: "Passes over each place at the same time daily — best for watching Earth.", name: 'Sun-Synchronous Orbit (SSO)', altitudeKm: 700, altitudeText: '700 km (polar)',
-    eclipseFraction: 0.33, eclipseMinutes: 33, solarIntensity: 1,
-    contactFactor: 1, distanceFactor: 1, baseLifetimeYears: 7, requiredDeltaV: 100,
-    coverage: 'Passes over every place on Earth at the same local time each day — perfect for comparing images.',
-    goodFor: ['imaging', 'thermal', 'spectrometer', 'radar'],
-    description: 'A polar orbit that keeps the same angle to the Sun. The favourite orbit for Earth observation.',
-    diagram: { kind: 'circle', body: 'earth', radius: 1.5, polar: true },
+    id: 'sso_550_650', icon: '🌗', plainName: 'Sun-synchronous orbit (550–650 km)', name: 'Sun-Synchronous Orbit (SSO)', altitudeKm: [550, 650], altitudeText: '550–650 km',
+    inclinationText: 'near-polar', inclinationDeg: null, sunlitFraction: 0.67, eclipseMinutes: 35,
+    dataKind: 'model', sources: [], ref: '§5.3 · §5.4',
+    oneLiner: 'Passes over every place at the same local time — wide coverage, steady lighting.',
+    description: 'A near-polar orbit that keeps the same angle to the Sun. Good for regular, wide coverage of the whole Earth.',
+    diagram: { r: (6371 + 600) / 6371, polar: true },
   },
   {
-    id: 'geo', icon: "📍", plainName: "Parked over one spot", oneLiner: "Always sees the same side of Earth and always in contact — but far away.", name: 'Geostationary Orbit (GEO)', altitudeKm: 35786, altitudeText: '35,786 km',
-    eclipseFraction: 0.01, eclipseMinutes: 72, solarIntensity: 1,
-    contactFactor: 12, distanceFactor: 0.6, baseLifetimeYears: 15, requiredDeltaV: 1500,
-    coverage: 'Hovers over one spot on the equator and always sees the same third of Earth.',
-    goodFor: ['relay', 'thermal'],
-    description: 'Orbits once per day, so it seems to stand still in the sky. Always in contact; eclipses only in spring and autumn.',
-    diagram: { kind: 'circle', body: 'earth', radius: 2.4 },
+    id: 'meo_gnss', icon: '🧭', plainName: 'Navigation orbit (MEO 23,222 km)', name: 'Medium Earth Orbit — Galileo', altitudeKm: 23222, altitudeText: '23,222 km',
+    inclinationText: '56°', inclinationDeg: 56, sunlitFraction: null, eclipseMinutes: null,
+    dataKind: 'fact', sources: ['S04'], ref: '§1.1 · §4.4',
+    oneLiner: 'Where Galileo flies: high enough that one satellite sees a big part of Earth.',
+    description: 'Galileo satellites fly in MEO at 23,222 km with a 56° tilt. This is MEO — not GEO and not SSO.',
+    diagram: { r: (6371 + 23222) / 6371, tilt: 56 },
   },
   {
-    id: 'heo', icon: "🥚", plainName: "Long stretched orbit", oneLiner: "Hangs over the far north for hours at a time.", name: 'Highly Elliptical Orbit (Molniya)', altitudeKm: 39900, altitudeText: '500 × 39,900 km',
-    eclipseFraction: 0.05, eclipseMinutes: 60, solarIntensity: 1,
-    contactFactor: 6, distanceFactor: 0.5, baseLifetimeYears: 8, requiredDeltaV: 300,
-    coverage: 'Hangs for hours over high northern latitudes, where GEO satellites are too low in the sky.',
-    goodFor: ['relay', 'magnetometer'],
-    description: 'A stretched orbit: it races past Earth at the bottom and lingers slowly at the top.',
-    diagram: { kind: 'ellipse', body: 'earth' },
+    id: 'meo_gps_20200', icon: '🧭', plainName: 'GPS orbit (MEO ~20,200 km)', name: 'Medium Earth Orbit — GPS', altitudeKm: 20200, altitudeText: '~20,200 km',
+    inclinationText: '—', inclinationDeg: null, sunlitFraction: null, eclipseMinutes: null, infoOnly: true,
+    dataKind: 'fact', sources: ['S02'], ref: '§1.1 · §4.4',
+    oneLiner: 'Where GPS flies — a valid GNSS alternative with a different architecture.',
+    description: 'GPS satellites fly in MEO at about 20,200 km (24 slots in six planes). A different, also correct, navigation architecture — shown for information.',
+    diagram: { r: (6371 + 20200) / 6371 },
   },
   {
-    id: 'l2', icon: "🌌", plainName: "Deep space (L2)", oneLiner: "Cold and dark, 1.5 million km away — perfect for telescopes.", name: 'Sun–Earth L2 Point', altitudeKm: 1500000, altitudeText: '1.5 million km',
-    eclipseFraction: 0, eclipseMinutes: 0, solarIntensity: 1,
-    contactFactor: 1, requiresDeepSpaceGround: true, distanceFactor: 0.05, baseLifetimeYears: 10, requiredDeltaV: 500,
-    coverage: 'Looks away from the Sun, Earth and Moon at the same time — the whole sky is dark and cold.',
-    goodFor: ['telescope', 'thermal'],
-    description: 'A balance point beyond Earth where a spacecraft keeps pace with Earth around the Sun. Home of big space telescopes.',
-    diagram: { kind: 'lagrange' },
-  },
-  {
-    id: 'lunar', icon: "🌙", plainName: "Around the Moon", oneLiner: "Sees all of the Moon, including the far side.", name: 'Lunar Orbit', altitudeKm: 100, altitudeText: '100 km above the Moon',
-    eclipseFraction: 0.4, eclipseMinutes: 48, solarIntensity: 1,
-    contactFactor: 1.5, requiresDeepSpaceGround: true, distanceFactor: 0.15, baseLifetimeYears: 3, requiredDeltaV: 1000,
-    coverage: 'Covers the whole Moon, including the far side that never faces Earth.',
-    goodFor: ['relay', 'imaging', 'spectrometer', 'magnetometer'],
-    description: 'Lumpy lunar gravity bends low orbits, so they need frequent corrections to last.',
-    diagram: { kind: 'lunar' },
-  },
-  {
-    id: 'mars', icon: "🔴", plainName: "Around Mars", oneLiner: "Weak sunlight and a very slow radio link home.", name: 'Mars Orbit', altitudeKm: 400, altitudeText: '400 km above Mars',
-    eclipseFraction: 0.35, eclipseMinutes: 40, solarIntensity: 0.43,
-    contactFactor: 1.25, requiresDeepSpaceGround: true, distanceFactor: 0.002, baseLifetimeYears: 6, requiredDeltaV: 2200,
-    coverage: 'Maps the whole planet; signals take 4–24 minutes to reach Earth.',
-    goodFor: ['imaging', 'spectrometer', 'radar', 'magnetometer'],
-    description: 'Far from the Sun (only 43% of the sunlight) and very far from Earth. Getting into orbit needs a big engine burn.',
-    diagram: { kind: 'circle', body: 'mars', radius: 1.3 },
+    id: 'geo', icon: '📍', plainName: 'Geostationary orbit (GEO)', name: 'Geostationary orbit (GEO)', altitudeKm: null, altitudeText: 'far above MEO, over the equator',
+    inclinationText: '0° (equator)', inclinationDeg: 0, sunlitFraction: null, eclipseMinutes: null,
+    dataKind: 'fact', sources: ['S16'], ref: '§3.4 · §5.2 · §7.2',
+    oneLiner: 'Hovers over one spot — the home of big weather and TV satellites, not small CubeSats.',
+    description: 'A satellite in GEO stays above one point of the equator. Big GEO satellites (like NOAA GOES) do real jobs there — but a small 6U CubeSat with 38 W cannot simply be moved there.',
+    diagram: { r: null, geo: true }, // no altitude in our research → drawn beyond MEO, not to scale
   },
 ];
 
 const byId = new Map(ORBITS.map((o) => [o.id, o]));
 export const getOrbit = (id) => (id ? byId.get(id) ?? null : null);
+/** Orbits a player can choose (info-only ones are shown as facts, not choices). */
+export const PLAYABLE_ORBITS = ORBITS.filter((o) => !o.infoOnly);

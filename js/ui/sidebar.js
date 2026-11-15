@@ -10,7 +10,7 @@ import { validateDesign } from '../engine/validation.js';
 import { advise } from '../engine/advisor.js';
 import { goToScreen } from '../state/actions.js';
 import { getStep } from './steps.js';
-import { kg, watts, money, gbDay, months, years, pct, num, wh } from '../utils/format.js';
+import { kg, watts, money, gbDay, months, pct, num, wh } from '../utils/format.js';
 
 const WORD = { ok: 'OK', caution: 'Tight', over: 'Over', blocked: 'Over', unknown: 'To do' };
 const GAUGES = [
@@ -54,15 +54,19 @@ function build(container, dispatch) {
 
 function gaugeView(res) {
   switch (res.key) {
-    case 'budget': return res.available == null ? '' : `${money(res.used)} of ${money(res.available)}`;
+    case 'budget': return res.available == null ? '' : `${money(res.used)} of ${money(res.available)}${res.launchUnknown ? ' (+ launch RFQ)' : ''}`;
     case 'mass':
       if (res.status === 'blocked') return "This rocket can't reach your orbit";
-      return res.available == null ? `${kg(res.used)} — pick a rocket to compare` : `${kg(res.used)} of ${kg(res.available)} the rocket can lift`;
-    case 'power': return res.available == null ? (res.used ? `Uses ${watts(res.used)} — pick a power source` : 'Pick a power source') : `Uses ${watts(res.used)} of ${watts(res.available)}`;
+      return res.available == null ? `${kg(res.used)} — pick a frame & rocket to compare` : `${kg(res.used)} of ${kg(res.available)} allowed`;
+    case 'power':
+      if (res.available == null) return res.used ? `Needs ${watts(res.used)} avg — ${res.generation === null && res.consumption ? 'pick array & orbit' : 'pick a solar array'}` : 'Pick a solar array';
+      return `Needs ${watts(res.used)} of ${num(res.available, 1)} W avg`;
     case 'data':
-      if (res.status === 'blocked') return 'No signal — Earth can\'t hear it';
-      if (res.available == null) return res.used ? `Collects ${gbDay(res.used)} — pick radio, antennas & orbit` : 'Pick science tools first';
-      return `Collects ${gbDay(res.used)}, sends ${gbDay(res.available)}`;
+      if (res.status === 'blocked') return 'Wrong ground segment — nobody receives it';
+      if (res.kind === 'packets') return res.status === 'unknown' ? 'Store & forward — pick radio, downlink, gateways' : res.chainOk ? 'Store & forward chain complete' : `Missing: ${res.missing.join(', ')}`;
+      if (res.kind === 'nav') return res.status === 'unknown' ? 'Navigation broadcast — pick payload & ground' : res.chainOk ? 'L-band broadcast + time uplink ready' : `Missing: ${res.missing.join(', ')}`;
+      if (res.available == null) return res.used ? `Makes ${gbDay(res.used)} — pick downlink & station` : 'Pick the radiometer first';
+      return `Makes ${gbDay(res.used)}, sends ${gbDay(res.available)} (theory)`;
     default: return '';
   }
 }
@@ -78,7 +82,6 @@ export function renderSidebar(container, state, dispatch) {
     const r = res[g.key];
     const el = els.gauges[g.key];
     let status = r.status;
-    if (g.key === 'data' && r.used === 0 && r.available != null && status !== 'blocked') status = 'ok'; // nothing to send = fine
     const ratio = r.ratio == null ? 0 : Number.isFinite(r.ratio) ? r.ratio : 1.2;
     el.fill.style.width = `${Math.min(ratio, 1) * 100}%`;
     el.row.className = `gauge gauge-${status}`;
@@ -112,12 +115,11 @@ export function renderSidebar(container, state, dispatch) {
     h('dd', { class: status ? `st-${status}` : null }, value),
   ];
   els.detailsList.replaceChildren(...[
-    ...row('📅 Build time', res.time.available == null ? months(res.time.used) : `${months(res.time.used)} of ${months(res.time.available)}`, res.time.status, 'devTime'),
-    ...row('⏳ Lifetime', res.lifetime.required == null ? years(res.lifetime.value) : `${years(res.lifetime.value)} (need ${years(res.lifetime.required)})`, !state.design.orbitId ? null : res.lifetime.ok ? 'ok' : 'over'),
-    ...row('🔬 Science', res.science.required ? `${num(res.science.value)} of ${num(res.science.required)}` : num(res.science.value), !state.design.instrumentIds.length ? null : res.science.ok ? 'ok' : 'over'),
-    ...row('🔋 Battery', res.battery.available == null ? '—' : `${wh(res.battery.used)} of ${wh(res.battery.available)} in shadow`, res.battery.status, 'eclipse'),
-    ...row('🛡️ Toughness', res.health.value ? `${pct(res.health.value, 1)} (~${num(res.health.failuresPerYear, 1)} breakdowns/yr)` : '—', res.health.value ? (res.health.ok ? 'ok' : 'caution') : null, 'health'),
-    ...row('🚀 Launch success', res.launch.value == null ? '—' : pct(res.launch.value), null),
+    ...row('📅 Planning window', res.time.range ? `${res.time.range[0]}–${res.time.range[1]} months` : 'none given', null),
+    ...row('⏳ Mission plan', `${months(res.lifetime.plannedMonths)}${res.lifetime.required ? ` (need ≥${months(res.lifetime.required * 12)})` : ''}`, null),
+    ...row('🎯 Mission payload', pct(res.science.payloadShare ?? 0), !state.design.instrumentIds.length ? null : res.science.ok ? 'ok' : 'over', 'payload'),
+    ...row('🔋 Battery in shadow', res.battery.usable == null ? '—' : res.battery.needWh == null ? `${wh(res.battery.usable)} usable` : `${num(res.battery.needWh, 2)} of ${wh(res.battery.usable)} usable`, res.battery.status === 'unknown' ? null : res.battery.status, 'eclipse'),
+    ...row('🚀 Launch', res.launch.reaches == null ? '—' : res.launch.reaches ? 'reaches your orbit' : 'cannot reach your orbit', res.launch.reaches == null ? null : res.launch.reaches ? 'ok' : 'over'),
   ]);
 }
 

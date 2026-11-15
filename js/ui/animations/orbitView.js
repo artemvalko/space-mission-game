@@ -2,10 +2,10 @@
 //   6 power problem (dims in shadow, battery drains red, grey "SAFE MODE", recovers or stays dark)
 //   7 data overflow (storage fills, extra packets turn red and fade — "lost data")
 //   8 comms loss (signal waves fade before Earth, "📡 NO SIGNAL" blinks)
-// The satellite orbits the planet matching the chosen orbit (circle LEO/SSO/GEO, ellipse HEO,
-// halo loop at L2, transfer arc then orbit for Moon/Mars), flashes over ground stations, data
-// packets fly to the dish, the science counter ticks. Timeline with event markers, Pause/1×/4×,
-// mini-gauges (battery, data, science, money, toughness).
+// The satellite orbits Earth matching the chosen orbit (LEO hugging the surface, polar SSO, a big
+// slow tilted MEO at true relative scale, GEO not to scale), flashes over ground stations, data
+// packets fly to the dish, the simulated service counter ticks. Timeline with event markers,
+// Pause/1×/4×, mini-gauges (battery, link, service, money, condition).
 //
 // orbitView(container, { state, sim, toMonth, modes? }) → Promise resolving when playback reaches
 // toMonth. The view persists on the container between calls (one view per simulation run).
@@ -15,8 +15,8 @@ import { getSelection, computeResources } from '../../engine/resources.js';
 import { visualConditions } from '../../engine/outcome.js';
 import { getEvent } from '../../data/events.js';
 import { W, H, stars, miniSat, setT, reducedMotion, lerp, clamp01, nextFrame } from './core.js';
-import { money, num, pct } from '../../utils/format.js';
-import { drawView, viewKind } from './instrumentView.js';
+import { money, pct } from '../../utils/format.js';
+import { drawView } from './instrumentView.js';
 import { addGalleryImage } from '../gallery.js';
 import { sound } from '../sound.js';
 
@@ -24,22 +24,19 @@ const IMAGE_EVERY_MONTHS = 6;
 const MAX_IMAGES = 6;
 
 const SEC_PER_MONTH = 0.32; // at 1×
-const STATIONS = { gs_single: [-90], gs_global: [-90, 30, 150], gs_dsn: [-30, 90, 210] };
-const EVENT_ICON = { hardware_failure: '🔧', solar_flare: '☀️', debris: '☄️', budget_cut: '💸', launch_delay: '⏱', discovery: '✨' };
+// Station directions (degrees around Earth) — illustration only.
+const STATIONS = { gs_iot_gateways: [-90, 50], gs_gnss_monitoring: [-150, -90, -30, 30, 90, 150], gs_weather_science: [-90] };
+const EVENT_ICON = { hardware_failure: '🔧', solar_flare: '☀️', debris: '☄️', budget_cut: '💸', launch_delay: '⏱', rare_storm: '🌀' };
 
+// Earth radius 34 px for MEO/GEO so the orbit fits at TRUE relative scale (MEO = 4.64 Earth radii);
+// low orbits are drawn with a bigger Earth so they stay readable (LEO hugs the surface).
 function geometry(orbitId) {
   const C = { cx: 400, cy: 225 };
   switch (orbitId) {
-    case 'geo': return { earth: { ...C, r: 55 }, center: { ...C, r: 55 }, path: { type: 'circle', ...C, r: 185 }, period: 8, contactArc: 70 };
-    case 'sso': return { earth: { ...C, r: 85 }, center: { ...C, r: 85 }, path: { type: 'ellipse', ...C, rx: 128, ry: 46, rot: -68 }, period: 3.4, contactArc: 25 };
-    case 'heo': {
-      const a = 262; const b = 108; const c = Math.sqrt(a * a - b * b);
-      return { earth: { cx: 330 + c, cy: 225, r: 34 }, center: { cx: 330 + c, cy: 225, r: 34 }, path: { type: 'kepler', cx: 330, cy: 225, a, b, e: c / a }, period: 6, contactApogee: true };
-    }
-    case 'l2': return { sun: { cx: -70, cy: 225, r: 130 }, earth: { cx: 430, cy: 225, r: 24 }, center: null, path: { type: 'halo', cx: 640, cy: 225, rx: 26, ry: 72 }, period: 6, far: true, transfer: { x0: 455, y0: 225, x1: 640, y1: 153, bend: -60 } };
-    case 'lunar': return { earth: { cx: 130, cy: 250, r: 42 }, moon: { cx: 570, cy: 215, r: 34 }, center: { cx: 570, cy: 215, r: 34 }, path: { type: 'circle', cx: 570, cy: 215, r: 62 }, period: 3.6, far: true, transfer: { x0: 172, y0: 250, x1: 570, y1: 153, bend: -140 } };
-    case 'mars': return { earth: { cx: 100, cy: 345, r: 16 }, mars: { cx: 560, cy: 195, r: 62 }, center: { cx: 560, cy: 195, r: 62 }, path: { type: 'circle', cx: 560, cy: 195, r: 98 }, period: 4, far: true, transfer: { x0: 116, y0: 345, x1: 560, y1: 97, bend: -200 } };
-    default: return { earth: { ...C, r: 85 }, center: { ...C, r: 85 }, path: { type: 'circle', ...C, r: 112 }, period: 3, contactArc: 22 };
+    case 'meo_gnss': return { earth: { ...C, r: 40 }, center: { ...C, r: 40 }, path: { type: 'ellipse', ...C, rx: 186, ry: 104, rot: -20 }, period: 9, contactArc: 80, tiltLabel: 'tilted 56° · 23,222 km (true scale)' };
+    case 'geo': return { earth: { ...C, r: 30 }, center: { ...C, r: 30 }, path: { type: 'circle', ...C, r: 200 }, period: 12, contactArc: 90, tiltLabel: 'GEO — not to scale' };
+    case 'sso_550_650': return { earth: { ...C, r: 120 }, center: { ...C, r: 120 }, path: { type: 'ellipse', ...C, rx: 132, ry: 40, rot: -75 }, period: 3.4, contactArc: 25 };
+    default: return { earth: { ...C, r: 120 }, center: { ...C, r: 120 }, path: { type: 'circle', ...C, r: 132 }, period: 3, contactArc: 22 };
   }
 }
 
@@ -51,14 +48,6 @@ function posOnPath(p, phase) {
       const x = Math.cos(th) * p.rx; const y = Math.sin(th) * p.ry; const r = (p.rot * Math.PI) / 180;
       return { x: p.cx + x * Math.cos(r) - y * Math.sin(r), y: p.cy + x * Math.sin(r) + y * Math.cos(r) };
     }
-    case 'halo': return { x: p.cx + Math.cos(th) * p.rx, y: p.cy + Math.sin(th) * p.ry };
-    case 'kepler': {
-      // Solve Kepler's equation so the satellite races at perigee and lingers at apogee.
-      const M = th;
-      let E = M;
-      for (let i = 0; i < 6; i++) E -= (E - p.e * Math.sin(E) - M) / (1 - p.e * Math.cos(E));
-      return { x: p.cx - Math.cos(E) * p.a, y: p.cy + Math.sin(E) * p.b };
-    }
     default: return { x: 0, y: 0 };
   }
 }
@@ -67,21 +56,14 @@ function pathNode(p) {
   switch (p.type) {
     case 'circle': return s('circle', { cx: p.cx, cy: p.cy, r: p.r, class: 'an-orbit' });
     case 'ellipse': return s('ellipse', { cx: p.cx, cy: p.cy, rx: p.rx, ry: p.ry, transform: `rotate(${p.rot} ${p.cx} ${p.cy})`, class: 'an-orbit' });
-    case 'halo': return s('ellipse', { cx: p.cx, cy: p.cy, rx: p.rx, ry: p.ry, class: 'an-orbit' });
-    case 'kepler': return s('ellipse', { cx: p.cx, cy: p.cy, rx: p.a, ry: p.b, class: 'an-orbit' });
     default: return s('g');
   }
 }
 
-const quad = (tr, u) => {
-  const mx = (tr.x0 + tr.x1) / 2; const my = (tr.y0 + tr.y1) / 2 + tr.bend;
-  const a = 1 - u;
-  return { x: a * a * tr.x0 + 2 * a * u * mx + u * u * tr.x1, y: a * a * tr.y0 + 2 * a * u * my + u * u * tr.y1 };
-};
 
 class OrbitView {
   constructor(container, state, sim) {
-    this.key = `${sim.seed}:${sim.relaunches}`;
+    this.key = `${sim.seed}:${sim.noGo ? 'nogo' : 'go'}`;
     this.state = state;
     this.sim = sim;
     const sel = getSelection(state);
@@ -102,8 +84,8 @@ class OrbitView {
     this.waveTimer = 0;
     this.target = 0;
     this.resolve = null;
-    this.planned = Math.max(1, sim.summary.plannedMonths || Math.round(this.res.lifetime.value * 12));
-    this.camera = sel.instruments.find((i) => viewKind(i.id) !== 'relay') ?? null;
+    this.planned = Math.max(1, sim.summary.plannedMonths || this.res.lifetime.plannedMonths || 12);
+    this.camera = sel.instruments.find((i) => i.category === 'service_payload') ?? null;
     this.lastImage = -IMAGE_EVERY_MONTHS + 2;
     this.images = 0;
     this.imaging = null;
@@ -116,23 +98,19 @@ class OrbitView {
     const g = this.g;
     const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, class: 'anim-svg', role: 'img', 'aria-label': `Your satellite in ${sel.orbit?.plainName ?? 'orbit'}` });
     svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(120, 5));
-    if (g.sun) svg.append(s('circle', { cx: g.sun.cx, cy: g.sun.cy, r: g.sun.r, class: 'an-sun' }));
-    else svg.append(s('g', { class: 'an-sunlight' }, [s('line', { x1: 14, y1: H - 30, x2: 70, y2: H - 30 }), s('text', { x: 14, y: H - 12, class: 'an-small-label' }, '☀ sunlight →')]));
+    svg.append(s('g', { class: 'an-sunlight' }, [s('line', { x1: 14, y1: H - 30, x2: 70, y2: H - 30 }), s('text', { x: 14, y: H - 12, class: 'an-small-label' }, '☀ sunlight →')]));
     // Shadow band behind the body we orbit (height from the orbit's eclipse fraction)
     if (g.center && this.vis.eclipseFraction > 0) {
-      const R = g.path.r ?? g.path.a ?? 120;
+      const R = g.path.r ?? g.path.rx ?? 120;
       const half = Math.max(g.center.r * 0.4, Math.min(R, R * Math.sin(Math.PI * this.vis.eclipseFraction)));
       this.shadow = { x: g.center.cx, y0: g.center.cy - half, y1: g.center.cy + half };
       svg.append(s('rect', { x: g.center.cx, y: g.center.cy - half, width: W - g.center.cx, height: half * 2, class: 'an-shadow' }));
     }
-    if (g.transfer) svg.append(s('path', { d: `M ${g.transfer.x0} ${g.transfer.y0} Q ${(g.transfer.x0 + g.transfer.x1) / 2} ${(g.transfer.y0 + g.transfer.y1) / 2 + g.transfer.bend} ${g.transfer.x1} ${g.transfer.y1}`, class: 'an-transfer' }));
     svg.append(pathNode(g.path));
     const e = g.earth;
     svg.append(s('circle', { cx: e.cx, cy: e.cy, r: e.r, class: 'an-earth' }));
     svg.append(s('path', { d: `M ${e.cx} ${e.cy - e.r} A ${e.r} ${e.r} 0 0 1 ${e.cx} ${e.cy + e.r} Z`, class: 'an-night' }));
-    if (g.moon) svg.append(s('circle', { cx: g.moon.cx, cy: g.moon.cy, r: g.moon.r, class: 'an-moon' }));
-    if (g.mars) svg.append(s('circle', { cx: g.mars.cx, cy: g.mars.cy, r: g.mars.r, class: 'an-mars' }));
-    if (g.path.type === 'halo') svg.append(s('text', { x: g.path.cx, y: g.path.cy + 96, class: 'an-small-label', 'text-anchor': 'middle' }, 'L2'));
+    if (g.tiltLabel) svg.append(s('text', { x: W / 2, y: 26, class: 'an-small-label', 'text-anchor': 'middle' }, g.tiltLabel));
     // Ground stations
     this.dishes = (STATIONS[sel.ground?.id] ?? [-90]).map((deg) => {
       const a = (deg * Math.PI) / 180;
@@ -153,7 +131,7 @@ class OrbitView {
       const bar = h('div', { class: 'hud-bar' }, h('div', { class: 'hud-fill' }));
       return { el: h('div', { class: 'hud-item' }, [h('span', { class: 'hud-label' }, `${icon} ${label}`), val, bar]), val, fill: bar.firstChild };
     };
-    this.hud = { battery: gauge('🔋', 'Battery'), data: gauge('📡', 'Data'), science: gauge('🔬', 'Science'), money: gauge('💰', 'Money'), health: gauge('🛡️', 'Toughness') };
+    this.hud = { battery: gauge('🔋', 'Battery'), data: gauge('📡', 'Link'), science: gauge('🎯', 'Service (sim.)'), money: gauge('💰', 'Money'), health: gauge('🛡️', 'Condition') };
     const hudEl = h('div', { class: 'hud' }, Object.values(this.hud).map((x) => x.el));
     this.timeFill = h('div', { class: 'tl-fill' });
     this.timeMarkers = h('div', { class: 'tl-markers' });
@@ -227,7 +205,6 @@ class OrbitView {
 
   satPos() {
     const g = this.g;
-    if (g.transfer && this.month < 1.5) return quad(g.transfer, clamp01(this.month / 1.5));
     return posOnPath(g.path, this.phase);
   }
 
@@ -240,11 +217,6 @@ class OrbitView {
     const v = this.vis;
     if (v.commsDead) return null;
     const g = this.g;
-    if (g.far) return this.month >= 1.5 ? this.dishes[0] : null;
-    if (g.contactApogee) {
-      const d = Math.hypot(p.x - g.earth.cx, p.y - g.earth.cy);
-      return d > 260 ? this.dishes[0] : null;
-    }
     const ang = (Math.atan2(p.y - g.earth.cy, p.x - g.earth.cx) * 180) / Math.PI;
     return this.dishes.find((d) => Math.abs(((ang - d.deg + 540) % 360) - 180) < (g.contactArc ?? 25)) ?? null;
   }
@@ -319,7 +291,7 @@ class OrbitView {
     const canvas = drawView(document.createElement('canvas'), this.camera.id, { seed: (this.sim.seed % 997) + m, lostRows: this.vis.dataLostFraction });
     canvas.className = 'downlink-canvas';
     canvas.style.clipPath = 'inset(0 0 100% 0)';
-    this.photo.replaceChildren(h('div', { class: 'downlink-label' }, `📥 Month ${m} · ${this.camera.plainName}`), canvas);
+    this.photo.replaceChildren(h('div', { class: 'downlink-label' }, `📥 Month ${m} · ${this.camera.plainName} · simulated`), canvas);
     this.photo.hidden = false;
     this.imaging = { canvas, u: 0, m };
     sound.radio();
@@ -333,7 +305,7 @@ class OrbitView {
       const img = new Image();
       img.src = im.canvas.toDataURL('image/png');
       img.alt = `Picture from month ${im.m}`;
-      addGalleryImage({ key: `${this.key}:${im.m}`, label: `Month ${im.m} · ${this.camera.plainName}${this.vis.dataLostFraction > 0 ? ' (some data lost)' : ''}`, node: img });
+      addGalleryImage({ key: `${this.key}:${im.m}`, label: `Month ${im.m} · ${this.camera.plainName} · simulated illustration${this.vis.dataLostFraction > 0 ? ' (some data lost)' : ''}`, node: img });
       this.imaging = null;
     }
   }
@@ -353,7 +325,7 @@ class OrbitView {
   }
 
   animatePackets(dt) {
-    const speed = this.g.far ? 1 / 1600 : 1 / 650;
+    const speed = 1 / 650;
     for (const n of [...this.packets.children]) {
       const q = n.__p;
       q.u += dt * speed;
@@ -377,21 +349,19 @@ class OrbitView {
   current() {
     const m = this.month;
     const past = this.sim.events.filter((e) => e.month <= m);
-    let health = this.res.health.value; let extra = 0;
-    const relaunchExtra = this.sim.summary.extraCostM - this.sim.events.reduce((acc, e) => acc + (getEvent(e.eventId).choices[e.choiceIndex].effects.budgetM ?? 0), 0);
+    let damage = 0; let reserveShare = 0;
     for (const e of past) {
       const eff = getEvent(e.eventId).choices[e.choiceIndex].effects;
-      health += eff.health ?? 0;
-      extra += eff.budgetM ?? 0;
+      damage += eff.damage ?? 0;
+      reserveShare += eff.reserveShare ?? 0;
     }
+    const reserve = getSelection(this.state).scenario?.costModel.reserve ?? 0;
     const ticks = this.sim.ticks;
     const i = Math.min(ticks.length - 1, Math.floor(m));
     const a = ticks[Math.max(0, i)]?.science ?? 0;
     const b = ticks[Math.min(ticks.length - 1, i + 1)]?.science ?? a;
-    const science = lerp(a, b, m - Math.floor(m));
-    const gen = this.res.data.generated ?? 0;
-    const down = this.vis.commsDead ? 0 : (this.res.data.downlink ?? 0);
-    return { health, money: this.res.budget.used + extra + Math.max(0, relaunchExtra), science, sent: Math.min(gen, down) * 30 * m, lost: Math.max(0, gen - down) * 30 * m };
+    const service = lerp(a, b, m - Math.floor(m));
+    return { damage, money: this.res.budget.used + reserve * reserveShare, service };
   }
 
   updateHud() {
@@ -403,13 +373,12 @@ class OrbitView {
       g.el.className = `hud-item ${cls ?? ''}`;
     };
     set('battery', pct(this.battery), this.battery, this.battery < 0.25 ? 'bad' : this.battery < 0.5 ? 'tight' : 'ok');
-    const sentTotal = c.sent + c.lost;
-    set('data', this.vis.commsDead ? 'no signal' : `${num(c.sent)} GB sent${c.lost > 0 ? ` · ${num(c.lost)} lost` : ''}`, sentTotal ? c.sent / sentTotal : this.vis.commsDead ? 0 : 1, this.vis.commsDead ? 'bad' : c.lost > 0 ? 'tight' : 'ok');
-    const need = this.state.scenarioId ? (this.res.science.required ?? 0) * (this.res.lifetime.required ?? 1) : 0;
-    set('science', num(c.science), need ? c.science / need : 1, need && c.science >= need ? 'ok' : '');
+    set('data', this.vis.commsDead ? 'no signal' : 'working', this.vis.commsDead ? 0 : 1, this.vis.commsDead ? 'bad' : 'ok');
+    const share = this.month >= 1 ? c.service / Math.min(this.month, this.planned) : 1;
+    set('science', pct(Math.min(1, share)), share, share >= 0.95 ? 'ok' : share >= 0.9 ? 'tight' : 'bad');
     const budget = this.res.budget.available ?? c.money;
     set('money', money(c.money), c.money / budget, c.money > budget ? 'bad' : 'ok');
-    set('health', pct(c.health, 0), c.health, c.health < 0.9 ? 'bad' : c.health < 0.95 ? 'tight' : 'ok');
+    set('health', c.damage ? 'weakened' : 'good', c.damage ? 0.5 : 1, c.damage ? 'tight' : 'ok');
     this.timeFill.style.width = `${clamp01(this.month / this.planned) * 100}%`;
     this.monthLabel.textContent = `Month ${Math.floor(this.month)} of ${this.planned}`;
   }
@@ -421,7 +390,7 @@ class OrbitView {
 /** Get (or create) the persistent orbit view for this simulation and play to `toMonth`. */
 export function orbitView(container, { state, sim, toMonth }) {
   let v = container.__orbitView;
-  const key = `${sim.seed}:${sim.relaunches}`;
+  const key = `${sim.seed}:${sim.noGo ? 'nogo' : 'go'}`;
   if (!v || v.key !== key || !container.contains(v.wrap)) v = new OrbitView(container, state, sim);
   else v.update(state, sim);
   return v.playTo(toMonth ?? (sim.pending ? sim.pending.month : sim.summary.monthsOperated));

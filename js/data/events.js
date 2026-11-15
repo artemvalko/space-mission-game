@@ -1,77 +1,85 @@
-// Random mission events.
-// Schema: { id, title, description, phase: 'prelaunch'|'orbit', appliesTo: orbit ids | 'all',
-//           probability (chance per year of operation; once for 'prelaunch'),
-//           probabilityFrom?: 'health' (chance per year computed from spacecraft health instead),
-//           choices: [{ label, effects, explanation }] }
+// SIMULATED mission events. They are game mechanics, always labelled "simulated event" in the UI.
+// Real phenomena (solar storms, space debris) are named, but the chances below are GAME settings,
+// never real statistics, and are never shown to the player.
+//
+// Schema: { id, title, description, phase: 'prelaunch'|'orbit', missions?: [scenarioId], perYear (game rate),
+//           realPhenomenon?: text, choices: [{ label, effects, explanation }] }
 // `{item}` in a description is replaced with the name of the failing part.
-// Effect keys (all optional): budgetM (+extra cost), science (multiplier on future science),
-// lifetimeYears (+/-), health (+/- spacecraft health → more/fewer hardware failures later),
-// launchReliability (+/- launch success chance; prelaunch only), delayMonths (+).
+// Effect keys (all optional):
+//   performance  multiplier on the mission KPI from now on (packets / valid samples / signal availability)
+//   reserveShare fraction of the mission's model project reserve spent
+//   damage       +1 = the satellite is weakened (a second weakening ends the mission)
+//   delayMonths  launch delay (pre-launch only)
+
+import { M_WX } from './components.js';
 
 export const EVENTS = [
   {
-    id: 'hardware_failure', title: 'Hardware Failure', phase: 'orbit', probabilityFrom: 'health', appliesTo: 'all',
-    description: 'Telemetry shows that the {item} is malfunctioning.',
+    id: 'hardware_failure', title: 'Hardware fault', phase: 'orbit', perYear: 0.35,
+    description: 'Telemetry shows that the {item} is misbehaving.',
     choices: [
-      { label: 'Switch to backup mode', effects: { science: 0.85 },
-        explanation: 'The spacecraft keeps working in a reduced mode — you lose some science from now on.' },
-      { label: 'Upload a software fix ($5M)', effects: { budgetM: 5, science: 0.97 },
-        explanation: 'Engineers on the ground write a patch. It costs money, but saves most of the science.' },
-      { label: 'Ignore it and carry on', effects: { health: -0.03 },
-        explanation: 'Free today, but the damaged part stresses the rest of the spacecraft — more failures become likely.' },
+      { label: 'Switch to the backup mode', effects: { performance: 0.85 },
+        explanation: 'The satellite keeps working in a reduced mode — the mission delivers less from now on.' },
+      { label: 'Upload a software fix (uses project reserve)', effects: { reserveShare: 0.25, performance: 0.97 },
+        explanation: 'Engineers write a patch. It costs part of your reserve but saves most of the service.' },
+      { label: 'Ignore it and carry on', effects: { damage: 1 },
+        explanation: 'Free today, but the satellite is weakened — another hit could end the mission.' },
     ],
   },
   {
-    id: 'solar_flare', title: 'Solar Flare!', phase: 'orbit', probability: 0.3, appliesTo: 'all',
-    description: 'The Sun just released a burst of radiation. Charged particles will hit the spacecraft within hours.',
+    id: 'solar_flare', title: 'Solar storm!', phase: 'orbit', perYear: 0.3,
+    realPhenomenon: 'Real solar flares, CMEs and geomagnetic storms are tracked by NASA DONKI (S26).',
+    description: 'The Sun released a burst of charged particles. They will reach the satellite within hours.',
     choices: [
-      { label: 'Enter safe mode', effects: { science: 0.97 },
-        explanation: 'Switching instruments off protects the electronics, but you lose a few days of observations.' },
-      { label: 'Keep observing', effects: { health: -0.02, science: 1.02 },
-        explanation: 'You keep collecting data, but radiation may damage electronics — hardware failures become more likely.' },
+      { label: 'Enter safe mode', effects: { performance: 0.97 },
+        explanation: 'Switching the payload off protects the electronics, but you lose a few days of service.' },
+      { label: 'Keep working', effects: { damage: 1, performance: 1.01 },
+        explanation: 'You keep the service running, but radiation may damage the electronics.' },
     ],
   },
   {
-    id: 'debris', title: 'Space Debris Warning', phase: 'orbit', probability: 0.25, appliesTo: ['leo', 'sso', 'geo', 'heo'],
-    description: 'A piece of an old rocket will pass within 200 m of your spacecraft.',
+    id: 'debris', title: 'Space debris warning', phase: 'orbit', perYear: 0.25,
+    realPhenomenon: 'Space debris is real — that is why every mission needs a disposal plan.',
+    description: 'A piece of an old rocket will pass close to your satellite.',
     choices: [
-      { label: 'Fire thrusters to dodge', effects: { lifetimeYears: -0.3 },
-        explanation: 'Dodging uses propellant you were saving for later, so the mission ends a little sooner.' },
-      { label: 'Accept the risk', effects: { health: -0.03 },
-        explanation: 'No collision this time — but tiny fragments chipped the solar panels and the spacecraft is a bit more fragile.' },
+      { label: 'Go to safe attitude and wait', effects: { performance: 0.98 },
+        explanation: 'You pause the service and turn the satellite to make a smaller target.' },
+      { label: 'Accept the risk', effects: { damage: 1 },
+        explanation: 'No collision — but tiny fragments chipped the solar wings and the satellite is weaker.' },
     ],
   },
   {
-    id: 'budget_cut', title: 'Budget Cut', phase: 'orbit', probability: 0.1, appliesTo: 'all',
-    description: 'The space agency\'s budget was reduced. Your mission must save money.',
+    id: 'budget_cut', title: 'Budget cut', phase: 'orbit', perYear: 0.1,
+    description: 'The programme\'s budget was reduced. Your mission must save money.',
     choices: [
-      { label: 'Reduce operations team', effects: { science: 0.9 },
-        explanation: 'Fewer people planning observations means less science per day.' },
-      { label: 'End the mission one year early', effects: { lifetimeYears: -1 },
-        explanation: 'Full science while it lasts, but the mission is shorter.' },
+      { label: 'Reduce the operations team', effects: { performance: 0.9 },
+        explanation: 'Fewer people planning passes means less service per day.' },
+      { label: 'Pay from the project reserve', effects: { reserveShare: 0.5 },
+        explanation: 'Full service continues, but half of your reserve is gone.' },
     ],
   },
   {
-    id: 'launch_delay', title: 'Launch Delay', phase: 'prelaunch', probability: 0.2, appliesTo: 'all',
+    id: 'launch_delay', title: 'Launch delay', phase: 'prelaunch', perYear: 0.2,
     description: 'A sensor on the rocket shows a strange reading during the countdown.',
     choices: [
-      { label: 'Stand down and investigate', effects: { delayMonths: 3, budgetM: 5 },
-        explanation: 'Safety first: the delay costs time and money, but the launch will be safe.' },
-      { label: 'Launch anyway with a waiver', effects: { launchReliability: -0.03 },
-        explanation: 'You keep the schedule but accept a slightly higher chance that the rocket fails.' },
+      { label: 'Stand down and investigate', effects: { delayMonths: 3, reserveShare: 0.25 },
+        explanation: 'Safety first: the delay costs time and reserve, but the launch is safe.' },
+      { label: 'Launch anyway with a waiver', effects: { damage: 1 },
+        explanation: 'You keep the schedule, but the shaking may have weakened the satellite.' },
     ],
   },
   {
-    id: 'discovery', title: 'Unexpected Discovery!', phase: 'orbit', probability: 0.1, appliesTo: 'all',
-    description: 'Your instruments spotted something nobody expected. Scientists around the world are excited.',
+    id: 'rare_storm', title: 'A huge storm in view!', phase: 'orbit', perYear: 0.15, missions: [M_WX],
+    description: 'A powerful storm system is right under your orbit. Scientists want every measurement.',
     choices: [
-      { label: 'Extend observations ($5M)', effects: { science: 1.25, budgetM: 5 },
-        explanation: 'More observing time costs a little extra, but the discovery could be huge.' },
-      { label: 'Stick to the plan', effects: { science: 1.1 },
-        explanation: 'You note the discovery and continue the planned schedule.' },
+      { label: 'Add extra observation passes (uses reserve)', effects: { reserveShare: 0.25, performance: 1.05 },
+        explanation: 'More passes cost a little reserve, but the storm data is valuable.' },
+      { label: 'Stick to the plan', effects: { performance: 1.02 },
+        explanation: 'You note the storm and keep the planned schedule.' },
     ],
   },
 ];
 
 const byId = new Map(EVENTS.map((e) => [e.id, e]));
 export const getEvent = (id) => (id ? byId.get(id) ?? null : null);
+export const eventApplies = (ev, scenarioId) => !ev.missions || ev.missions.includes(scenarioId);

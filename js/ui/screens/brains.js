@@ -1,37 +1,32 @@
-// Step 6 — Brains & steering: computer + pointing system + thrusters (Normal only;
-// Easy uses an automatic "Standard kit" and skips this step).
+// Step 6 — Bus systems: computer, pointing, thermal control, sensors, cables, and on-board
+// propulsion where needed (Normal only; Easy uses the standard kit from the research build list).
 
 import { mount, h } from '../dom.js';
 import { setKit } from '../../state/actions.js';
+import { getScenario } from '../../data/scenarios.js';
+import { KITS, bundleTotals } from '../../data/bundles.js';
 import { computeResources } from '../../engine/resources.js';
+import { kg, money } from '../../utils/format.js';
 import { subQuestion, componentCards } from './common.js';
+
+const MASS_COST = [
+  { label: 'Mass', symbol: '●', value: (c) => c.mass },
+  { label: 'Cost', symbol: '$', value: (c) => c.cost },
+];
 
 export function render(container, state, dispatch) {
   const before = computeResources(state);
-  mount(container, 
+  const scenario = getScenario(state.scenarioId);
+  const kitParts = scenario ? KITS[0].byMission[scenario.id] : null;
+  const tot = kitParts ? bundleTotals(kitParts, scenario.id) : null;
+  const cats = [['computer', 'Computer'], ['adcs', 'Pointing system'], ['thermal', 'Thermal control'], ['sensors', 'Position & time sensors'], ['harness', 'Cables & integration'], ['propulsion', 'Thrusters'], ['propellant', 'Propellant']];
+  mount(container,
     h('div', { class: 'step-hint' }, [
       'Not sure? ',
       h('button', { class: 'btn btn-small', type: 'button', key: 'use-standard-kit', onClick: () => dispatch(setKit('standard')) },
         state.design.kit === 'standard' ? '✓ Using the standard kit' : 'Use the standard kit'),
-      ' — a sensible computer, steady pointing and thrusters strong enough for your orbit.',
+      tot ? ` — the research build list for this mission (${kg(tot.mass)}, ${money(tot.cost)}: the sum of its parts).` : '',
     ]),
-    subQuestion('Computer', 'computer'),
-    componentCards(state, dispatch, 'computer', [
-      { label: 'Toughness', symbol: '🛡', value: (c) => c.reliability, log: false },
-      { label: 'Memory', symbol: '▣', value: (c) => c.storageGB },
-      { label: 'Cost', symbol: '$', value: (c) => c.cost },
-    ], before),
-    subQuestion('Pointing system', 'adcs'),
-    componentCards(state, dispatch, 'adcs', [
-      { label: 'Sharpness', symbol: '🎯', value: (c) => c.scienceBonus, log: false },
-      { label: 'Power use', symbol: '⚡', value: (c) => c.power },
-      { label: 'Cost', symbol: '$', value: (c) => c.cost },
-    ], before),
-    subQuestion('Thrusters', 'propulsion'),
-    componentCards(state, dispatch, 'propulsion', [
-      { label: 'Push', symbol: '💨', value: (c) => c.deltaV },
-      { label: 'Weight', symbol: '●', value: (c) => c.mass },
-      { label: 'Cost', symbol: '$', value: (c) => c.cost },
-    ], before),
+    ...cats.flatMap(([cat, title]) => [subQuestion(title, cat), componentCards(state, dispatch, cat, MASS_COST, before)]),
   );
 }

@@ -4,53 +4,61 @@
 // simulation they are judged on what actually happened.
 
 import { ROLES } from '../data/roles.js';
+import { isCubeSat } from '../data/components.js';
 import { computeResources, getSelection } from './resources.js';
-import { money, months, num, pct } from '../utils/format.js';
+import { validateDesign } from './validation.js';
+import { evaluateObjectives } from './objectives.js';
+import { money, months, pct } from '../utils/format.js';
 
-export const MARGIN_GOAL = 0.10;     // director budget / engineer margins
-export const SCIENCE_GOAL = 1.2;     // scientist: 1.2 × minScience
-export const DATA_LOSS_GOAL = 0.10;  // flight: at most 10% lost
+export const MARGIN_GOAL = 0.10;     // engineer: mass & power margins
 
 const CHECKS = {
+  // Director: model budget + schedule + licensing/disposal ready.
   director_budget_schedule(ctx) {
-    const { res, scenario, sim } = ctx;
-    if (scenario.sandbox) return { met: true, reason: 'Sandbox: no budget to watch.' };
+    const { res, scenario, sim, sel } = ctx;
     const spent = res.budget.used + (sim?.summary.extraCostM ?? 0);
-    const left = (scenario.budgetM - spent) / scenario.budgetM;
-    const ready = res.time.used + (sim?.summary.delayMonths ?? 0);
-    const onTime = ready <= scenario.deadlineMonths;
-    const met = left >= MARGIN_GOAL && onTime;
-    return { met, reason: `${pct(Math.max(left, -9))} of the budget left (${money(spent)} of ${money(scenario.budgetM)}); ready in ${months(ready)} of ${months(scenario.deadlineMonths)}.` };
+    const inBudget = spent <= scenario.budgetM + 1e-9;
+    const range = scenario.deadlineMonths;
+    const ready = range ? range[0] + (sim?.summary.delayMonths ?? 0) : null;
+    const onTime = !range || ready <= range[1];
+    const paperwork = sel.prep.licence && sel.prep.disposal;
+    return { met: inBudget && onTime && paperwork, reason: `${money(spent)} of ${money(scenario.budgetM)}${res.budget.launchUnknown ? ' (launch RFQ not counted)' : ''}${range ? `; ready at month ${ready} of ${range[1]}` : ''}; licence ${sel.prep.licence ? '✓' : '✗'}, disposal plan ${sel.prep.disposal ? '✓' : '✗'}.` };
   },
+  // Engineer: mass / power / thermal margins.
   engineer_margins(ctx) {
-    const { res } = ctx;
-    const massMargin = res.mass.available ? 1 - res.mass.used / res.mass.available : null;
-    const powerMargin = res.power.available ? 1 - res.power.used / res.power.available : null;
-    const met = massMargin != null && powerMargin != null && massMargin >= MARGIN_GOAL && powerMargin >= MARGIN_GOAL;
-    const f = (m) => (m == null ? 'unknown' : pct(m));
-    return { met, reason: `Weight margin ${f(massMargin)}, power margin ${f(powerMargin)} (need 10% each).` };
+    const { res, sel } = ctx;
+    const cube = isCubeSat(sel.components.structure);
+    const massOk = res.mass.available != null && (cube || !res.mass.limit ? 1 - res.mass.used / res.mass.available >= MARGIN_GOAL : res.mass.used <= res.mass.limit + 1e-9);
+    const powerMargin = res.power.margin;
+    const thermal = !!sel.components.thermal;
+    const met = massOk && powerMargin != null && powerMargin >= MARGIN_GOAL && thermal;
+    const massText = res.mass.available == null ? 'unknown' : cube || !res.mass.limit ? pct(1 - res.mass.used / res.mass.available) : res.mass.used <= res.mass.limit ? 'within the 700 kg target' : 'over the target';
+    return { met, reason: `Mass margin ${massText}, power margin ${powerMargin == null ? 'unknown' : pct(powerMargin)} (need 10%), thermal control ${thermal ? '✓' : '✗'}.` };
   },
+  // Scientist: mission performance KPIs.
   scientist_science(ctx) {
-    const { res, scenario, sim } = ctx;
-    if (!scenario.minScience) return { met: true, reason: 'No science target on this mission.' };
-    const rate = sim
-      ? (sim.summary.monthsOperated > 0 ? sim.summary.scienceCollected / (sim.summary.monthsOperated / 12) : 0)
-      : res.science.value;
-    const need = scenario.minScience * SCIENCE_GOAL;
-    return { met: rate >= need, reason: `${num(rate)} science points per year; the goal is ${num(need)} (target ${num(scenario.minScience)} + 20%).` };
+    const { res, state, sim } = ctx;
+    if (sim) {
+      const k = evaluateObjectives(state, sim, res).filter((o) => o.kpi);
+      return { met: k.every((o) => o.met), reason: `${k.filter((o) => o.met).length} of ${k.length} mission KPIs met.` };
+    }
+    return { met: res.science.ok, reason: res.science.explanation };
   },
+  // Flight dynamics: orbit + launch + link.
   flight_data_orbit(ctx) {
-    const { res, scenario, sel, sim } = ctx;
-    const lost = sim?.conditions?.commsDead ? 1 : res.data.lostFraction ?? 0;
-    const recommended = !scenario.recommendedOrbits.length || scenario.recommendedOrbits.includes(sel.orbit?.id);
-    return { met: lost <= DATA_LOSS_GOAL && recommended && !!sel.orbit, reason: `${pct(lost)} of data lost (max 10%); orbit ${recommended && sel.orbit ? 'is' : 'is not'} a recommended one.` };
+    const { res, scenario, sel, state } = ctx;
+    const recommended = !!sel.orbit && scenario.recommendedOrbits.includes(sel.orbit.id);
+    const issues = validateDesign(state, res);
+    const launchOk = !!sel.launcher && !issues.some((i) => i.severity === 'error' && ['launcher_trajectory_compatible', 'launch_adapter_compatible'].includes(i.gate));
+    const linkOk = res.data.status === 'ok';
+    return { met: recommended && launchOk && linkOk, reason: `Orbit ${recommended ? 'recommended ✓' : 'not the recommended one ✗'}; rocket ${launchOk ? 'reaches it ✓' : 'does not fit ✗'}; link ${linkOk ? 'works ✓' : 'broken or not chosen ✗'}.` };
   },
 };
 
 export function evaluateRoleGoals(state, sim = null) {
   const sel = getSelection(state);
   if (!sel.scenario) return [];
-  const ctx = { res: computeResources(state), scenario: sel.scenario, sel, sim };
+  const ctx = { res: computeResources(state), scenario: sel.scenario, sel, sim, state };
   return ROLES.map((r) => {
     const { met, reason } = (CHECKS[r.personalGoal.check] ?? (() => ({ met: false, reason: 'Unknown goal.' })))(ctx);
     return { roleId: r.id, icon: r.icon, name: r.name, text: r.personalGoal.text, met, reason };

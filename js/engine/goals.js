@@ -2,45 +2,40 @@
 // Each chip: { id, icon, label, status: 'todo'|'ok'|'bad', hint }
 // 'todo' (neutral) until the player has made the choices that decide it.
 
-import { TAG_INFO } from '../data/instruments.js';
+import { ROLE_INFO } from '../data/instruments.js';
 import { computeResources, getSelection } from './resources.js';
-import { money, months, num, years } from '../utils/format.js';
+import { money } from '../utils/format.js';
 
 export function goalChecklist(state, res = computeResources(state)) {
   const sel = getSelection(state);
   const { scenario, instruments, orbit } = sel;
   if (!scenario) return [];
   const chips = [];
-  const anyChoice = sel.componentList.length > 0 || instruments.length > 0 || sel.launcher;
+  const roles = new Set(instruments.map((i) => i.role));
+  // Only the player's own choices count (Easy kits fill parts automatically).
+  const anyChoice = !!sel.components.structure || instruments.length > 0 || !!sel.launcher;
 
-  for (const tag of scenario.requiredTags) {
-    const info = TAG_INFO[tag] ?? { icon: '🔧', plainName: tag };
-    const has = instruments.some((i) => i.tags.includes(tag));
-    chips.push({ id: `tag-${tag}`, icon: info.icon, label: info.plainName, status: has ? 'ok' : instruments.length ? 'bad' : 'todo', hint: `Your goal needs a ${info.plainName.toLowerCase()}.` });
-  }
-  if (!scenario.sandbox) {
-    chips.push({
-      id: 'money', icon: '💰', label: money(scenario.budgetM),
-      status: !anyChoice ? 'todo' : res.budget.status === 'over' ? 'bad' : 'ok',
-      hint: `Budget: spend at most ${money(scenario.budgetM)} (now ${money(res.budget.used)}).`,
-    });
-    chips.push({
-      id: 'time', icon: '📅', label: months(scenario.deadlineMonths).replace(' mo', ' months'),
-      status: !anyChoice ? 'todo' : res.time.status === 'over' ? 'bad' : 'ok',
-      hint: `Be ready to launch within ${months(scenario.deadlineMonths)} (now ${months(res.time.used)}).`,
-    });
-  }
-  if (scenario.minScience > 0) {
-    chips.push({
-      id: 'science', icon: '🔬', label: `${num(scenario.minScience)} science`,
-      status: !instruments.length ? 'todo' : res.science.ok ? 'ok' : 'bad',
-      hint: `Collect at least ${num(scenario.minScience)} science points per year (now ${num(res.science.value)}).`,
-    });
+  for (const role of scenario.requiredRoles) {
+    const info = ROLE_INFO[role];
+    chips.push({ id: `role-${role}`, icon: info.icon, label: info.plainName, status: roles.has(role) ? 'ok' : instruments.length ? 'bad' : 'todo', hint: `The mission needs the ${info.plainName.toLowerCase()}.` });
   }
   chips.push({
-    id: 'lifetime', icon: '⏳', label: years(scenario.minLifetimeYears).replace(' yr', ' years'),
-    status: !orbit ? 'todo' : res.lifetime.ok ? 'ok' : 'bad',
-    hint: `Keep working for at least ${years(scenario.minLifetimeYears)}.`,
+    id: 'orbit', icon: '🌍', label: orbit ? orbit.plainName.split(' (')[0] : 'Orbit',
+    status: !orbit ? 'todo' : scenario.allowedOrbits.includes(orbit.id) ? 'ok' : 'bad',
+    hint: 'The orbit must fit the service.',
   });
+  chips.push({
+    id: 'money', icon: '💰', label: money(scenario.budgetM),
+    status: !anyChoice ? 'todo' : res.budget.status === 'over' ? 'bad' : 'ok',
+    hint: `Model budget: at most ${money(scenario.budgetM)} (now ${money(res.budget.used)}).`,
+  });
+  if (scenario.deadlineMonths) {
+    chips.push({ id: 'time', icon: '📅', label: `${scenario.deadlineMonths[0]}–${scenario.deadlineMonths[1]} months`, status: anyChoice ? 'ok' : 'todo', hint: `Planning window ${scenario.deadlineMonths[0]}–${scenario.deadlineMonths[1]} months.` });
+  }
+  if (scenario.minMonths) {
+    chips.push({ id: 'lifetime', icon: '⏳', label: `≥${scenario.minMonths} months`, status: 'todo', hint: `Keep working for at least ${scenario.minMonths} months.` });
+  }
+  const prepDone = sel.prep.tests && sel.prep.licence && sel.prep.disposal;
+  chips.push({ id: 'prep', icon: '🧾', label: 'Tests · licence · disposal', status: prepDone ? 'ok' : 'todo', hint: 'Launch prep checklist: tests, frequency licence and a disposal plan.' });
   return chips;
 }

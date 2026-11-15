@@ -9,7 +9,7 @@ export const teamNameOf = (state) => (state.mode === 'team'
 /** Unique key of a finished run (so it is saved once). */
 export const attemptKey = (state) => {
   const s = state.simulation;
-  return s ? `${state.scenarioId}:${JSON.stringify(state.design)}:${s.seed}:${state.relaunches}:${s.decisions.join('')}` : null;
+  return s ? `${state.scenarioId}:${JSON.stringify(state.design)}:${s.seed}:${s.noGo ? 'nogo' : 'go'}:${s.decisions.join('')}` : null;
 };
 
 /** Build the record for a finished attempt. `at` = timestamp from the caller. */
@@ -33,12 +33,13 @@ export function attemptRecord(state, at) {
       massPct: res.mass.ratio,
       powerPct: res.power.ratio,
       dataLost: res.data.lostFraction ?? 0,
-      science: sim.summary.scienceCollected,
+      kpiShare: score.stats.kpiShare,
       months: sim.summary.monthsOperated,
     },
     parts: Object.fromEntries(score.parts.map((p) => [p.id, p.points])),
     total: score.total,
     grade: score.grade,
     outcome: sim.outcome,
+    noGo: !!sim.noGo,
   };
 }

@@ -1,5 +1,5 @@
-// Scene 4 — Too heavy / wrong orbit: the rocket climbs slowly, runs out of fuel (or the thrusters
-// run out of push), the satellite is left too low and falls back with an orange re-entry glow.
+// Scene 4 — Too heavy / wrong orbit (NO-GO designs simulated anyway): the rocket climbs slowly,
+// runs out of fuel (or can't get to the target orbit), the satellite falls back with a re-entry glow.
 
 import { s } from '../dom.js';
 import { sound } from '../sound.js';
@@ -24,13 +24,13 @@ export function tooHeavy(container, { launcher, reason = 'too_heavy', caption, h
       const glow = s('circle', { r: 0, fill: `url(#${glowId})` });
       const trail = s('path', { class: 'an-trail', d: '' });
       const satG = s('g', { opacity: 0 }, [trail, glow, sat]);
-      const gaugeLabel = reason === 'wrong_orbit' ? 'PUSH' : 'FUEL';
+      const gaugeLabel = reason === 'wrong_orbit' ? 'ORBIT' : 'FUEL';
       const gaugeFill = s('rect', { x: 34, y: 120, width: 18, height: 200, class: 'an-fuel' });
       const gauge = s('g', {}, [
         s('rect', { x: 30, y: 116, width: 26, height: 208, rx: 4, class: 'an-gauge-frame' }), gaugeFill,
         s('text', { x: 43, y: 342, class: 'an-small-label', 'text-anchor': 'middle' }, gaugeLabel),
       ]);
-      const warn = s('text', { x: W / 2, y: 70, class: 'an-big-label an-warn', 'text-anchor': 'middle', opacity: 0 }, reason === 'wrong_orbit' ? 'Thrusters too weak!' : 'Out of fuel!');
+      const warn = s('text', { x: W / 2, y: 70, class: 'an-big-label an-warn', 'text-anchor': 'middle', opacity: 0 }, reason === 'wrong_orbit' ? 'Wrong orbit!' : 'Too heavy!');
       svg.append(defs, bg.defs, bg.rect, st, ground, rocket, satG, gauge, warn);
       // Trajectory: slow arc up, then the satellite falls along a parabola.
       const path = (u) => ({ x: lerp(180, 520, u), y: 420 - Math.sin(u * Math.PI * 0.9) * 270 });

@@ -2,8 +2,15 @@
 // UI-only (the engine/advisor refer to steps by id).
 
 import { SCREENS } from '../state/actions.js';
+import { getScenario } from '../data/scenarios.js';
+import { STEP_FOR_CATEGORY } from '../engine/validation.js';
 
 const c = (state) => state.design.components;
+const chosen = (state, cat) => c(state)[cat] != null; // a part id or 'none'
+const reqOn = (state, step) => {
+  const sc = getScenario(state.scenarioId);
+  return (sc?.requiredBus ?? []).filter((cat) => STEP_FOR_CATEGORY[cat] === step);
+};
 
 export const STEPS = [
   { id: 'start', label: 'Start', icon: '🏠' },
@@ -11,19 +18,21 @@ export const STEPS = [
     answered: (s) => !!s.scenarioId },
   { id: 'size', label: 'Size', icon: '📦', verb: 'Choose the satellite size', question: 'How big is your satellite?', phase: 'Trade study', owner: 'engineer',
     answered: (s) => !!c(s).structure },
-  { id: 'science', label: 'Science tools', icon: '🔬', verb: 'Choose your science tools', question: 'Which science tools will it carry?', phase: 'Trade study', owner: 'scientist',
+  { id: 'science', label: 'Mission payload', icon: '🎯', verb: 'Choose the mission payload', question: 'What does your satellite carry to do its job?', phase: 'Trade study', owner: 'scientist',
     answered: (s) => s.design.instrumentIds.length > 0 },
-  { id: 'power', label: 'Power', icon: '⚡', verb: 'Choose your power', question: 'How will it get electricity?', phase: 'Trade study', owner: 'engineer',
-    answered: (s) => !!(c(s).power && c(s).battery) },
+  { id: 'power', label: 'Power', icon: '⚡', verb: 'Choose your power', question: 'How will it get electricity — in sunlight and in shadow?', phase: 'Trade study', owner: 'engineer',
+    answered: (s) => chosen(s, 'power') && chosen(s, 'battery') },
   { id: 'comms', label: 'Talking to Earth', icon: '📡', verb: 'Choose how to talk to Earth', question: 'How will it talk to Earth?', phase: 'Trade study', owner: 'flight',
-    answered: (s) => !!(c(s).comms && s.design.groundId) },
-  { id: 'brains', label: 'Brains & steering', icon: '🧠', verb: 'Choose brains & steering', question: 'Which computer, pointing system and thrusters?', phase: 'Trade study', owner: 'engineer',
-    answered: (s) => !!(c(s).computer && c(s).adcs && c(s).propulsion), skip: (s) => s.difficulty === 'easy' },
+    answered: (s) => reqOn(s, 'comms').every((cat) => chosen(s, cat)) && !!s.design.groundId },
+  { id: 'brains', label: 'Bus systems', icon: '🧠', verb: 'Choose the bus systems', question: 'Which computer, pointing, thermal control and thrusters?', phase: 'Trade study', owner: 'engineer',
+    answered: (s) => reqOn(s, 'brains').every((cat) => chosen(s, cat)), skip: (s) => s.difficulty === 'easy' },
   { id: 'orbit', label: 'Orbit', icon: '🌍', verb: 'Choose your orbit', question: 'Where will your satellite fly?', phase: 'Trade study', owner: 'flight',
     answered: (s) => !!s.design.orbitId },
-  { id: 'rocket', label: 'Rocket', icon: '🚀', verb: 'Choose your rocket', question: 'Which rocket will launch it?', phase: 'Trade study', owner: 'flight',
-    answered: (s) => !!s.design.launcherId },
-  { id: 'finalCheck', label: 'Final check', icon: '✅', verb: 'Final check', question: 'Is everything ready for launch?', phase: 'Point design & review', owner: 'director',
+  { id: 'rocket', label: 'Rocket & adapter', icon: '🚀', verb: 'Choose the rocket & adapter', question: 'Which launch service — and how is it attached?', phase: 'Trade study', owner: 'flight',
+    answered: (s) => !!s.design.launcherId && !!s.design.deployerId },
+  { id: 'launchPrep', label: 'Launch prep', icon: '🧾', verb: 'Prepare for launch', question: 'Is everything tested, licensed and planned?', phase: 'Flight readiness', owner: 'director',
+    answered: (s) => !!(s.design.prep?.tests && s.design.prep?.licence && s.design.prep?.disposal) },
+  { id: 'finalCheck', label: 'Final check', icon: '✅', verb: 'Final check', question: 'GO or NO-GO for launch?', phase: 'Flight readiness review', owner: 'director',
     answered: (s) => !!s.simulation },
   { id: 'operations', label: 'Mission', icon: '🛰️', verb: 'Fly the mission', question: 'Your satellite is flying!', phase: 'Operations', owner: 'flight',
     answered: (s) => !!s.simulation?.complete },
@@ -35,7 +44,7 @@ if (STEPS.map((s) => s.id).join() !== SCREENS.join()) throw new Error('steps.js 
 
 export const getStep = (id) => STEPS.find((s) => s.id === id) ?? STEPS[0];
 
-/** Steps visible in the step list for this state (Easy hides "Brains & steering"). */
+/** Steps visible in the step list for this state (Easy hides "Bus systems": the kit comes from the research build). */
 export const visibleSteps = (state) => STEPS.filter((s) => s.id !== 'start' && !s.skip?.(state));
 
 export function isReachable(id, state) {

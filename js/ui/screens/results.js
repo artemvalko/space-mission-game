@@ -4,11 +4,15 @@
 
 import { mount, h, s } from '../dom.js';
 import { getScenario } from '../../data/scenarios.js';
-import { getOrbit } from '../../data/orbits.js';
 import { getComponent } from '../../data/components.js';
 import { getInstrument } from '../../data/instruments.js';
 import { getNoGoReason, ROLES } from '../../data/roles.js';
-import { matchRealMissions } from '../../engine/matching.js';
+import { matchRealMissions, alternativeArchitectures } from '../../engine/matching.js';
+import { checkClaim, constellationStatus } from '../../engine/objectives.js';
+import { computeResources, getSelection } from '../../engine/resources.js';
+import { sourceLinks, dataBadge } from '../card.js';
+import { constellationFix } from '../animations/constellation.js';
+import { kg } from '../../utils/format.js';
 import { describeOutcome, effectsSummary } from '../../engine/outcome.js';
 import { eventLog } from '../../engine/scoring.js';
 import { attemptRecord, teamNameOf } from '../../engine/attempt.js';
@@ -26,7 +30,7 @@ let shareUrl = null; // view-only
 function header(state, score, d) {
   const scenario = getScenario(state.scenarioId);
   const patch = s('svg', { viewBox: '-120 -120 240 240', class: 'results-patch', role: 'img', 'aria-label': 'Mission patch' },
-    missionPatch({ name: scenario.name, team: teamNameOf(state), orbitId: state.design.orbitId, r: 110, cracked: !score.success }));
+    missionPatch({ name: scenario.name, team: teamNameOf(state), orbitId: state.design.orbitId ?? 'leo_550', r: 110, cracked: !score.success }));
   return h('div', { class: ['results-hero', `outcome-${score.outcome}`] }, [
     patch,
     h('div', { class: 'results-grade', 'aria-label': `Grade ${score.grade}` }, score.grade),
@@ -60,10 +64,15 @@ function wellHurt(score) {
 function objectivesPanel(score, state) {
   return h('div', { class: 'results-grid' }, [
     h('section', { class: 'panel' }, [
-      h('h2', {}, '🎯 Mission objectives'),
+      h('h2', {}, ['🎯 Mission KPIs & objectives', h('span', { class: 'simulated-tag' }, 'simulated mission output')]),
       h('ul', { class: 'checklist' }, score.objectives.map((o) => h('li', { class: o.met ? 'ok' : 'bad' }, [
-        h('strong', {}, `${o.met ? '✓' : '✗'} ${o.icon} ${o.label}`), h('div', { class: 'muted small' }, o.why),
+        h('strong', {}, `${o.met ? '✓' : '✗'} ${o.icon} ${o.label}${o.kpi ? ' (KPI)' : ''}`), h('div', { class: 'muted small' }, o.why),
       ]))),
+      state.scenarioId === 'mission_navigation_meo' && (() => {
+        const c = constellationStatus(1);
+        return h('div', { class: 'small' }, [h('strong', {}, `${score.stats.satelliteSuccess ? '✓' : '✗'} satellite_success`), ' — your one satellite doing its own job. ',
+          h('strong', {}, '✗ constellation_success'), ` — ${c.why} That is what the full constellation adds.`]);
+      })(),
     ]),
     h('section', { class: 'panel' }, [
       h('h2', {}, state.mode === 'team' ? '👥 Personal goals' : '🎩 Role goals (all hats)'),
@@ -88,34 +97,85 @@ function badgesPanel(state, score, sim) {
   ]);
 }
 
-function eventsPanel(sim) {
+function eventsPanel(sim, state) {
   const log = eventLog(sim);
   const name = (id) => getComponent(id)?.plainName ?? getInstrument(id)?.plainName;
   return h('section', { class: 'panel' }, [
-    h('h2', {}, '📜 Mission log'),
+    h('h2', {}, ['📜 Mission log', h('span', { class: 'simulated-tag' }, 'simulated events')]),
     log.length === 0
       ? h('p', { class: 'muted' }, sim.reachedOrbit ? 'A quiet mission — no events.' : 'The mission ended before anything happened in space.')
       : h('ol', { class: 'event-log' }, log.map((e) => h('li', {}, [
         h('div', {}, [h('strong', {}, `${e.month === 0 ? 'Before launch' : `Month ${e.month}`}: ${e.title}`), e.itemId ? ` (${name(e.itemId)})` : '']),
         h('div', { class: 'small' }, [h('em', {}, `Decision: ${e.choice}. `), e.explanation]),
-        h('div', { class: 'event-effects' }, effectsSummary(e.effects).map((x) => h('span', { class: ['fx', x.good ? 'fx-good' : 'fx-bad'] }, x.text))),
+        h('div', { class: 'event-effects' }, effectsSummary(e.effects, getScenario(state.scenarioId)?.costModel.reserve).map((x) => h('span', { class: ['fx', x.good ? 'fx-good' : 'fx-bad'] }, x.text))),
       ]))),
   ]);
 }
 
+/** "Your design vs the real thing": your (model) build next to the matched real mission (facts, sourced). */
 function realMissions(state) {
   const matches = matchRealMissions(state, 2);
+  const res = computeResources(state);
+  const sel = getSelection(state);
+  const mine = [
+    ['Frame', sel.components.structure?.plainName ?? '—'],
+    ['Mass', `${kg(res.mass.used)}${res.mass.reserveFraction ? ' (incl. 15% reserve)' : ''}`],
+    ['Orbit', sel.orbit ? `${sel.orbit.plainName}` : '—'],
+    ['Payload', sel.instruments.map((i) => i.plainName).join(', ') || '—'],
+    ['Launch', sel.launcher?.plainName ?? '—'],
+    ['Budget', `${money(res.budget.used)} of ${money(sel.scenario.budgetM)}`],
+  ];
   return h('section', { class: 'panel' }, [
-    h('h2', {}, '🛰️ Real missions like yours'),
-    matches.length === 0
-      ? h('p', { class: 'muted' }, 'Your design is one of a kind — no real mission matches its orbit or instruments.')
-      : h('div', { class: 'card-grid' }, matches.map(({ mission: m, sharedTags, reason }) => h('div', { class: 'card real-mission' }, [
-        h('div', { class: 'card-title' }, m.name),
-        h('div', { class: 'card-subtitle' }, `${m.agency} · launched ${m.launchYear} · ${getOrbit(m.orbitId)?.plainName ?? m.orbitId}`),
+    h('h2', {}, '🛰️ Your design vs the real thing'),
+    matches.length === 0 ? h('p', { class: 'muted' }, 'No real analog for this mission.') : h('div', { class: 'card-grid' }, [
+      h('div', { class: 'card real-mission' }, [
+        h('div', { class: 'card-title' }, ['Your design ', dataBadge('model')]),
+        h('table', { class: 'compare-real' }, h('tbody', {}, mine.map(([k, v]) => h('tr', {}, [h('th', {}, k), h('td', {}, v)])))),
+        h('p', { class: 'small muted' }, 'Your numbers come from the research\'s educational build list — estimates, not official specs.'),
+      ]),
+      ...matches.map(({ mission: m }) => h('div', { class: 'card real-mission' }, [
+        h('div', { class: 'card-title' }, [m.name, ' ', dataBadge('fact')]),
+        h('div', { class: 'card-subtitle' }, `${m.agency} · ${m.orbitText}`),
+        h('table', { class: 'compare-real' }, h('tbody', {}, m.facts.map(([k, v]) => h('tr', {}, [h('th', {}, k), h('td', {}, v)])))),
         h('p', { class: 'card-desc' }, m.description),
-        h('div', {}, m.tags.map((t) => h('span', { class: ['tag', sharedTags.includes(t) ? 'tag-ok' : 'tag-plain'] }, t))),
-        h('p', { class: 'small ok-text' }, reason),
-      ]))),
+        h('p', { class: 'small' }, sourceLinks(m.sources)),
+      ])),
+    ]),
+  ]);
+}
+
+/** The mission's "impossible claim" lesson (+ for navigation: 1 satellite → no fix, 4 → fix). */
+function lessonCard(state) {
+  const sc = getScenario(state.scenarioId);
+  const claim = sc.impossibleClaim;
+  const check = checkClaim(state, claim.id);
+  const box = sc.id === 'mission_navigation_meo' ? h('div', { class: 'map-box' }) : null;
+  if (box) queueMicrotask(() => constellationFix(box, {}));
+  const extra = sc.id === 'mission_weather_mw' ? checkClaim(state, 'hourly_cyclone_revisit') : null;
+  return h('section', { class: 'panel lesson-card' }, [
+    h('h2', {}, `💡 Lesson: ${claim.title}`),
+    h('p', {}, claim.text),
+    h('p', { class: 'small' }, [h('strong', {}, `✗ "${claim.id === 'global_3d_fix' ? 'One satellite gives everyone a 3D position' : claim.id === 'global_24_7' ? 'One satellite gives 24/7 worldwide service' : 'One short mission proves a climate trend'}" — `), check.why]),
+    extra && h('p', { class: 'small' }, [h('strong', {}, '✗ "Every tropical storm, every hour" — '), extra.why]),
+    box,
+  ]);
+}
+
+/** Other correct architectures for the same goal (info only, sourced). */
+function alternativesCard(state) {
+  const alts = alternativeArchitectures(state);
+  if (!alts.length) return null;
+  return h('section', { class: 'panel' }, [
+    h('h2', {}, '🧭 Alternative correct architectures'),
+    h('p', { class: 'muted small' }, 'Different, also-correct ways to approach this goal — for information. Not scored.'),
+    h('div', { class: 'card-grid' }, alts.map((m) => h('div', { class: 'card real-mission' }, [
+      h('div', { class: 'card-title' }, [m.name, ' ', dataBadge('fact')]),
+      h('div', { class: 'card-subtitle' }, `${m.agency} · ${m.orbitText}`),
+      h('ul', { class: 'small' }, m.facts.map(([k, v]) => h('li', {}, `${k}: ${v}`))),
+      h('p', { class: 'card-desc' }, m.description),
+      m.lesson && h('p', { class: 'small ok-text' }, m.lesson),
+      h('p', { class: 'small' }, sourceLinks(m.sources)),
+    ]))),
   ]);
 }
 
@@ -136,7 +196,7 @@ function compare(state) {
     ['Rocket fullness', prev.summary.massPct, cur.summary.massPct, p, dp, true],
     ['Power used', prev.summary.powerPct, cur.summary.powerPct, p, dp, true],
     ['Data lost', prev.summary.dataLost, cur.summary.dataLost, p, dp, true],
-    ['Science collected', prev.summary.science, cur.summary.science, n, dn, false],
+    ['Mission KPIs met', prev.summary.kpiShare ?? 0, cur.summary.kpiShare, p, dp, false],
   ];
   return h('section', { class: 'panel' }, [
     h('h2', {}, '🔁 Compare attempts'),
@@ -182,15 +242,18 @@ export function render(container, state, dispatch) {
   mount(container,
     h('div', { class: 'print-only print-title' }, `Mission report — ${getScenario(state.scenarioId).name} — ${teamNameOf(state)} — ${new Date().toLocaleDateString()}`),
     header(state, score, d),
+    score.noGo && h('p', { class: 'step-hint' }, '⛔ This design was NO-GO. It was only simulated to show what physics would do — recorded as a failed mission. Real missions never launch with a failed hard gate.'),
     breakdown(score),
     wellHurt(score),
     score.tips.length > 0 && h('section', { class: 'panel tips' }, [h('h2', {}, '💡 Try this next time'), h('ol', {}, score.tips.map((t) => h('li', {}, t)))]),
     d.tip && !score.success && h('p', { class: 'step-hint' }, ['🧑‍🚀 Flight Director: ', d.tip]),
     badgesPanel(state, score, sim),
     objectivesPanel(score, state),
-    eventsPanel(sim),
+    lessonCard(state),
+    eventsPanel(sim, state),
     renderGallery(state),
     realMissions(state),
+    alternativesCard(state),
     compare(state),
     actions(state, dispatch),
   );

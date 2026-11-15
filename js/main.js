@@ -15,6 +15,8 @@ import { hidePopover } from './ui/tooltip.js';
 import { setRerender } from './ui/view.js';
 import { h, mount } from './ui/dom.js';
 import { isMuted, setMuted } from './ui/sound.js';
+import { SOURCES, DATA_KIND, DATA_LIMITATIONS } from './data/sources.js';
+import { dataBadge } from './ui/card.js';
 
 const store = createStore(reducer, createInitialState());
 const { dispatch } = store;
@@ -32,6 +34,28 @@ const NO_SIDEBAR = new Set(['start', 'pickMission', 'operations', 'results']);
 const NO_CHROME = new Set(['start']);
 
 let lastScreen = null;
+let sourcesOpen = false; // view-only: "Sources & data honesty" panel
+
+/** Header panel: every source (S01–S34) + the honest limits of the data (research §12, §12.1). */
+function sourcesPanel() {
+  if (!sourcesOpen) return null;
+  const close = () => { sourcesOpen = false; render(); };
+  return h('div', { class: 'modal-backdrop', onClick: (e) => { if (e.target === e.currentTarget) close(); } },
+    h('div', { class: 'modal sources-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Sources and data honesty' }, [
+      h('h2', {}, '📚 Sources & data honesty'),
+      h('p', {}, 'Every number in this game comes from our research document. Each card says what kind of number it is:'),
+      h('ul', {}, Object.keys(DATA_KIND).map((k) => h('li', {}, [dataBadge(k), ' ', DATA_KIND[k].text]))
+        .concat(h('li', {}, [dataBadge('rfq'), ' No public price exists — the game never invents one.']))),
+      h('p', {}, h('span', { class: 'simulated-tag' }, 'simulated'), ' Events and mission output (packets, measurements, pictures) are simulated for the game. Real NASA/NOAA data is always labelled real.'),
+      h('h3', {}, 'Honest limits of the data'),
+      h('ul', { class: 'small' }, DATA_LIMITATIONS.map((t) => h('li', {}, t))),
+      h('h3', {}, `Sources (${SOURCES.length})`),
+      h('table', {}, [h('thead', {}, h('tr', {}, [h('th', {}, 'Code'), h('th', {}, 'Source'), h('th', {}, 'What it confirms')])),
+        h('tbody', {}, SOURCES.map((src) => h('tr', {}, [h('td', {}, src.code), h('td', {}, h('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, src.title)), h('td', {}, src.confirms)])))]),
+      h('p', { class: 'small muted' }, 'Sources checked on 15 November 2026. Prices change; a catalog price is never a quote for a whole mission.'),
+      h('div', { class: 'button-row' }, h('button', { class: 'btn btn-primary', type: 'button', key: 'sources-close', onClick: close }, 'Close')),
+    ]));
+}
 
 function render(state = store.getState()) {
   // Remember which control had focus so keyboard users keep their place after re-render.
@@ -51,8 +75,13 @@ function render(state = store.getState()) {
   mount(els.actions,
     state.mode === 'team' && h('span', { class: 'muted small' }, `👥 ${state.players.map((p) => p.name).join(', ')}`),
     h('span', { class: 'pill' }, state.difficulty === 'easy' ? '🙂 Easy' : '🧠 Normal'),
+    h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'sources', onClick: () => { sourcesOpen = true; render(); } }, '📚 Sources & data honesty'),
     h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'mute', 'aria-pressed': isMuted() ? 'true' : 'false', 'aria-label': isMuted() ? 'Sound off — turn on' : 'Sound on — mute', onClick: () => { setMuted(!isMuted()); render(); } }, isMuted() ? '🔇' : '🔊'),
   );
+
+  document.getElementById('sources-host')?.remove();
+  const panel = sourcesPanel();
+  if (panel) { panel.id = 'sources-host'; document.body.append(panel); }
 
   if (state.screen !== lastScreen) {
     // Smooth "warp" into a new step (CSS animation; disabled for reduced motion).
@@ -75,6 +104,7 @@ document.addEventListener('pointermove', (e) => {
   card.style.setProperty('--tx', `${(((e.clientX - r.left) / r.width) - 0.5) * 8}deg`);
   card.style.setProperty('--ty', `${(0.5 - ((e.clientY - r.top) / r.height)) * 8}deg`);
 });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sourcesOpen) { sourcesOpen = false; render(); } });
 document.addEventListener('pointerout', (e) => {
   const card = e.target.closest?.('.choice');
   if (card && !card.contains(e.relatedTarget)) { card.style.removeProperty('--tx'); card.style.removeProperty('--ty'); }

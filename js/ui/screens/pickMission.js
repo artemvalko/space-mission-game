@@ -1,28 +1,28 @@
-// Step 1 — Pick a mission: illustrated cards (icon, one line, difficulty stars, budget only).
+// Step 1 — Pick a mission: three big cards (icon, one line, difficulty, model budget, real inspiration).
 
 import { mount, h } from '../dom.js';
-import { choiceCard } from '../card.js';
+import { choiceCard, dataBadge } from '../card.js';
 import { SCENARIOS, getScenario, EASY_DEFAULT_SCENARIO } from '../../data/scenarios.js';
 import { selectScenario } from '../../state/actions.js';
-import { money, months, years, num } from '../../utils/format.js';
+import { money } from '../../utils/format.js';
 
-const stars = (n) => (n === 0 ? 'Free play' : '★'.repeat(n) + '☆'.repeat(3 - n));
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
 
 export function render(container, state, dispatch) {
   const current = getScenario(state.scenarioId);
-  mount(container, 
+  mount(container,
     h('div', { class: 'choices choices-wide' }, SCENARIOS.map((sc) => choiceCard({
       key: `scenario-${sc.id}`,
       icon: sc.icon,
       title: sc.name,
       oneLiner: sc.oneLiner,
-      badges: [
-        ...(state.difficulty === 'easy' && sc.id === EASY_DEFAULT_SCENARIO ? ['Start here'] : []),
-      ],
+      badges: [...(state.difficulty === 'easy' && sc.id === EASY_DEFAULT_SCENARIO ? ['Start here'] : [])],
       extra: h('div', { class: 'mission-meta' }, [
         h('span', { class: 'stars', 'aria-label': `Difficulty ${sc.stars} of 3` }, stars(sc.stars)),
-        !sc.sandbox && h('span', {}, `💰 ${money(sc.budgetM)}`),
+        h('span', {}, [`💰 ${money(sc.budgetM)} `, dataBadge('model')]),
+        h('div', { class: 'small muted' }, `Real mission inspiration: ${sc.realInspiration}`),
       ]),
+      data: sc,
       selected: sc.id === state.scenarioId,
       onSelect: () => dispatch(selectScenario(sc.id)),
     }))),
@@ -30,8 +30,10 @@ export function render(container, state, dispatch) {
       h('div', { class: 'brief-icon', 'aria-hidden': 'true' }, current.icon),
       h('div', {}, [
         h('p', { class: 'brief-text' }, current.brief),
-        !current.sandbox && h('p', { class: 'muted' },
-          `You have ${money(current.budgetM)} and ${months(current.deadlineMonths).replace(' mo', ' months')} to build it. It must work for ${years(current.minLifetimeYears).replace(' yr', ' years')} and collect ${num(current.minScience)} science points a year.`),
+        h('p', { class: 'muted' }, [h('strong', {}, 'Goal: '), current.objective]),
+        h('p', { class: 'muted small' }, [`Model budget ${money(current.budgetM)} `, dataBadge('model'),
+          current.deadlineMonths ? ` · planning window ${current.deadlineMonths[0]}–${current.deadlineMonths[1]} months` : '',
+          ' · Lesson: ', h('strong', {}, current.impossibleClaim.title)]),
       ]),
     ]),
   );

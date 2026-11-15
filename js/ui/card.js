@@ -8,6 +8,32 @@ import { reducer } from '../state/reducer.js';
 import { computeResources } from '../engine/resources.js';
 import { formatDelta } from '../engine/explain.js';
 import { sound } from './sound.js';
+import { getSource, DATA_KIND } from '../data/sources.js';
+
+/** Data-honesty badge: ✔ Real fact · 🏷 Catalog price · ≈ Estimate (or ✉️ RFQ). */
+export function dataBadge(kind) {
+  if (kind === 'rfq') return h('span', { class: 'data-badge data-rfq', title: 'No public price — a real mission asks the operator for a quote.' }, '✉️ Price on request (RFQ)');
+  const k = DATA_KIND[kind];
+  return k ? h('span', { class: `data-badge data-${k.cls}`, title: k.text }, `${k.icon} ${k.label}`) : null;
+}
+
+/** "Source: S04 · S05 · research §4.3" with links that open in a new tab. */
+export function sourceLinks(codes = [], ref = null) {
+  const links = codes.map(getSource).filter(Boolean).map((src) => h('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer', title: `${src.title} — ${src.confirms}`, class: 'src-link' }, src.code));
+  if (!links.length && !ref) return null;
+  const sep = (arr) => arr.flatMap((x, i) => (i ? [' · ', x] : [x]));
+  return h('span', { class: 'sources' }, ['Source: ', ...sep(links), ref ? `${links.length ? ' · ' : ''}research ${ref}` : '']);
+}
+
+/** Provenance block for a data item: badge + sources + optional real product example. */
+export function provenance(item) {
+  if (!item) return null;
+  const re = item.realExample;
+  return h('div', { class: 'provenance' }, [
+    h('div', { class: 'prov-row' }, [dataBadge(item.dataKind), ' ', sourceLinks(item.sources, item.ref)]),
+    re && h('div', { class: 'real-example' }, [dataBadge(re.dataKind), h('strong', {}, ' Real product example: '), re.text, ' ', sourceLinks(re.sources)]),
+  ]);
+}
 
 /** "What if I dispatched this?" → "+40 kg, +120 W, +$15M" */
 export function previewDelta(state, action, before = computeResources(state)) {
@@ -53,6 +79,8 @@ export function meter({ label, symbol = '●', level, text }) {
  * @param {string|Function} [o.why]
  * @param {Function} o.onSelect
  * @param {Node} [o.art]           optional picture (SVG) at the top
+ * @param {string} [o.whatFor]     "What is it for?" line
+ * @param {object} [o.data]        item with dataKind / sources / ref / realExample → badge + source link in Details
  */
 export function choiceCard(o) {
   const meters = (o.meters ?? []).slice(0, 3); // rule: never more than 3 stats by default
@@ -79,12 +107,14 @@ export function choiceCard(o) {
     ]),
     (o.badges?.length ?? 0) > 0 && h('div', { class: 'badges' }, o.badges.map((b) => h('span', { class: `badge badge-${b.replace(/[^a-z-]/gi, '').toLowerCase()}` }, b))),
     h('p', { class: 'choice-one' }, o.disabled && o.disabledReason ? o.disabledReason : o.oneLiner),
+    o.whatFor && h('p', { class: 'choice-whatfor' }, [h('strong', {}, 'What is it for? '), o.whatFor]),
     meters.length > 0 && h('div', { class: 'meters' }, meters.map(meter)),
     o.extra,
     h('div', { class: 'choice-foot' }, [
-      o.details?.length ? h('details', { class: 'choice-details' }, [
-        h('summary', {}, 'Details'),
-        h('dl', {}, o.details.map(([k, v]) => h('div', {}, [h('dt', {}, k), h('dd', {}, v)]))),
+      o.details?.length || o.data ? h('details', { class: 'choice-details' }, [
+        h('summary', {}, ['Details ', o.data && dataBadge(o.data.dataKind)]),
+        o.details?.length && h('dl', {}, o.details.map(([k, v]) => h('div', {}, [h('dt', {}, k), h('dd', {}, v)]))),
+        o.data && provenance(o.data),
       ]) : h('span'),
       o.why && whyButton(o.whyTitle ?? o.title, o.why),
     ]),

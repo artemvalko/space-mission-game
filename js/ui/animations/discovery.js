@@ -1,4 +1,4 @@
-// Scene 13 — Unexpected discovery: sparkle burst around the satellite, science counter jumps.
+// Scene 13 — Rare storm in view (weather, simulated event): sparkle burst around the satellite.
 
 import { s } from '../dom.js';
 import { sound } from '../sound.js';
@@ -6,14 +6,14 @@ import { play, seg, ease, setT } from './core.js';
 
 const STAR = '0,-10 2.5,-3 10,-3 4,2 6,10 0,5 -6,10 -4,2 -10,-3 -2.5,-3';
 
-export function discovery(container, { x = 500, y = 160, phase = 'intro', bonus = '+25% science', caption, linger = 1800 } = {}) {
+export function discovery(container, { x = 500, y = 160, phase = 'intro', bonus = '+5% service', caption, linger = 1800 } = {}) {
   const intro = phase === 'intro';
   return play(container, {
     onStart: () => { if (phase === 'intro') sound.radio(); },
-    scene: intro ? 'discovery' : 'discovery-outcome', overlay: true, label: 'Unexpected discovery', duration: intro ? 2000 : 1600, caption, linger: intro ? 0 : linger,
+    scene: intro ? 'discovery' : 'discovery-outcome', overlay: true, label: 'A huge storm in view', duration: intro ? 2000 : 1600, caption, linger: intro ? 0 : linger,
     setup({ svg }) {
       const stars = Array.from({ length: 14 }, (_, i) => ({ node: s('polygon', { points: STAR, class: 'an-sparkle' }), a: (i / 14) * Math.PI * 2, d: 40 + (i % 3) * 22 }));
-      const label = s('text', { x, y, class: 'an-bonus', 'text-anchor': 'middle', opacity: 0 }, intro ? '✨ Something new!' : bonus);
+      const label = s('text', { x, y, class: 'an-bonus', 'text-anchor': 'middle', opacity: 0 }, intro ? '🌀 Huge storm in view!' : bonus);
       svg.append(...stars.map((st) => st.node), label);
       return {
         frame(t, ms) {

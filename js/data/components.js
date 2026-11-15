@@ -1,209 +1,247 @@
-// Spacecraft bus components. Numbers are game-balanced, loosely inspired by real hardware.
-// Schema: { id, category, name, tier, formFactor?: 'cubesat', mass (kg), power (W consumed), cost ($M),
-//           reliability (0–1), devMonths, description, ...categoryFields }
+// Spacecraft bus parts — every row of the three research build lists (BOMs: §3.2, §4.3, §5.3).
+// REAL DATA ONLY: every number comes from docs/NASA_Hackathon_Mission_Control_Deep_Research_UA.md.
+//
+// Schema: { id, category, icon, plainName, name (real engineering term), oneLiner, why ("What is it for?"),
+//           mass (kg) | null, cost ($M) | null, costByMission?: { [scenarioId]: $M },
+//           formFactor: 'cubesat' | 'large', missions: [scenarioId], status: 'must'|'recommended',
+//           dataKind: 'fact'|'catalog'|'model', sources: ['Sxx'], ref: research section,
+//           realExample?: { text, dataKind, sources }  ← shown in Details, never mixed into the model price
+//           …category fields (maxMassKg, units, arrayW, capacityWh, rateMbps, …) }
+// mass/cost null = not given in the research (shown as "not in our data", counted as 0 and flagged).
 
+export const M_COMMS = 'mission_comms_iot';
+export const M_NAV = 'mission_navigation_meo';
+export const M_WX = 'mission_weather_mw';
+
+// Bus categories in design.components. Research §7.1 names in CATEGORY_PLAIN[...].researchCategory.
 export const COMPONENT_CATEGORIES = [
-  'structure', 'power', 'battery', 'comms', 'computer', 'adcs', 'propulsion',
+  'structure', 'power', 'battery', 'comms', 'downlink', 'computer', 'adcs', 'thermal', 'sensors', 'harness', 'propulsion', 'propellant',
 ];
 
+// Categories a working satellite cannot fly without (research §8.5 "bus_support_complete").
+export const REQUIRED_BUS = ['structure', 'power', 'battery', 'comms', 'computer', 'adcs', 'thermal', 'harness'];
+
+// A category may also hold the value 'none' (the player chose to leave it out on purpose).
+export const NONE = 'none';
+
 export const CATEGORY_LABELS = {
-  structure: 'Structure',
-  power: 'Power Source',
-  battery: 'Battery',
-  comms: 'Communications',
-  computer: 'Flight Computer',
-  adcs: 'Attitude Control (ADCS)',
-  propulsion: 'Propulsion',
+  structure: 'Structure', power: 'Solar array + EPS', battery: 'Battery', comms: 'TT&C radio', downlink: 'Service / science downlink',
+  computer: 'On-board computer', adcs: 'Attitude control (ADCS)', thermal: 'Thermal control', sensors: 'Orbit & time sensors',
+  harness: 'Harness & integration', propulsion: 'On-board propulsion', propellant: 'On-board propellant',
 };
 
+const MODEL = 'model';
+
 export const COMPONENTS = [
-  // ── Structure: maxPayloadMass (kg of instruments it can carry)
+  // ── Structure. maxMassKg = typical CubeSat limit (fact S01); units = CubeSat size.
   {
-    id: 'str_compact', icon: "📦", plainName: "Small satellite", oneLiner: "Light and cheap. Carries up to 60 kg of science tools.", category: 'structure', name: 'Compact Aluminium Bus', tier: 'basic',
-    mass: 60, power: 0, cost: 5, reliability: 0.995, devMonths: 12, maxPayloadMass: 60,
-    description: 'Small and cheap frame. Fits a couple of light instruments.',
+    id: 'str_cube_3u', category: 'structure', icon: '🧊', plainName: 'CubeSat 3U', name: 'CubeSat 3U structure', formFactor: 'cubesat', units: 3, maxMassKg: 6,
+    mass: null, cost: null, missions: [], dataKind: 'fact', sources: ['S01'], ref: '§1.1',
+    oneLiner: 'Loaf-sized: up to 6 kg and 3 units of room.', why: 'The skeleton that holds everything and survives the launch.',
   },
   {
-    id: 'str_honeycomb', icon: "🛰️", plainName: "Medium satellite", oneLiner: "The everyday workhorse. Carries up to 180 kg of tools.", category: 'structure', name: 'Honeycomb Mid-Size Bus', tier: 'basic',
-    mass: 150, power: 0, cost: 12, reliability: 0.995, devMonths: 18, maxPayloadMass: 180,
-    description: 'Workhorse frame used by many Earth-observation satellites.',
+    id: 'str_6u', category: 'structure', icon: '🧊', plainName: 'CubeSat 6U frame', name: '6U structure + mechanical interfaces', formFactor: 'cubesat', units: 6, maxMassKg: 12, reserveFraction: 0.15,
+    mass: 1.10, cost: 0.06, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: ['S01'], ref: '§3.2',
+    oneLiner: 'Shoebox-sized: up to 12 kg in a standard dispenser.', why: 'Holds the electronics and survives the launch.',
   },
   {
-    id: 'str_composite', icon: "🏗️", plainName: "Large satellite", oneLiner: "Big and stiff — for telescopes and radars. Heavy and pricey.", category: 'structure', name: 'Carbon-Composite Large Bus', tier: 'advanced',
-    mass: 260, power: 0, cost: 28, reliability: 0.99, devMonths: 24, maxPayloadMass: 450,
-    description: 'Stiff, large frame for big telescopes and heavy radar payloads.',
-  },
-
-  // ── Power: type, outputW (solar output is at 1 AU, full sunlight)
-  {
-    id: 'pwr_body_solar', icon: "☀️", plainName: "Solar cells on the body", oneLiner: "Cheap and light, but small — and dark in Earth's shadow.", category: 'power', name: 'Body-Mounted Solar Panels', tier: 'basic',
-    mass: 15, power: 0, cost: 3, reliability: 0.99, devMonths: 8, type: 'solar', outputW: 300,
-    description: 'Solar cells glued to the spacecraft body. Simple, but limited area.',
+    id: 'str_6u_weather', category: 'structure', icon: '🧊', plainName: 'CubeSat 6U frame', name: '6U structure (weather build)', formFactor: 'cubesat', units: 6, maxMassKg: 12, reserveFraction: 0.15,
+    mass: 1.10, cost: 0.07, missions: [M_WX], status: 'must', dataKind: MODEL, sources: ['S01', 'S07'], ref: '§5.3',
+    oneLiner: 'Shoebox-sized: 4U for the radiometer + 2U for the bus.', why: 'Room for the 4U radiometer and the bus systems.',
   },
   {
-    id: 'pwr_deploy_solar', icon: "🔆", plainName: "Fold-out solar wings", oneLiner: "Lots of power in sunlight. Must unfold correctly in space.", category: 'power', name: 'Deployable Solar Arrays', tier: 'basic',
-    mass: 45, power: 0, cost: 10, reliability: 0.97, devMonths: 12, type: 'solar', outputW: 1200,
-    description: 'Fold-out wings with lots of area. Must unfold correctly after launch.',
+    id: 'str_cube_12u', category: 'structure', icon: '🧊', plainName: 'CubeSat 12U', name: 'CubeSat 12U structure', formFactor: 'cubesat', units: 12, maxMassKg: 24,
+    mass: null, cost: null, missions: [], dataKind: 'fact', sources: ['S01', 'S32'], ref: '§1.1',
+    oneLiner: 'Two shoeboxes: up to 24 kg. ESA Celeste IOD-1 is a real 12U.', why: 'A bigger CubeSat for heavier payloads.',
   },
   {
-    id: 'pwr_rtg', icon: "☢️", plainName: "Nuclear battery (RTG)", oneLiner: "Works in the dark and far from the Sun. Very heavy and very expensive.", category: 'power', name: 'Radioisotope Generator (RTG)', tier: 'advanced',
-    mass: 80, power: 0, cost: 70, reliability: 0.995, devMonths: 30, type: 'rtg', outputW: 450,
-    description: 'Turns heat from decaying plutonium into electricity. Works anywhere, day or night — heavy and very expensive.',
+    id: 'str_gnss_meo', category: 'structure', icon: '🏗️', plainName: 'Galileo-class bus (~700 kg)', name: 'Reinforced structure + radiation shielding', formFactor: 'large', units: null, reserveFraction: 0, targetMassKg: 700,
+    mass: 150, cost: 22, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: ['S04'], ref: '§4.3',
+    oneLiner: 'A ~700 kg class navigation satellite body built for 12+ years in MEO.', why: 'Long MEO service and mechanical stability.',
+    realExample: { text: 'Real Galileo FOC satellites weigh about 700–733 kg at launch and are designed for more than 12 years.', dataKind: 'fact', sources: ['S04'] },
   },
 
-  // ── Battery: capacityWh
+  // ── Solar array + EPS (power generation). arrayW = output in full sunlight.
   {
-    id: 'bat_small', icon: "🔋", plainName: "Small battery", oneLiner: "Enough for a light satellite in a short shadow.", category: 'battery', name: 'Li-ion Pack 500 Wh', tier: 'basic',
-    mass: 6, power: 0, cost: 1, reliability: 0.98, devMonths: 6, capacityWh: 500,
-    description: 'Enough for a light satellite through a short eclipse.',
+    id: 'eps_solar_6u', category: 'power', icon: '☀️', plainName: 'Fold-out solar wings + EPS', name: 'Deployable solar array + EPS', formFactor: 'cubesat', arrayW: 38.4,
+    mass: 1.05, cost: 0.16, missions: [M_COMMS, M_WX], status: 'must', dataKind: MODEL, sources: ['S08'], ref: '§3.2 · §3.3',
+    oneLiner: 'Up to 38.4 W in full sunlight; nothing in Earth\'s shadow.', why: 'Makes and distributes electricity.',
+    realExample: { text: 'EnduroSat 6U deployable solar array: $59,000–88,000, 655–1065 g, up to 38.4 W in LEO (S08). A fixed 6U panel: $20,000, 392 g, 19.2 W (S09). Panel prices only — not a full EPS.', dataKind: 'catalog', sources: ['S08', 'S09'] },
   },
   {
-    id: 'bat_medium', icon: "🔋", plainName: "Medium battery", oneLiner: "Keeps a medium satellite running on the night side.", category: 'battery', name: 'Li-ion Pack 1500 Wh', tier: 'basic',
-    mass: 15, power: 0, cost: 3, reliability: 0.98, devMonths: 8, capacityWh: 1500,
-    description: 'Standard choice for medium spacecraft.',
-  },
-  {
-    id: 'bat_large', icon: "🔋", plainName: "Large battery", oneLiner: "For power-hungry tools or long shadows.", category: 'battery', name: 'High-Density Pack 4000 Wh', tier: 'advanced',
-    mass: 30, power: 0, cost: 8, reliability: 0.97, devMonths: 12, capacityWh: 4000,
-    description: 'Large energy store for power-hungry payloads or long eclipses.',
+    id: 'pwr_gnss_solar', category: 'power', icon: '🔆', plainName: 'Big solar wings + EPS', name: 'Large deployable solar arrays + EPS', formFactor: 'large', arrayW: 1600, arrayWMax: 1900,
+    mass: 80, cost: 12, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: ['S04'], ref: '§4.3',
+    oneLiner: '1.6–1.9 kW class arrays for a navigation satellite.', why: 'Power for clocks, signal generator and transmitters.',
+    realExample: { text: 'Real Galileo FOC: about 1.4–1.9 kW of useful power, depending on the batch (S04).', dataKind: 'fact', sources: ['S04', 'S30'] },
   },
 
-  // ── Comms: rateMbps (at LEO reference distance), deepSpace
+  // ── Battery. capacityWh; usable = 60% (depth of discharge).
   {
-    id: 'com_uhf', icon: "📻", plainName: "Simple radio", oneLiner: "Tiny and low-power — too slow for pictures.", category: 'comms', name: 'UHF Patch Antenna', tier: 'basic',
-    mass: 3, power: 10, cost: 2, reliability: 0.99, devMonths: 6, rateMbps: 2, deepSpace: false,
-    description: 'Tiny, low-power radio. Fine for telemetry, too slow for images.',
+    id: 'battery_6u_60wh', category: 'battery', icon: '🔋', plainName: 'Battery 60 Wh', name: 'Li-ion battery 60 Wh', formFactor: 'cubesat', capacityWh: 60,
+    mass: 0.60, cost: 0.05, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: [], ref: '§3.2',
+    oneLiner: 'Keeps the satellite alive in the shadow and during radio peaks.', why: 'Energy for eclipse, launch and peak radio sessions.',
   },
   {
-    id: 'com_xband', icon: "📡", plainName: "Fast radio", oneLiner: "Sends lots of pictures — but only near Earth.", category: 'comms', name: 'X-band Transmitter', tier: 'basic',
-    mass: 12, power: 40, cost: 8, reliability: 0.98, devMonths: 10, rateMbps: 50, deepSpace: false,
-    description: 'Fast downlink for Earth orbit missions.',
+    id: 'battery_6u_80wh', category: 'battery', icon: '🔋', plainName: 'Battery 80 Wh', name: 'Li-ion battery 80 Wh', formFactor: 'cubesat', capacityWh: 80,
+    mass: 0.55, cost: 0.06, missions: [M_WX], status: 'must', dataKind: MODEL, sources: [], ref: '§5.3',
+    oneLiner: 'More energy for the shadow and the sensor\'s power peaks.', why: 'Energy for eclipse and instrument peaks.',
   },
   {
-    id: 'com_hga', icon: "🛰️", plainName: "Big dish antenna", oneLiner: "Talks across deep space. Heavy and pricey.", category: 'comms', name: 'High-Gain Deep Space Antenna', tier: 'advanced',
-    mass: 35, power: 80, cost: 25, reliability: 0.97, devMonths: 20, rateMbps: 150, deepSpace: true,
-    description: 'Big dish that must point precisely at Earth. Talks to the deep-space network.',
-  },
-
-  // ── Computer: storageGB
-  {
-    id: 'cpu_basic', icon: "💻", plainName: "Standard computer", oneLiner: "Cheap. Good enough near Earth.", category: 'computer', name: 'Rad-Tolerant Computer', tier: 'basic',
-    mass: 4, power: 15, cost: 3, reliability: 0.98, devMonths: 8, storageGB: 32,
-    description: 'Commercial parts with shielding. Good enough near Earth.',
-  },
-  {
-    id: 'cpu_radhard', icon: "🛡️", plainName: "Radiation-proof computer", oneLiner: "Survives years of space radiation. Costs more.", category: 'computer', name: 'Rad-Hard Flight Computer', tier: 'advanced',
-    mass: 8, power: 30, cost: 12, reliability: 0.995, devMonths: 16, storageGB: 256,
-    description: 'Built to survive radiation for years. Slower, but very reliable.',
+    id: 'bat_gnss_2500wh', category: 'battery', icon: '🔋', plainName: 'Battery 2.5 kWh', name: 'Redundant battery 2.5 kWh', formFactor: 'large', capacityWh: 2500,
+    mass: 35, cost: 5, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: [], ref: '§4.3',
+    oneLiner: 'Redundant energy store for shadow and safe mode.', why: 'Power in eclipse and in safe mode.',
   },
 
-  // ── ADCS: pointingAccuracy (text), scienceBonus (multiplier)
+  // ── TT&C: controlling the satellite (NOT the mission payload).
   {
-    id: 'adcs_mag', icon: "🧭", plainName: "Basic pointing", oneLiner: "Cheap, but wobbly — blurrier pictures.", category: 'adcs', name: 'Magnetorquers + Sun Sensors', tier: 'basic',
-    mass: 5, power: 10, cost: 2, reliability: 0.99, devMonths: 6,
-    pointingAccuracy: '~2°', scienceBonus: 1.0,
-    description: 'Pushes against Earth\'s magnetic field. Cheap, but wobbly pointing.',
+    id: 'ttc_uhf', category: 'comms', icon: '📻', plainName: 'Control radio (UHF)', name: 'UHF/VHF telemetry & command (TT&C)', formFactor: 'cubesat',
+    mass: 0.30, cost: 0.05, costByMission: { [M_WX]: 0.06 }, missions: [M_COMMS, M_WX], status: 'must', dataKind: MODEL, sources: ['S03', 'S17'], ref: '§3.2 · §5.3',
+    oneLiner: 'Lets the team command the satellite. It is not the mission radio.', why: 'Controlling the satellite — not a replacement for the payload.',
+    realExample: { text: 'GomSpace NanoCom AX100 is a real 24.5 g VHF/UHF transceiver — but on its own it is not the whole TT&C system (S18).', dataKind: 'catalog', sources: ['S18'] },
   },
   {
-    id: 'adcs_rw', icon: "🎯", plainName: "Steady pointing", oneLiner: "Spinning wheels hold the camera steady. Sharper science.", category: 'adcs', name: 'Reaction Wheels + Star Tracker', tier: 'basic',
-    mass: 20, power: 45, cost: 10, reliability: 0.97, devMonths: 14,
-    pointingAccuracy: '~0.01°', scienceBonus: 1.15,
-    description: 'Spinning wheels turn the spacecraft; a camera reads the stars to know where it points.',
-  },
-  {
-    id: 'adcs_fine', icon: "🎯", plainName: "Super-steady pointing", oneLiner: "Telescope-grade steadiness. Best science, high price.", category: 'adcs', name: 'Fine Guidance System', tier: 'advanced',
-    mass: 35, power: 70, cost: 30, reliability: 0.96, devMonths: 24,
-    pointingAccuracy: '~1 arcsecond', scienceBonus: 1.35,
-    description: 'Telescope-grade pointing stability. Sharp images, high price.',
+    id: 'ttc_c_s_band', category: 'comms', icon: '📡', plainName: 'C-band uplink + S-band control', name: 'C-band uplink + S-band TT&C + antennas', formFactor: 'large',
+    mass: 25, cost: 4, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: ['S04'], ref: '§4.3',
+    oneLiner: 'Commands, data and clock corrections from the ground.', why: 'Commands, data and time synchronisation.',
+    realExample: { text: 'Galileo satellites use C-band for the uplink and S-band for telemetry and commands (S04).', dataKind: 'fact', sources: ['S04'] },
   },
 
-  // ── Propulsion: deltaV (m/s), lifetimeBonusYears
+  // ── Service / science downlink (separate from TT&C).
   {
-    id: 'prop_coldgas', icon: "💨", plainName: "Gentle thrusters", oneLiner: "Small puffs of gas. Enough to stay in a low orbit.", category: 'propulsion', name: 'Cold Gas Thrusters', tier: 'basic',
-    mass: 10, power: 5, cost: 3, reliability: 0.99, devMonths: 8, deltaV: 150, lifetimeBonusYears: 1,
-    description: 'Squirts compressed gas. Safe and simple, very little push.',
+    id: 'dl_sband', category: 'downlink', icon: '📶', plainName: 'S-band packet downlink', name: 'S-band transmitter + antenna to the gateway', formFactor: 'cubesat', serves: 'iot',
+    mass: 0.35, cost: 0.12, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: ['S03'], ref: '§3.2',
+    oneLiner: 'Dumps the stored user messages to a ground gateway.', why: 'Sends the stored packets down to Earth.',
   },
   {
-    id: 'prop_hydrazine', icon: "🚀", plainName: "Standard thrusters", oneLiner: "Enough to reach high orbits and dodge debris.", category: 'propulsion', name: 'Hydrazine Monopropellant', tier: 'basic',
-    mass: 40, power: 20, cost: 10, reliability: 0.98, devMonths: 14, deltaV: 1000, lifetimeBonusYears: 3,
-    description: 'Classic satellite thrusters. Enough for orbit keeping and moderate transfers.',
+    id: 'science_sband', category: 'downlink', icon: '📶', plainName: 'S-band science downlink', name: 'S-band downlink + antenna', formFactor: 'cubesat', serves: 'weather', rateMbps: 5,
+    mass: 0.40, cost: 0.14, missions: [M_WX], status: 'must', dataKind: MODEL, sources: ['S03'], ref: '§5.3 · §5.4',
+    oneLiner: '5 Mbps example rate for the measurements.', why: 'Sends the measurements to the science station.',
+  },
+
+  // ── On-board computer.
+  {
+    id: 'obc_6u', category: 'computer', icon: '💻', plainName: 'Computer + packet memory', name: 'On-board computer + packet storage', formFactor: 'cubesat', storesPackets: true,
+    mass: 0.25, cost: 0.10, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: [], ref: '§3.2',
+    oneLiner: 'Stores messages until the next gateway pass.', why: 'Routing, storing and protecting user messages.',
   },
   {
-    id: 'prop_biprop', icon: "🔥", plainName: "Big engine", oneLiner: "Strong enough to brake into orbit at the Moon or Mars.", category: 'propulsion', name: 'Bipropellant Main Engine', tier: 'advanced',
-    mass: 90, power: 40, cost: 25, reliability: 0.97, devMonths: 20, deltaV: 2500, lifetimeBonusYears: 5,
-    description: 'Powerful engine for orbit insertion at the Moon or Mars.',
-  },
-  // ── CubeSat family (formFactor: 'cubesat'). Tiny, cheap, quick to build — and less reliable.
-  // A CubeSat structure only accepts CubeSat-sized parts (checked in engine/validation.js).
-  {
-    id: 'str_cube_3u', icon: "🧊", plainName: "CubeSat 3U", oneLiner: "Loaf-sized. Room for one tiny tool.", category: 'structure', name: 'CubeSat 3U', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.5, power: 0, cost: 0.1, reliability: 0.98, devMonths: 6, maxPayloadMass: 1.5,
-    description: 'Three 10 cm cubes stacked — the size of a loaf of bread. Room for one tiny instrument.',
+    id: 'obc_weather', category: 'computer', icon: '💻', plainName: 'Computer + data buffer', name: 'On-board computer + data buffer', formFactor: 'cubesat', storesPackets: true,
+    mass: 0.30, cost: 0.15, missions: [M_WX], status: 'must', dataKind: MODEL, sources: [], ref: '§5.3',
+    oneLiner: 'Reads the sensor and stores data between passes.', why: 'Storage and sensor read-out.',
   },
   {
-    id: 'str_cube_6u', icon: "🧊", plainName: "CubeSat 6U", oneLiner: "Shoebox-sized. Tiny, cheap and quick to build.", category: 'structure', name: 'CubeSat 6U', tier: 'basic', formFactor: 'cubesat',
-    mass: 1.2, power: 0, cost: 0.2, reliability: 0.98, devMonths: 8, maxPayloadMass: 4,
-    description: 'Shoebox-sized. The most popular size for student and science CubeSats.',
+    id: 'obc_rad_hard', category: 'computer', icon: '🛡️', plainName: 'Radiation-hard computer', name: 'Rad-hard computer, memory, error control', formFactor: 'large',
+    mass: 20, cost: 6, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: [], ref: '§4.3',
+    oneLiner: 'Survives years of MEO radiation.', why: 'Control and navigation-data processing.',
+  },
+
+  // ── ADCS (pointing).
+  {
+    id: 'adcs_6u', category: 'adcs', icon: '🧭', plainName: 'Pointing unit', name: 'Sun/Earth sensors, magnetometers, wheels, magnetorquers', formFactor: 'cubesat',
+    mass: 0.70, cost: 0.18, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: [], ref: '§3.2',
+    oneLiner: 'Keeps the antennas pointed and the satellite steady.', why: 'Points the antennas; keeps it stable.',
   },
   {
-    id: 'str_cube_12u', icon: "🧊", plainName: "CubeSat 12U", oneLiner: "Two shoeboxes. Room for two tiny tools.", category: 'structure', name: 'CubeSat 12U', tier: 'basic', formFactor: 'cubesat',
-    mass: 2.5, power: 0, cost: 0.4, reliability: 0.98, devMonths: 10, maxPayloadMass: 10,
-    description: 'Twice a 6U. Enough room for a small camera plus a second sensor.',
+    id: 'adcs_weather', category: 'adcs', icon: '🎯', plainName: 'Accurate pointing unit', name: 'Relatively precise ADCS', formFactor: 'cubesat',
+    mass: 0.75, cost: 0.26, missions: [M_WX], status: 'must', dataKind: MODEL, sources: [], ref: '§5.3',
+    oneLiner: 'Keeps the scan geometry right.', why: 'Correct scanning geometry.',
   },
   {
-    id: 'pwr_cube_solar', icon: "☀️", plainName: "Mini solar wings", oneLiner: "Small fold-out panels sized for a CubeSat.", category: 'power', name: 'CubeSat Deployable Panels', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.8, power: 0, cost: 0.3, reliability: 0.95, devMonths: 6, type: 'solar', outputW: 40,
-    description: 'Small fold-out panels sized for CubeSats.',
+    id: 'adcs_precision_meo', category: 'adcs', icon: '🎯', plainName: 'Precision pointing', name: 'Gyros, star trackers, reaction wheels', formFactor: 'large',
+    mass: 30, cost: 7, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: ['S05'], ref: '§4.3',
+    oneLiner: 'Keeps the L-band beam pointed at Earth.', why: 'Points the navigation beam at Earth.',
+  },
+
+  // ── Thermal control.
+  {
+    id: 'thermal_6u', category: 'thermal', icon: '🌡️', plainName: 'Thermal control', name: 'Thermal protection + temperature sensors', formFactor: 'cubesat',
+    mass: 0.25, cost: 0.05, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: [], ref: '§3.2',
+    oneLiner: 'Keeps the electronics in a safe temperature range.', why: 'Safe temperatures for the electronics.',
   },
   {
-    id: 'bat_cube', icon: "🔋", plainName: "CubeSat battery", oneLiner: "Phone-style cells for a CubeSat.", category: 'battery', name: 'CubeSat Battery 80 Wh', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.5, power: 0, cost: 0.1, reliability: 0.96, devMonths: 4, capacityWh: 80,
-    description: 'A pack of phone-style lithium cells on a CubeSat card.',
+    id: 'thermal_weather', category: 'thermal', icon: '🌡️', plainName: 'Thermal control', name: 'Thermal control (weather build)', formFactor: 'cubesat',
+    mass: 0.25, cost: 0.10, missions: [M_WX], status: 'must', dataKind: MODEL, sources: ['S07'], ref: '§5.3',
+    oneLiner: 'Keeps the detectors stable — vital for a radiometer.', why: 'Stable detectors.',
   },
   {
-    id: 'com_cube_sband', icon: "📶", plainName: "CubeSat radio", oneLiner: "Palm-sized. Fine for a small camera if you get enough passes.", category: 'comms', name: 'CubeSat S-band Radio', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.3, power: 8, cost: 0.2, reliability: 0.95, devMonths: 6, rateMbps: 2, deepSpace: false,
-    description: 'Palm-sized radio. Fine for a small camera — if you get enough ground passes.',
+    id: 'thermal_meo', category: 'thermal', icon: '🌡️', plainName: 'Radiators, blankets & heaters', name: 'Radiators, MLI, heaters, temperature control', formFactor: 'large',
+    mass: 35, cost: 4, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: ['S05'], ref: '§4.3',
+    oneLiner: 'Atomic clocks need a very stable temperature.', why: 'Temperature stability for the clocks.',
+  },
+
+  // ── Orbit & time sensors.
+  {
+    id: 'gnss_receiver_bus', category: 'sensors', icon: '🛰️', plainName: 'GNSS receiver (own position)', name: 'GNSS receiver for the satellite\'s own orbit', formFactor: 'cubesat',
+    mass: 0.10, cost: 0.04, missions: [M_COMMS], status: 'recommended', dataKind: MODEL, sources: [], ref: '§3.2',
+    oneLiner: 'Tells the satellite where IT is. It does not give navigation to people on Earth.', why: 'Navigation of the spacecraft itself — not a GNSS service.',
   },
   {
-    id: 'cpu_cube', icon: "💻", plainName: "CubeSat computer", oneLiner: "A tiny board. Radiation can make it reboot.", category: 'computer', name: 'CubeSat Flight Computer', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.1, power: 1, cost: 0.05, reliability: 0.94, devMonths: 4, storageGB: 8,
-    description: 'Commercial microcontroller board. Cheap, but radiation can make it reboot.',
+    id: 'sun_orbit_sensors', category: 'sensors', icon: '🧭', plainName: 'Sun / orbit / time sensors', name: 'Sun, orbit and time sensors', formFactor: 'cubesat',
+    mass: 0.25, cost: 0.08, missions: [M_WX], status: 'must', dataKind: MODEL, sources: [], ref: '§5.3',
+    oneLiner: 'Tags every measurement with where and when it was taken.', why: 'Geolocation of every measurement.',
+  },
+
+  // ── Harness & integration.
+  {
+    id: 'harness_mech_6u', category: 'harness', icon: '🔌', plainName: 'Cables & mechanisms', name: 'Harness, mechanisms, mounting reserve', formFactor: 'cubesat',
+    mass: 1.00, cost: 0.12, missions: [M_COMMS], status: 'must', dataKind: MODEL, sources: [], ref: '§3.2',
+    oneLiner: 'Turns a pile of boxes into one working satellite.', why: 'A working, integrated assembly.',
   },
   {
-    id: 'adcs_cube', icon: "🧭", plainName: "CubeSat pointing", oneLiner: "Mini wheels in one small box.", category: 'adcs', name: 'CubeSat ADCS Unit', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.6, power: 3, cost: 0.15, reliability: 0.94, devMonths: 6,
-    pointingAccuracy: '~0.5°', scienceBonus: 1.1,
-    description: 'Mini reaction wheels, magnetorquers and sensors in one small box.',
+    id: 'harness_misc_weather', category: 'harness', icon: '🔌', plainName: 'Cables & mounts', name: 'Harness, mounts, mechanical reserve', formFactor: 'cubesat',
+    mass: 0.70, cost: 0.16, missions: [M_WX], status: 'must', dataKind: MODEL, sources: [], ref: '§5.3',
+    oneLiner: 'Ties the radiometer and the bus together.', why: 'Integration.',
   },
   {
-    id: 'prop_cube', icon: "💨", plainName: "CubeSat thrusters", oneLiner: "A tiny thruster pack for dodging debris.", category: 'propulsion', name: 'CubeSat Cold-Gas Module', tier: 'basic', formFactor: 'cubesat',
-    mass: 0.8, power: 2, cost: 0.2, reliability: 0.95, devMonths: 6, deltaV: 60, lifetimeBonusYears: 0.5,
-    description: 'A tiny thruster pack: enough to dodge debris and tidy up the orbit.',
+    id: 'integration_harness_meo', category: 'harness', icon: '🔌', plainName: 'Cables & integration', name: 'Harness, mounts, mechanical reserves', formFactor: 'large',
+    mass: 25, cost: 5, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: [], ref: '§4.3',
+    oneLiner: 'Makes all systems work together.', why: 'Interaction and compatibility of systems.',
+  },
+
+  // ── On-board propulsion (the satellite's own thrusters — never the rocket's fuel).
+  {
+    id: 'prop_meo_stationkeeping', category: 'propulsion', icon: '💨', plainName: 'Station-keeping thrusters', name: 'Thrusters, valves, lines, tanks (dry)', formFactor: 'large',
+    mass: 12, cost: 5, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: [], ref: '§4.3',
+    oneLiner: 'Corrects the orbit and moves the satellite away at end of life.', why: 'Orbit corrections and disposal.',
+  },
+  {
+    id: 'propellant_meo', category: 'propellant', icon: '🛢️', plainName: 'On-board propellant', name: 'On-board propellant (110 kg)', formFactor: 'large',
+    mass: 110, cost: 1, missions: [M_NAV], status: 'must', dataKind: MODEL, sources: [], ref: '§4.3',
+    oneLiner: 'Fuel for the satellite\'s own manoeuvres — not Falcon 9 fuel.', why: 'Manoeuvres after separation.',
   },
 ];
 
 const byId = new Map(COMPONENTS.map((c) => [c.id, c]));
-export const getComponent = (id) => (id ? byId.get(id) ?? null : null);
+export const getComponent = (id) => (id && id !== NONE ? byId.get(id) ?? null : null);
 export const componentsByCategory = (category) => COMPONENTS.filter((c) => c.category === category);
 export const isCubeSat = (c) => c?.formFactor === 'cubesat';
+/** Model cost of a part for this mission (some research rows differ per mission). */
+export const costFor = (part, scenarioId) => (part ? part.costByMission?.[scenarioId] ?? part.cost : 0);
 
-// Plain-English names for the UI; the real engineering term is shown as a small subtitle.
+// Plain-English names for the UI; real engineering term as a subtitle; research category (§7.1).
 export const CATEGORY_PLAIN = {
-  structure: { icon: '🛰️', plainName: 'Satellite frame', realTerm: 'Structure / spacecraft bus', glossary: 'bus' },
-  power: { icon: '☀️', plainName: 'Power source', realTerm: 'Electrical power subsystem', glossary: 'solarIntensity' },
-  battery: { icon: '🔋', plainName: 'Battery', realTerm: 'Energy storage', glossary: 'eclipse' },
-  comms: { icon: '📡', plainName: 'Radio', realTerm: 'Communications subsystem', glossary: 'dataRate' },
-  computer: { icon: '💻', plainName: 'Computer', realTerm: 'Command & data handling', glossary: 'reliability' },
-  adcs: { icon: '🎯', plainName: 'Pointing system', realTerm: 'ADCS', glossary: 'adcs' },
-  propulsion: { icon: '💨', plainName: 'Thrusters', realTerm: 'Propulsion (delta-v)', glossary: 'deltaV' },
+  structure: { icon: '🛰️', plainName: 'Satellite frame', realTerm: 'Structure', researchCategory: 'structure', glossary: 'bus', whatFor: 'The skeleton that carries everything through launch.' },
+  power: { icon: '☀️', plainName: 'Solar wings', realTerm: 'Power generation (solar array + EPS)', researchCategory: 'power_generation', glossary: 'eclipse', whatFor: 'Makes electricity — but only in sunlight.' },
+  battery: { icon: '🔋', plainName: 'Battery', realTerm: 'Energy storage', researchCategory: 'battery', glossary: 'eclipse', whatFor: 'Keeps the satellite alive in Earth\'s shadow.', noneText: 'No battery — lighter!', noneWhy: 'In sunlight there is enough power, but in the shadow the satellite switches off.' },
+  comms: { icon: '📻', plainName: 'Control radio', realTerm: 'TT&C — telemetry, tracking & command', researchCategory: 'ttc', glossary: 'ttc', whatFor: 'Lets the team on Earth control the satellite.', noneText: 'No control radio', noneWhy: 'Nobody could send commands or hear the satellite\'s health.' },
+  downlink: { icon: '📶', plainName: 'Mission downlink', realTerm: 'Service / science downlink', researchCategory: 'service_downlink', glossary: 'downlink', whatFor: 'Sends the mission\'s data (messages or measurements) to Earth.', noneText: 'No mission downlink', noneWhy: 'The data would stay on board — nothing reaches users.' },
+  computer: { icon: '💻', plainName: 'Computer', realTerm: 'On-board computer (OBC) + flight software', researchCategory: 'computer', glossary: 'bus', whatFor: 'Runs the satellite and stores data between passes.' },
+  adcs: { icon: '🎯', plainName: 'Pointing system', realTerm: 'ADCS — attitude determination & control', researchCategory: 'adcs', glossary: 'adcs', whatFor: 'Points antennas and sensors the right way.' },
+  thermal: { icon: '🌡️', plainName: 'Thermal control', realTerm: 'Thermal management', researchCategory: 'thermal', glossary: 'thermal', whatFor: 'Keeps electronics, clocks and sensors at a safe, stable temperature.', noneText: 'No thermal control', noneWhy: 'The system may overheat or freeze out of its safe range.' },
+  sensors: { icon: '🧭', plainName: 'Position & time sensors', realTerm: 'Orbit / Sun / time sensors', researchCategory: 'adcs', glossary: 'gnss', whatFor: 'Knows where the satellite is and when.', noneText: 'No extra sensors', noneWhy: 'Optional for some missions; the weather mission needs it to geolocate measurements.' },
+  harness: { icon: '🔌', plainName: 'Cables & integration', realTerm: 'Harness & integration', researchCategory: 'structure', glossary: 'bus', whatFor: 'Connects every box into one working satellite.' },
+  propulsion: { icon: '💨', plainName: 'Thrusters', realTerm: 'On-board propulsion', researchCategory: 'onboard_propulsion', glossary: 'deltaV', whatFor: 'Orbit corrections and moving away safely at end of life.', noneText: 'No thrusters', noneWhy: 'Fine for a small LEO CubeSat that the air slowly pulls down; a MEO satellite needs them to keep and leave its orbit.' },
+  propellant: { icon: '🛢️', plainName: 'Propellant', realTerm: 'On-board propellant', researchCategory: 'onboard_propulsion', glossary: 'propellant', whatFor: 'Fuel for the satellite\'s own thrusters (never the rocket\'s fuel).', noneText: 'No propellant', noneWhy: 'Thrusters without fuel cannot move the satellite.' },
 };
 
-// Satellite sizes offered on the "Satellite size" step.
+// Satellite sizes offered on the "Satellite size" step (research §6.3: 3U / 6U / 12U / large bus).
 export const SIZE_CLASSES = [
-  { id: 'cubesat', icon: '🧊', plainName: 'CubeSat', structures: ['str_cube_3u', 'str_cube_6u', 'str_cube_12u'], defaultStructure: 'str_cube_6u' },
-  { id: 'small', icon: '📦', plainName: 'Small', structures: ['str_compact'], defaultStructure: 'str_compact' },
-  { id: 'medium', icon: '🛰️', plainName: 'Medium', structures: ['str_honeycomb'], defaultStructure: 'str_honeycomb' },
-  { id: 'large', icon: '🏗️', plainName: 'Large', structures: ['str_composite'], defaultStructure: 'str_composite' },
+  { id: '3u', icon: '🧊', plainName: 'CubeSat 3U', structures: ['str_cube_3u'] },
+  { id: '6u', icon: '🧊', plainName: 'CubeSat 6U', structures: ['str_6u', 'str_6u_weather'] },
+  { id: '12u', icon: '🧊', plainName: 'CubeSat 12U', structures: ['str_cube_12u'] },
+  { id: 'large', icon: '🏗️', plainName: 'Large bus (~700 kg class)', structures: ['str_gnss_meo'] },
 ];
 export const sizeClassOf = (structureId) => SIZE_CLASSES.find((s) => s.structures.includes(structureId)) ?? null;
+/** The structure part a size class resolves to for this mission. */
+export const structureFor = (sizeClass, scenarioId) =>
+  getComponent(sizeClass.structures.find((id) => getComponent(id).missions.includes(scenarioId)) ?? sizeClass.structures[0]);

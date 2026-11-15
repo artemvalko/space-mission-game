@@ -15,11 +15,12 @@ import * as comms from './screens/comms.js';
 import * as brains from './screens/brains.js';
 import * as orbit from './screens/orbit.js';
 import * as rocket from './screens/rocket.js';
+import * as launchPrep from './screens/launchPrep.js';
 import * as finalCheck from './screens/finalCheck.js';
 import * as operations from './screens/operations.js';
 import * as results from './screens/results.js';
 
-const MODULES = { start, pickMission, size, science, power, comms, brains, orbit, rocket, finalCheck, operations, results };
+const MODULES = { start, pickMission, size, science, power, comms, brains, orbit, rocket, launchPrep, finalCheck, operations, results };
 
 export function renderStepList(container, state, dispatch) {
   const steps = visibleSteps(state);

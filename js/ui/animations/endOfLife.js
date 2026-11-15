@@ -1,23 +1,24 @@
-// Phase 4 P2 #8 — End of mission: LEO/SSO → deorbit burn + re-entry fireball; GEO/HEO →
-// boost to a "graveyard" orbit; deep space → final transmission. Caption on space-debris
-// responsibility.
+// End of mission: LEO/SSO → the air slowly pulls it down and it burns up (deorbit); MEO/GEO →
+// a last thruster burn moves it out of the busy orbit ("graveyard"). Caption on space-debris
+// responsibility; without a disposal plan it says so honestly.
 
 import { s } from '../dom.js';
 import { play, W, H, seg, ease, stars, miniSat, setT, lerp, newId } from './core.js';
 import { sound } from '../sound.js';
 
 export const END_OF_LIFE_CAPTION = {
-  deorbit: 'Mission over: a last thruster burn drops the satellite into the air, where it burns up — no junk left behind.',
-  graveyard: 'Mission over: it climbs to a "graveyard orbit" above the busy lanes, so it can never hit a working satellite.',
-  farewell: 'Mission over: one last message home, then the spacecraft is switched off far from Earth.',
+  deorbit: 'Mission over: following the disposal plan, it drops into the air and burns up — no junk left behind.',
+  graveyard: 'Mission over: its own thrusters move it out of the busy navigation orbit, so it can never hit a working satellite.',
+  farewell: 'Mission over: one last message home, then the satellite is switched off.',
+  none: 'Mission over — but there was no disposal plan. The satellite stays up as space junk. Real missions must plan this.',
 };
 
-export const endOfLifeKind = (orbitId) => (['leo', 'sso'].includes(orbitId) ? 'deorbit' : ['geo', 'heo'].includes(orbitId) ? 'graveyard' : 'farewell');
+export const endOfLifeKind = (orbitId) => (['leo_550', 'sso_550_650'].includes(orbitId) ? 'deorbit' : ['meo_gnss', 'geo'].includes(orbitId) ? 'graveyard' : 'farewell');
 
-export function endOfLife(container, { orbitId = 'leo', caption, hold = false, linger = 1800 } = {}) {
-  const kind = endOfLifeKind(orbitId);
+export function endOfLife(container, { orbitId = 'leo_550', disposal = true, caption, hold = false, linger = 1800 } = {}) {
+  const kind = disposal ? endOfLifeKind(orbitId) : 'farewell';
   return play(container, {
-    scene: `end-${kind}`, label: 'End of the mission', duration: 4200, caption: caption ?? END_OF_LIFE_CAPTION[kind], hold, linger,
+    scene: `end-${kind}`, label: 'End of the mission', duration: 4200, caption: caption ?? END_OF_LIFE_CAPTION[disposal ? kind : 'none'], hold, linger,
     setup({ svg }) {
       const glowId = newId('reentry');
       svg.append(s('defs', {}, s('radialGradient', { id: glowId }, [s('stop', { offset: 0, 'stop-color': '#fff3c4' }), s('stop', { offset: 0.45, 'stop-color': '#ff9a3c' }), s('stop', { offset: 1, 'stop-color': '#ff4d1a', 'stop-opacity': 0 })])));

@@ -20,10 +20,10 @@
   <link rel="modulepreload" href="js/data/realMissions.js">
   <link rel="modulepreload" href="js/data/roles.js">
   <link rel="modulepreload" href="js/data/scenarios.js">
+  <link rel="modulepreload" href="js/data/sources.js">
   <link rel="modulepreload" href="js/engine/achievements.js">
   <link rel="modulepreload" href="js/engine/advisor.js">
   <link rel="modulepreload" href="js/engine/attempt.js">
-  <link rel="modulepreload" href="js/engine/costs.js">
   <link rel="modulepreload" href="js/engine/explain.js">
   <link rel="modulepreload" href="js/engine/goals.js">
   <link rel="modulepreload" href="js/engine/matching.js">
@@ -41,6 +41,7 @@
   <link rel="modulepreload" href="js/state/store.js">
   <link rel="modulepreload" href="js/ui/animations/balanceScale.js">
   <link rel="modulepreload" href="js/ui/animations/cardFlip.js">
+  <link rel="modulepreload" href="js/ui/animations/constellation.js">
   <link rel="modulepreload" href="js/ui/animations/core.js">
   <link rel="modulepreload" href="js/ui/animations/countdown.js">
   <link rel="modulepreload" href="js/ui/animations/debris.js">
@@ -51,7 +52,6 @@
   <link rel="modulepreload" href="js/ui/animations/hardwareFailure.js">
   <link rel="modulepreload" href="js/ui/animations/index.js">
   <link rel="modulepreload" href="js/ui/animations/instrumentView.js">
-  <link rel="modulepreload" href="js/ui/animations/launchFailure.js">
   <link rel="modulepreload" href="js/ui/animations/launchSuccess.js">
   <link rel="modulepreload" href="js/ui/animations/missionLost.js">
   <link rel="modulepreload" href="js/ui/animations/missionPartial.js">
@@ -71,6 +71,7 @@
   <link rel="modulepreload" href="js/ui/screens/common.js">
   <link rel="modulepreload" href="js/ui/screens/comms.js">
   <link rel="modulepreload" href="js/ui/screens/finalCheck.js">
+  <link rel="modulepreload" href="js/ui/screens/launchPrep.js">
   <link rel="modulepreload" href="js/ui/screens/operations.js">
   <link rel="modulepreload" href="js/ui/screens/orbit.js">
   <link rel="modulepreload" href="js/ui/screens/pickMission.js">
@@ -112,105 +113,105 @@
     import * as S from './js/ui/animations/index.js';
     import { getLauncher } from './js/data/launchers.js';
 
-    // ── Sample designs (built with real actions so the reducer/bundles run)
-    const design = (scenario, structure, instruments, orbit, launcher, ground, extra = []) => {
+    // ── Sample designs: the three correct research builds (built with real actions so bundles run)
+    const BUILDS = {
+      comms: ['mission_comms_iot', 'str_6u', ['payload_iot_sdr', 'ant_iot_deploy'], 'pack_6u_60', 'ttc_uhf', 'dl_sband', 'gs_iot_gateways', 'leo_550', 'lv_falcon9_rideshare', 'dep_cubesat'],
+      weather: ['mission_weather_mw', 'str_6u_weather', ['payload_mw_radiometer', 'radiometer_calibration'], 'pack_6u_80', 'ttc_uhf', 'science_sband', 'gs_weather_science', 'sso_550_650', 'lv_falcon9_rideshare', 'dep_cubesat'],
+      nav: ['mission_navigation_meo', 'str_gnss_meo', ['clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'], 'pack_gnss', 'ttc_c_s_band', null, 'gs_gnss_monitoring', 'meo_gnss', 'lv_f9_dedicated_meo', 'dep_large_adapter'],
+    };
+    const design = (key, extra = []) => {
+      const [sid, size, payload, pack, ttc, dl, ground, orbit, lv, dep] = BUILDS[key];
       let st = reducer(createInitialState(), A.setDifficulty('easy'));
-      st = [A.selectScenario(scenario), A.selectComponent('structure', structure), A.selectPowerPack('small'),
-        A.selectComponent('comms', 'com_xband'), A.selectGround(ground), A.selectOrbit(orbit), A.selectLauncher(launcher),
-        ...instruments.map(A.addInstrument), ...extra].reduce(reducer, st);
+      st = [A.selectScenario(sid), A.selectComponent('structure', size), ...payload.map(A.addInstrument), A.selectPowerPack(pack), A.selectComponent('comms', ttc),
+        ...(dl ? [A.selectComponent('downlink', dl)] : []), A.selectGround(ground), A.selectOrbit(orbit), A.selectLauncher(lv), A.selectDeployer(dep),
+        A.togglePrep('tests', true), A.togglePrep('licence', true), A.togglePrep('disposal', true), ...extra].reduce(reducer, st);
       return st;
     };
-    const wildfire = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera'], 'sso', 'lv_sparrow', 'gs_global');
-    const overflow = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera', 'ins_hires'], 'sso', 'lv_sparrow', 'gs_single', [A.selectPowerPack('medium')]);
-    const powerTight = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera', 'ins_hires'], 'sso', 'lv_sparrow', 'gs_global');
-    const powerDead = design('wildfire', 'str_compact', ['ins_thermal', 'ins_camera', 'ins_sar'], 'sso', 'lv_kestrel', 'gs_global');
-    const marsBad = design('mars_orbiter', 'str_honeycomb', ['ins_spectrometer'], 'mars', 'lv_leviathan', 'gs_dsn', [A.selectPowerPack('large')]);
-    const marsGood = design('mars_orbiter', 'str_honeycomb', ['ins_spectrometer', 'ins_camera'], 'mars', 'lv_leviathan', 'gs_dsn', [A.selectPowerPack('large'), A.selectComponent('comms', 'com_hga')]);
-    const lunar = design('lunar_relay', 'str_honeycomb', ['ins_relay'], 'lunar', 'lv_kestrel', 'gs_dsn', [A.selectPowerPack('medium'), A.selectComponent('comms', 'com_hga')]);
-    const orbitDesign = (o, l = 'lv_leviathan', g = 'gs_dsn') => design('sandbox', 'str_honeycomb', ['ins_camera'], o, l, g, [A.selectPowerPack('medium'), A.selectComponent('comms', 'com_hga')]);
+    const comms = design('comms');
+    const weather = design('weather');
+    const nav = design('nav');
+    const noBattery = design('comms', [A.selectComponent('battery', 'none')]);
+    const wrongGround = design('weather', [A.selectGround('gs_iot_gateways')]);
+    const heavy = design('comms', [A.addInstrument('payload_mw_radiometer'), A.addInstrument('radiometer_calibration')]);
+    const gto = design('nav', [A.selectLauncher('lv_f9_gto_standard')]);
 
-    const simOf = (st, want = () => true) => { for (let sd = 1; sd < 3000; sd++) { const r = runSimulation(st, sd, [], { autoChoice: 0 }); if (want(r)) return r; } return runSimulation(st, 1, [], { autoChoice: 0 }); };
-    const heavy = reducer(wildfire, A.selectLauncher('lv_rideshare'));
-    const heavySim = simOf(heavy, (r) => r.outcome === 'too_heavy');
-    const failSim = simOf(wildfire, (r) => r.outcome === 'launch_failure');
+    const simOf = (st, want = () => true, anyway = false) => { for (let sd = 1; sd < 3000; sd++) { const r = runSimulation(st, sd, [], { autoChoice: 0, anyway }); if (want(r)) return r; } return runSimulation(st, 1, [], { autoChoice: 0, anyway }); };
+    const heavySim = simOf(heavy, () => true, true);
+    const gtoSim = simOf(gto, () => true, true);
     const stage = document.getElementById('stage');
     const status = document.getElementById('status');
     const launcherOf = (st) => getLauncher(st.design.launcherId);
-    const orbitScene = (st, label) => async () => {
-      const sim = simOf(st, (r) => r.reachedOrbit);
+    const orbitScene = (st, label, anyway = false) => async () => {
+      const sim = simOf(st, (r) => r.reachedOrbit, anyway);
       stage.__orbitView = null;
-      await S.orbitView(stage, { state: st, sim, toMonth: Math.min(sim.summary.monthsOperated, 18) });
+      await S.orbitView(stage, { state: st, sim, toMonth: Math.min(sim.summary.monthsOperated, 12) });
       return label;
     };
     const ev = (scene, extra = {}) => async () => {
-      await S.orbitView(stage, { state: wildfire, sim: simOf(wildfire, (r) => r.reachedOrbit), toMonth: 0 });
+      await S.orbitView(stage, { state: comms, sim: simOf(comms, (r) => r.reachedOrbit), toMonth: 0 });
       const v = S.getOrbitView(stage);
       const p = v.satPos();
-      await scene(v.overlay, { x: p.x, y: p.y, state: wildfire, phase: 'intro', ...extra });
-      await scene(v.overlay, { x: p.x, y: p.y, state: wildfire, phase: 'outcome', choiceIndex: extra.choiceIndex ?? 0, caption: extra.caption ?? 'Outcome caption from the chosen option.', ...extra });
+      await scene(v.overlay, { x: p.x, y: p.y, state: comms, phase: 'intro', ...extra });
+      await scene(v.overlay, { x: p.x, y: p.y, state: comms, phase: 'outcome', choiceIndex: extra.choiceIndex ?? 0, caption: extra.caption ?? 'Outcome caption from the chosen option.', ...extra });
     };
 
     const GROUPS = {
       'Launch': {
-        '1 Countdown & liftoff': () => S.countdown(stage, { launcher: launcherOf(wildfire), caption: 'Liftoff!', hold: true }),
-        '2 Launch success': () => S.launchSuccess(stage, { state: wildfire, caption: '✓ In orbit! The Small rocket delivered your satellite.' }),
-        '3 Launch failure': () => S.launchFailure(stage, { launcher: launcherOf(wildfire), caption: describeOutcome(wildfire, failSim).caption, hold: [{ label: '🔁 Try again', value: 'retry' }, { label: 'See results', value: 'results', primary: false }] }),
-        '4a Too heavy': () => S.tooHeavy(stage, { launcher: launcherOf(heavy), reason: 'too_heavy', caption: describeOutcome(heavy, heavySim).caption }),
-        '4b Wrong orbit (thrusters)': () => S.tooHeavy(stage, { launcher: launcherOf(lunar), reason: 'wrong_orbit', caption: 'Your thrusters could only push 150 m/s, but around the Moon needs 1,000 m/s.' }),
+        '1 Countdown & liftoff': () => S.countdown(stage, { launcher: launcherOf(comms), caption: 'Liftoff!', hold: true }),
+        '2 Launch success': () => S.launchSuccess(stage, { state: nav, caption: '✓ In orbit! The Falcon 9 delivered your 700 kg satellite to MEO.' }),
+        '4a Too heavy (NO-GO simulated)': () => S.tooHeavy(stage, { launcher: launcherOf(heavy), reason: 'too_heavy', caption: describeOutcome(heavy, heavySim).caption }),
+        '4b Wrong orbit: GTO is not MEO (NO-GO simulated)': () => S.tooHeavy(stage, { launcher: launcherOf(gto), reason: 'wrong_orbit', caption: describeOutcome(gto, gtoSim).caption }),
       },
       'Operations': {
-        '5 LEO': orbitScene(orbitDesign('leo', 'lv_sparrow', 'gs_global')),
-        '5 SSO': orbitScene(wildfire),
-        '5 GEO': orbitScene(orbitDesign('geo', 'lv_kestrel', 'gs_single')),
-        '5 HEO (Molniya)': orbitScene(orbitDesign('heo', 'lv_kestrel', 'gs_single')),
-        '5 L2 halo': orbitScene(orbitDesign('l2')),
-        '5 Moon (transfer + orbit)': orbitScene(lunar),
-        '5 Mars (transfer + orbit)': orbitScene(marsGood),
-        '6 Power problem (tight → safe mode)': orbitScene(powerTight),
-        '6b Power dead (stays dark)': async () => { const sim = simOf(powerDead, (r) => r.reachedOrbit); stage.__orbitView = null; await S.orbitView(stage, { state: powerDead, sim, toMonth: 1 }); },
-        '7 Data overflow': orbitScene(overflow),
-        '8 Comms loss (no signal)': async () => { const sim = simOf(marsBad, (r) => r.reachedOrbit); stage.__orbitView = null; await S.orbitView(stage, { state: marsBad, sim, toMonth: 1 }); },
+        '5 LEO 550 km (IoT)': orbitScene(comms),
+        '5 SSO 550–650 km (weather)': orbitScene(weather),
+        '5 MEO 23,222 km (navigation, true scale)': orbitScene(nav),
+        '6 Power dead: no battery (stays dark)': async () => { const sim = simOf(noBattery, (r) => r.reachedOrbit, true); stage.__orbitView = null; await S.orbitView(stage, { state: noBattery, sim, toMonth: 1 }); },
+        '8 Comms loss: wrong ground segment': async () => { const sim = simOf(wrongGround, (r) => r.reachedOrbit, true); stage.__orbitView = null; await S.orbitView(stage, { state: wrongGround, sim, toMonth: 1 }); },
       },
-      'Events': {
-        '9 Solar flare (safe mode)': ev(S.solarFlare, { choiceIndex: 0 }),
-        '9b Solar flare (keep observing)': ev(S.solarFlare, { choiceIndex: 1 }),
-        '10 Debris (dodge)': ev(S.debris, { choiceIndex: 0 }),
+      'Simulated events': {
+        '9 Solar storm (safe mode)': ev(S.solarFlare, { choiceIndex: 0 }),
+        '9b Solar storm (keep working)': ev(S.solarFlare, { choiceIndex: 1 }),
+        '10 Debris (safe attitude)': ev(S.debris, { choiceIndex: 0 }),
         '10b Debris (accept risk)': ev(S.debris, { choiceIndex: 1 }),
-        '11 Hardware failure': ev(S.hardwareFailure, { itemId: 'ins_thermal', choiceIndex: 0 }),
-        '12 Budget cut': ev(S.EVENT_SCENES.budget_cut, { front: 'The agency cut your budget.', back: '−10% science' }),
-        '12b Launch delay': ev(S.EVENT_SCENES.launch_delay, { front: 'A sensor shows a strange reading.', back: '+3 mo delay · +$5M cost' }),
-        '13 Discovery': ev(S.discovery, { bonus: '+25% science' }),
+        '11 Hardware fault': ev(S.hardwareFailure, { itemId: 'payload_iot_sdr', choiceIndex: 0 }),
+        '12 Budget cut': ev(S.EVENT_SCENES.budget_cut, { front: 'The programme budget was reduced.', back: '−10% service' }),
+        '12b Launch delay': ev(S.EVENT_SCENES.launch_delay, { front: 'A sensor shows a strange reading.', back: '+3 mo delay · −25% of reserve' }),
+        '13 Huge storm in view (weather)': ev(S.EVENT_SCENES.rare_storm, { bonus: '+5% service' }),
       },
       'Before launch & design screens': {
-        'P1 Instrument views (all)': async () => {
-          for (const id of ['ins_cubecam', 'ins_camera', 'ins_hires', 'ins_thermal', 'ins_sar', 'ins_spectrometer', 'ins_gamma', 'ins_magnetometer', 'ins_uv_telescope', 'ins_ir_telescope', 'ins_relay']) {
+        'P1 Payload views (all)': async () => {
+          for (const id of ['payload_iot_sdr', 'clock_phm_rubidium_4', 'payload_mw_radiometer', 'dist_rgb_camera']) {
             await S.instrumentView(stage, { instrumentId: id, label: id });
           }
         },
-        'P1 Balance scale (fits → too heavy)': async () => {
-          await S.balanceScale(stage, { massKg: 188, capacityKg: 400, fromAngle: 0, rocketName: 'Small rocket' });
-          await S.balanceScale(stage, { massKg: 188, capacityKg: 20, fromAngle: -9, rocketName: 'Ride-share seat' });
+        'P1 Balance scale (6U fits → too heavy)': async () => {
+          await S.balanceScale(stage, { massKg: 8.68, capacityKg: 12, fromAngle: 0, rocketName: '6U dispenser' });
+          await S.balanceScale(stage, { massKg: 12.08, capacityKg: 12, fromAngle: -9, rocketName: '6U dispenser' });
         },
         'P1 Go/No-Go console': () => S.goConsole(stage, { roles: [
           { icon: '★', name: 'Mission Director', who: 'Ada', vote: 'go' }, { icon: '⚙', name: 'Systems Engineer', who: 'Ben', vote: 'go' },
-          { icon: '✦', name: 'Lead Scientist', who: 'Cy', vote: 'nogo', reason: 'Not enough science' }, { icon: '↗', name: 'Flight Dynamics', who: 'Dee', vote: 'go' }], caption: 'Not everyone agreed — the majority said GO.' }),
-        'P1 Factory-to-pad montage': () => S.montage(stage, { state: wildfire, devMonths: 20 }),
+          { icon: '✦', name: 'Lead Scientist', who: 'Cy', vote: 'nogo', reason: 'The mission payload is not right' }, { icon: '↗', name: 'Flight Dynamics', who: 'Dee', vote: 'go' }], caption: 'Not everyone agreed — the majority said GO.' }),
+        'P1 NO-GO console (launch scrubbed)': () => S.goConsole(stage, { roles: [
+          { icon: '★', name: 'Mission Director', who: 'Ada', vote: 'nogo', reason: 'Hard gate failed' }, { icon: '⚙', name: 'Systems Engineer', who: 'Ben', vote: 'nogo', reason: 'Hard gate failed' }], caption: '⛔ NO-GO. Launch scrubbed: no frequency licence or disposal plan.' }),
+        'P1 Factory-to-pad montage': () => S.montage(stage, { state: comms, devMonths: 18 }),
       },
-      'Maps & end of life (P2)': {
-        'P2 Ground track LEO': () => S.groundTrack(stage, { orbitId: 'leo' }),
-        'P2 Ground track SSO': () => S.groundTrack(stage, { orbitId: 'sso' }),
-        'P2 Ground track GEO': () => S.groundTrack(stage, { orbitId: 'geo', groundId: 'gs_single' }),
-        'P2 Ground track HEO (Molniya)': () => S.groundTrack(stage, { orbitId: 'heo' }),
-        'P2 Ground track far (Mars)': () => S.groundTrack(stage, { orbitId: 'mars' }),
-        'P2 Ground stations map': () => S.groundTrack(stage, { orbitId: 'sso', groundId: 'gs_global', mode: 'stations' }),
-        'P2 End of life: deorbit (LEO)': () => S.endOfLife(stage, { orbitId: 'leo' }),
-        'P2 End of life: graveyard (GEO)': () => S.endOfLife(stage, { orbitId: 'geo' }),
-        'P2 End of life: farewell (Mars)': () => S.endOfLife(stage, { orbitId: 'mars' }),
+      'Maps & end of life': {
+        'P2 Ground track LEO': () => S.groundTrack(stage, { orbitId: 'leo_550' }),
+        'P2 Ground track SSO': () => S.groundTrack(stage, { orbitId: 'sso_550_650' }),
+        'P2 Ground track MEO (56°)': () => S.groundTrack(stage, { orbitId: 'meo_gnss' }),
+        'P2 GEO (fixed spot)': () => S.groundTrack(stage, { orbitId: 'geo' }),
+        'P2 Ground stations map (IoT gateways)': () => S.groundTrack(stage, { orbitId: 'leo_550', groundId: 'gs_iot_gateways', mode: 'stations' }),
+        'P2 Ground stations map (GNSS monitoring)': () => S.groundTrack(stage, { orbitId: 'meo_gnss', groundId: 'gs_gnss_monitoring', mode: 'stations' }),
+        'P2 End of life: deorbit (LEO)': () => S.endOfLife(stage, { orbitId: 'leo_550' }),
+        'P2 End of life: leave MEO (graveyard)': () => S.endOfLife(stage, { orbitId: 'meo_gnss' }),
+        'P2 End of life: no disposal plan': () => S.endOfLife(stage, { orbitId: 'leo_550', disposal: false }),
       },
-      'Mission end': {
-        '14 Success': () => S.missionSuccess(stage, { name: 'Wildfire Watch', team: 'Team Rocket', orbitId: 'sso', grade: 'A', caption: 'Mission accomplished! Every goal was met.' }),
-        '15 Partial': () => S.missionPartial(stage, { name: 'Red Planet Orbiter', team: 'Solo', orbitId: 'mars', grade: 'C', missed: ['Science target', 'On budget'], caption: 'Your satellite worked, but missed: science target, on budget.' }),
-        '16 Lost': () => S.missionLost(stage, { state: marsBad, cause: 'comms', caption: describeOutcome(marsBad, simOf(marsBad, (r) => r.outcome === 'lost')).caption, tip: 'Far from Earth, use the big dish antenna and the giant deep-space dishes.' }),
+      'Mission end & lessons': {
+        '14 Success': () => S.missionSuccess(stage, { name: 'Connect Remote Sensors', team: 'Team Rocket', orbitId: 'leo_550', grade: 'A', caption: 'Mission accomplished! Every KPI was met.' }),
+        '15 Partial': () => S.missionPartial(stage, { name: 'Weather Under the Clouds', team: 'Solo', orbitId: 'sso_550_650', grade: 'C', missed: ['Valid observations ≥90%', 'Inside the model budget'], caption: 'Your satellite worked, but missed: valid observations, budget.' }),
+        '16 Lost (no battery)': () => S.missionLost(stage, { state: noBattery, cause: 'power', caption: describeOutcome(noBattery, simOf(noBattery, () => true, true)).caption, tip: 'Check shadow power: 60% of the battery must cover the eclipse.' }),
+        '17 Constellation: 1 satellite → no fix, 4 → 3D fix': () => S.constellationFix(stage, { hold: true }),
       },
     };
 

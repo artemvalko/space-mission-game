@@ -1,6 +1,6 @@
 // Phase 4 P2 #6/#7/#11 — Ground track on a simplified world map (Orbit step) and the ground
 // stations map (Talking to Earth step). The track draws itself with a coverage swath; GEO is a
-// fixed dot with its coverage circle; far orbits get an inset. Dishes blink when the satellite
+// fixed dot with its coverage circle. Dishes blink when the satellite
 // passes over them. Night side shaded with a day/night terminator. ≤ 1 s, never blocks input.
 
 import { s } from '../dom.js';
@@ -21,24 +21,26 @@ const CONTINENTS = [
   [[-180, -70], [180, -70], [180, -90], [-180, -90]],
 ];
 
+// Station sites are ILLUSTRATIONS (example places), not real networks.
 export const STATION_SITES = {
-  gs_single: [{ name: 'Mission centre', lon: -80, lat: 28 }],
-  gs_global: [{ name: 'Florida', lon: -80, lat: 28 }, { name: 'Svalbard', lon: 15, lat: 78 }, { name: 'Australia', lon: 147, lat: -35 }],
-  gs_dsn: [{ name: 'California', lon: -117, lat: 35 }, { name: 'Spain', lon: -4, lat: 40 }, { name: 'Australia', lon: 149, lat: -35 }],
+  gs_iot_gateways: [{ name: 'Gateway 1', lon: -80, lat: 28 }, { name: 'Gateway 2', lon: 15, lat: 60 }],
+  gs_gnss_monitoring: [{ name: 'Monitor', lon: -100, lat: 40 }, { name: 'Monitor', lon: 10, lat: 50 }, { name: 'Monitor', lon: 120, lat: -30 }, { name: 'Monitor', lon: -50, lat: -20 }, { name: 'Monitor', lon: 70, lat: 20 }],
+  gs_weather_science: [{ name: 'Science station', lon: 15, lat: 70 }],
 };
 
+// Illustration parameters for the drawing (the research gives no inclination for our LEO/SSO
+// and no period values): LEO/SSO tracks are examples; MEO uses the real 56° tilt (S04).
 const ORBIT_TRACK = {
-  leo: { inc: 51.6, periodH: 1.58, swath: 16, orbits: 3 },
-  sso: { inc: 97.8, periodH: 1.65, swath: 12, orbits: 3 },
-  heo: { inc: 63.4, periodH: 12, swath: 26, orbits: 2, ecc: 0.74 },
+  leo_550: { inc: 51.6, periodH: 1.58, swath: 16, orbits: 3 },
+  sso_550_650: { inc: 97.8, periodH: 1.62, swath: 12, orbits: 3 },
+  meo_gnss: { inc: 56, periodH: 14, swath: 70, orbits: 1 },
 };
 
 export const TRACK_CAPTION = {
-  leo: 'Each orbit lands further west as Earth turns underneath.',
-  sso: 'Almost over the poles: in a day it passes over the whole Earth.',
-  geo: 'It stays above one spot and always sees the same third of Earth.',
-  heo: 'It lingers for hours over the far north, then races past the south.',
-  far: 'Too far for a ground track — it sees a whole planet at once.',
+  leo_550: 'Illustration: each pass lands further west as Earth turns. A place sees the satellite for minutes.',
+  sso_550_650: 'Illustration: almost over the poles — in a day it passes over the whole Earth.',
+  meo_gnss: 'Illustration: high and slow, tilted 56° — one satellite sees a big part of Earth at once.',
+  geo: 'It stays above one spot on the equator and always sees the same side of Earth.',
 };
 
 /** Sub-satellite points (lon, lat) for a few orbits. Pure maths; lon wraps to -180..180. */
@@ -50,16 +52,7 @@ export function trackPoints(orbitId, startLon = -100) {
   const i = (o.inc * Math.PI) / 180;
   for (let k = 0; k <= steps; k++) {
     const frac = k / 240; // orbits elapsed
-    let u;
-    if (o.ecc) {
-      // Molniya: solve Kepler so time is spent near apogee (argument of perigee 270°).
-      const M = frac * 2 * Math.PI;
-      let E = M; for (let n = 0; n < 6; n++) E -= (E - o.ecc * Math.sin(E) - M) / (1 - o.ecc * Math.cos(E));
-      const nu = 2 * Math.atan2(Math.sqrt(1 + o.ecc) * Math.sin(E / 2), Math.sqrt(1 - o.ecc) * Math.cos(E / 2));
-      u = nu + (270 * Math.PI) / 180;
-    } else {
-      u = frac * 2 * Math.PI;
-    }
+    const u = frac * 2 * Math.PI;
     const lat = Math.asin(Math.sin(i) * Math.sin(u)) * (180 / Math.PI);
     const lonIn = Math.atan2(Math.cos(i) * Math.sin(u), Math.cos(u)) * (180 / Math.PI);
     const earthTurn = frac * o.periodH * 15; // Earth turns 15° per hour
@@ -93,8 +86,7 @@ function worldMap(svg) {
  * params: { orbitId, groundId, mode: 'track' | 'stations', caption }
  */
 export function groundTrack(container, { orbitId = 'leo', groundId = null, mode = 'track', caption } = {}) {
-  const far = ['l2', 'lunar', 'mars'].includes(orbitId);
-  const cap = caption ?? (mode === 'stations' ? (far ? 'The giant dishes take turns as Earth spins, so one can always hear a far-away spacecraft.' : 'Dishes light up when the satellite flies over them.') : TRACK_CAPTION[far ? 'far' : orbitId] ?? TRACK_CAPTION.leo);
+  const cap = caption ?? (mode === 'stations' ? 'Illustration: stations light up when the satellite flies over them.' : TRACK_CAPTION[orbitId] ?? TRACK_CAPTION.leo_550);
   return play(container, {
     scene: mode === 'stations' ? 'ground-stations' : 'ground-track', label: mode === 'stations' ? 'Ground stations map' : 'Ground track map', duration: 1000, caption: cap,
     setup({ svg }) {
@@ -113,18 +105,9 @@ export function groundTrack(container, { orbitId = 'leo', groundId = null, mode 
         swath = s('ellipse', { cx: X(lon), cy: Y(0), rx: (70 / 360) * MW, ry: (70 / 180) * MH, class: 'wm-swath-geo' });
         dot = s('circle', { cx: X(lon), cy: Y(0), r: 7, class: 'wm-sat' });
         svg.append(swath, dot);
-      } else if (far) {
-        const inset = s('g', {}, [
-          s('rect', { x: MW - 250, y: 20, width: 230, height: 120, rx: 12, class: 'wm-inset' }),
-          s('circle', { cx: MW - 200, cy: 80, r: 22, class: 'an-earth' }),
-          s('circle', { cx: MW - 70, cy: 80, r: orbitId === 'mars' ? 20 : 12, class: orbitId === 'mars' ? 'an-mars' : orbitId === 'lunar' ? 'an-moon' : 'wm-l2' }),
-          s('line', { x1: MW - 175, y1: 80, x2: MW - 90, y2: 80, class: 'wm-far-line' }),
-          s('text', { x: MW - 135, y: 125, class: 'wm-inset-text', 'text-anchor': 'middle' }, { l2: '1.5 million km', lunar: '384,000 km', mars: '55–400 million km' }[orbitId]),
-        ]);
-        svg.append(inset);
       } else {
-        pts = trackPoints(orbitId);
-        const o = ORBIT_TRACK[orbitId];
+        pts = trackPoints(ORBIT_TRACK[orbitId] ? orbitId : 'leo_550');
+        const o = ORBIT_TRACK[orbitId] ?? ORBIT_TRACK.leo_550;
         swath = s('path', { d: pathFrom(pts), class: 'wm-swath', 'stroke-width': (o.swath / 180) * MH });
         track = s('path', { d: pathFrom(pts), class: 'wm-track', pathLength: 1000 });
         dot = s('circle', { r: 7, class: 'wm-sat' });

@@ -14,13 +14,14 @@ import {
 } from '../../state/actions.js';
 
 const SLIDES = [
-  { icon: '🎯', title: 'Pick a mission', text: 'Every mission has a goal — like spotting forest fires. Your goal and checklist stay at the top of the screen.' },
-  { icon: '🛠️', title: 'Answer one question per step', text: 'Choose the size, science tools, power, radio, orbit and rocket. Four gauges show money, weight, power and data. Green is good, red is over.' },
-  { icon: '🚀', title: 'Launch and fly', text: 'The Flight Director tells you what to fix. When everything is ready, launch! Things will happen in space — your decisions matter.' },
+  { icon: '🎯', title: 'Pick a real mission', text: 'Connect remote sensors, measure weather under the clouds, or launch a navigation satellite. Every number comes from real sources or is clearly marked as an estimate.' },
+  { icon: '🛠️', title: 'Answer one question per step', text: 'Size, mission payload, power, radios, bus, orbit, rocket and launch prep. Four gauges show money, mass, power and data. Green is good, red is over.' },
+  { icon: '🚦', title: 'GO or NO-GO', text: 'Physics first: a design that breaks a hard gate is NO-GO. The Flight Director shows what is broken, which card fixes it, and other correct designs.' },
+  { icon: '🚀', title: 'Launch and fly', text: 'Simulated events happen in space — your decisions matter. Then compare your design with the real mission that inspired it.' },
 ];
 
 let slide = -1; // view-only: -1 = closed
-let boardScenario = 'wildfire'; // view-only: leaderboard tab
+let boardScenario = 'mission_comms_iot'; // view-only: leaderboard tab
 
 function howToPlay() {
   if (slide < 0) return null;
@@ -118,7 +119,7 @@ function board() {
   const rows = leaderboard(boardScenario, 10);
   return h('section', { class: 'leaderboard' }, [
     h('h2', {}, '🏆 Top 10'),
-    h('div', { class: 'board-tabs', role: 'tablist' }, SCENARIOS.filter((sc) => !sc.sandbox).map((sc) => h('button', {
+    h('div', { class: 'board-tabs', role: 'tablist' }, SCENARIOS.map((sc) => h('button', {
       class: ['mini', sc.id === boardScenario && 'active'], type: 'button', role: 'tab', 'aria-selected': sc.id === boardScenario ? 'true' : 'false', key: `board-${sc.id}`,
       onClick: () => { boardScenario = sc.id; rerender(); },
     }, `${sc.icon} ${sc.name}`))),
@@ -138,7 +139,7 @@ export function render(container, state, dispatch) {
       backdrop.sky,
       backdrop.earth,
       h('div', { class: 'hero-title-wrap' }, [backdrop.orbitSvg, h('h1', { class: 'hero-title' }, 'Mission Control')]),
-      h('p', { class: 'hero-tagline' }, 'Design a real space mission. Stay on budget. Get the science.'),
+      h('p', { class: 'hero-tagline' }, 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.'),
       h('div', { class: 'hero-buttons' }, [
         h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'play-solo', onClick: () => { dispatch(setMode('solo')); dispatch(goToScreen('pickMission')); } }, '▶ Play solo'),
         h('button', { class: ['btn', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', onClick: () => dispatch(setMode('team')) }, '👥 Play as a team (2–4)'),
@@ -150,7 +151,7 @@ export function render(container, state, dispatch) {
           h('span', {}, d === 'easy' ? '🙂 Easy' : '🧠 Normal'),
         ]))),
       h('p', { class: 'muted small' }, state.difficulty === 'easy'
-        ? 'Easy: fewer choices — power comes as one pack and the computer, pointing and thrusters are picked for you.'
+        ? 'Easy: fewer choices — power comes as one pack and the bus systems come as the standard kit from the research build list.'
         : 'Normal: you choose every part yourself.'),
     ]),
     state.mode === 'team' && teamPanel(state, dispatch),

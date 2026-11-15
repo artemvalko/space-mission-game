@@ -7,8 +7,8 @@ import { s } from './dom.js';
 import { getSelection } from '../engine/resources.js';
 
 const BODY = {
-  str_cube_3u: [24, 54], str_cube_6u: [40, 54], str_cube_12u: [52, 62],
-  str_compact: [54, 54], str_honeycomb: [72, 68], str_composite: [90, 80],
+  str_cube_3u: [24, 54], str_6u: [40, 54], str_6u_weather: [40, 54], str_cube_12u: [52, 62],
+  str_gnss_meo: [84, 76],
 };
 
 let previousKeys = new Set();
@@ -21,25 +21,15 @@ function grid(x, y, w, hgt, cols, rows, cls) {
 }
 
 function instrumentShape(ins, x, y) {
-  const t = ins.tags;
-  const small = ins.formFactor === 'cubesat';
   switch (ins.id) {
-    case 'ins_sar': return [s('rect', { x: x - 30, y: y + 2, width: 60, height: 6, class: 'sat-radar' })];
-    case 'ins_ir_telescope': return [
-      s('rect', { x: x - 13, y, width: 26, height: 34, class: 'sat-tube' }),
-      s('polygon', { points: `${x - 22},${y + 34} ${x + 22},${y + 34} ${x + 16},${y + 40} ${x - 16},${y + 40}`, class: 'sat-shield' }),
-      s('circle', { cx: x, cy: y + 34, r: 9, class: 'sat-mirror' }),
-    ];
-    case 'ins_uv_telescope': return [s('rect', { x: x - 6, y, width: 12, height: 22, class: 'sat-tube' }), s('rect', { x: x - 6, y: y + 19, width: 12, height: 3, class: 'sat-uv' })];
-    case 'ins_magnetometer': return [s('line', { x1: x, y1: y, x2: x + 26, y2: y + 20, class: 'sat-boom' }), s('rect', { x: x + 23, y: y + 17, width: 6, height: 6, class: 'sat-box' })];
-    case 'ins_relay': return [s('line', { x1: x - 4, y1: y, x2: x - 4, y2: y + 14, class: 'sat-boom' }), s('line', { x1: x + 4, y1: y, x2: x + 4, y2: y + 14, class: 'sat-boom' }), s('circle', { cx: x, cy: y + 16, r: 4, class: 'sat-box' })];
-    case 'ins_spectrometer': return [s('rect', { x: x - 7, y, width: 14, height: 10, class: 'sat-box' }), s('rect', { x: x - 6, y: y + 6, width: 12, height: 3, class: 'sat-rainbow' })];
-    case 'ins_gamma': return [s('rect', { x: x - 6, y, width: 12, height: 10, class: 'sat-box' }), s('circle', { cx: x, cy: y + 5, r: 3, class: 'sat-gamma' })];
-    default: {
-      const r = small ? 3 : ins.id === 'ins_hires' ? 6 : 4.5;
-      const lens = t.includes('thermal') ? 'sat-lens-hot' : 'sat-lens';
-      return [s('rect', { x: x - r - 2, y, width: 2 * r + 4, height: 6, class: 'sat-box' }), s('circle', { cx: x, cy: y + 6 + r * 0.6, r, class: lens })];
-    }
+    case 'payload_iot_sdr': return [s('rect', { x: x - 6, y, width: 12, height: 8, class: 'sat-box' }), s('line', { x1: x, y1: y + 8, x2: x, y2: y + 20, class: 'sat-boom' })];
+    case 'ant_iot_deploy': return [s('line', { x1: x - 10, y1: y, x2: x - 18, y2: y + 18, class: 'sat-boom' }), s('line', { x1: x + 10, y1: y, x2: x + 18, y2: y + 18, class: 'sat-boom' })];
+    case 'clock_phm_rubidium_4': return [s('rect', { x: x - 9, y, width: 18, height: 10, class: 'sat-box' }), ...[-5, -1.5, 1.5, 5].map((dx) => s('circle', { cx: x + dx, cy: y + 5, r: 1.3, class: 'sat-gamma' }))];
+    case 'nav_signal_rf': return [s('rect', { x: x - 8, y, width: 16, height: 9, class: 'sat-box' }), s('rect', { x: x - 6, y: y + 6, width: 12, height: 2, class: 'sat-uv' })];
+    case 'antenna_lband_nav': return [s('rect', { x: x - 16, y: y + 2, width: 32, height: 6, class: 'sat-radar' }), ...[-10, -3, 4, 11].map((dx) => s('circle', { cx: x + dx - 0.5, cy: y + 5, r: 2, class: 'sat-lens' }))];
+    case 'payload_mw_radiometer': return [s('rect', { x: x - 7, y, width: 14, height: 8, class: 'sat-box' }), s('ellipse', { cx: x, cy: y + 11, rx: 8, ry: 4, class: 'sat-dish' })];
+    case 'radiometer_calibration': return [s('rect', { x: x - 4, y, width: 8, height: 6, class: 'sat-box' }), s('rect', { x: x - 3, y: y + 4, width: 6, height: 2, class: 'sat-rainbow' })];
+    default: return [s('rect', { x: x - 6, y, width: 12, height: 6, class: 'sat-box' }), s('circle', { cx: x, cy: y + 8, r: 3.5, class: 'sat-lens' })];
   }
 }
 
@@ -65,23 +55,18 @@ export function renderSatellite(state, opts = {}) {
   // Power
   const p = c.power;
   if (p) {
-    if (p.id === 'pwr_body_solar') add('power', p.id, grid(bx + 4, by + 4, w - 8, hgt * 0.55, 3, 2, 'sat-cells'), false, [cx - 30, by - 10], p);
-    else if (p.type === 'rtg') add('power', p.id, [
-      s('line', { x1: bx + w, y1: cy + hgt / 4, x2: bx + w + 18, y2: cy + hgt / 4 + 14, class: 'sat-boom' }),
-      s('rect', { x: bx + w + 14, y: cy + hgt / 4 + 8, width: 14, height: 26, rx: 3, class: 'sat-rtg' }),
-      ...[0, 1, 2].map((i) => s('line', { x1: bx + w + 11, y1: cy + hgt / 4 + 14 + i * 7, x2: bx + w + 31, y2: cy + hgt / 4 + 14 + i * 7, class: 'sat-fin' })),
-    ], true, [bx + w + 21, cy + hgt / 4 + 21], p);
-    else {
-      const pw = p.id === 'pwr_cube_solar' ? 30 : 64;
-      const ph = Math.min(hgt * 0.7, p.id === 'pwr_cube_solar' ? 34 : 46);
+    {
+      const small = p.formFactor === 'cubesat';
+      const pw = small ? 30 : 64;
+      const ph = Math.min(hgt * 0.7, small ? 34 : 46);
       // Two wings as separate parts so the exploded view can pull them apart.
       add('power', p.id, [
         s('line', { x1: bx - 8, y1: cy, x2: bx, y2: cy, class: 'sat-boom' }),
-        ...grid(bx - 8 - pw, cy - ph / 2, pw, ph, p.id === 'pwr_cube_solar' ? 2 : 4, 2, 'sat-cells'),
+        ...grid(bx - 8 - pw, cy - ph / 2, pw, ph, small ? 2 : 4, 2, 'sat-cells'),
       ], true, [bx - 8 - pw / 2, cy], p);
       add('power', p.id, [
         s('line', { x1: bx + w, y1: cy, x2: bx + w + 8, y2: cy, class: 'sat-boom' }),
-        ...grid(bx + w + 8, cy - ph / 2, pw, ph, p.id === 'pwr_cube_solar' ? 2 : 4, 2, 'sat-cells'),
+        ...grid(bx + w + 8, cy - ph / 2, pw, ph, small ? 2 : 4, 2, 'sat-cells'),
       ], true, [bx + w + 8 + pw / 2, cy], null, ':right');
     }
   }
@@ -90,10 +75,9 @@ export function renderSatellite(state, opts = {}) {
   const com = c.comms;
   if (com) {
     const top = by;
-    if (com.id === 'com_uhf') add('comms', com.id, [s('line', { x1: cx + 8, y1: top, x2: cx + 8, y2: top - 24, class: 'sat-boom' }), s('circle', { cx: cx + 8, cy: top - 25, r: 2, class: 'sat-box' })], false, [cx + 8, top - 14], com);
-    else if (com.id === 'com_cube_sband') add('comms', com.id, [s('rect', { x: cx - 6, y: top - 4, width: 12, height: 4, class: 'sat-patch' })], false, [cx, top - 4], com);
+    if (com.id === 'ttc_uhf') add('comms', com.id, [s('line', { x1: cx + 8, y1: top, x2: cx + 8, y2: top - 24, class: 'sat-boom' }), s('circle', { cx: cx + 8, cy: top - 25, r: 2, class: 'sat-box' })], false, [cx + 8, top - 14], com);
     else {
-      const r = com.id === 'com_hga' ? 26 : 12;
+      const r = 12;
       add('comms', com.id, [
         s('line', { x1: cx, y1: top, x2: cx, y2: top - 8, class: 'sat-boom' }),
         s('path', { d: `M ${cx - r} ${top - 8 - r * 0.55} Q ${cx} ${top - 8 + r * 0.25} ${cx + r} ${top - 8 - r * 0.55}`, class: 'sat-dish' }),
@@ -102,10 +86,14 @@ export function renderSatellite(state, opts = {}) {
     }
   }
 
+  // Mission downlink (patch antenna on top)
+  const dl = c.downlink;
+  if (dl) add('downlink', dl.id, [s('rect', { x: cx - 10, y: by - 4, width: 12, height: 4, class: 'sat-patch' })], false, [cx - 4, by - 4], dl);
+
   // Star tracker (pointing system)
   const adcs = c.adcs;
-  if (adcs && adcs.id !== 'adcs_mag') {
-    const st = adcs.id === 'adcs_cube' ? 4 : 6;
+  if (adcs) {
+    const st = adcs.formFactor === 'cubesat' ? 4 : 6;
     add('adcs', adcs.id, [s('rect', { x: bx + 3, y: by - st, width: st * 1.6, height: st, class: 'sat-box' }), s('circle', { cx: bx + 3 + st * 0.8, cy: by - st / 2, r: st / 3, class: 'sat-lens' })], false, [bx + 6, by - st / 2], adcs);
   }
 
@@ -115,9 +103,7 @@ export function renderSatellite(state, opts = {}) {
     const cone = (x, y, size) => s('polygon', { points: `${x - size / 2},${y} ${x + size / 2},${y} ${x + size},${y + size * 1.2} ${x - size},${y + size * 1.2}`, class: 'sat-nozzle' });
     const yb = by + hgt;
     const anchor = [bx + w - 6, yb + 4];
-    if (prop.id === 'prop_biprop') add('propulsion', prop.id, [cone(bx + w - 10, yb, 8)], false, anchor, prop);
-    else if (prop.id === 'prop_hydrazine') add('propulsion', prop.id, [cone(bx + 6, yb, 4), cone(bx + w - 6, yb, 4)], false, anchor, prop);
-    else add('propulsion', prop.id, [cone(bx + 5, yb, 2.5), cone(bx + w - 5, yb, 2.5)], false, anchor, prop);
+    add('propulsion', prop.id, [cone(bx + 6, yb, 4), cone(bx + w - 6, yb, 4)], false, anchor, prop);
   }
 
   // Instruments (bottom, centred)

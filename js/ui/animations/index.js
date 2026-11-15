@@ -2,7 +2,6 @@
 
 export { countdown } from './countdown.js';
 export { launchSuccess } from './launchSuccess.js';
-export { launchFailure } from './launchFailure.js';
 export { tooHeavy } from './tooHeavy.js';
 export { orbitView, getOrbitView } from './orbitView.js';
 export { solarFlare } from './solarFlare.js';
@@ -20,6 +19,7 @@ import { debris } from './debris.js';
 import { hardwareFailure } from './hardwareFailure.js';
 import { cardFlip } from './cardFlip.js';
 import { discovery } from './discovery.js';
+export { constellationFix } from './constellation.js';
 
 /** Scene for a random event id. */
 export const EVENT_SCENES = {
@@ -28,7 +28,7 @@ export const EVENT_SCENES = {
   debris,
   budget_cut: (c, p) => cardFlip(c, { ...p, kind: 'budget', title: 'Budget cut!' }),
   launch_delay: (c, p) => cardFlip(c, { ...p, kind: 'delay', title: 'Launch delay' }),
-  discovery,
+  rare_storm: discovery,
 };
 
 export { instrumentView, drawView } from './instrumentView.js';

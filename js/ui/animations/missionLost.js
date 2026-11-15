@@ -6,7 +6,7 @@ import { sound } from '../sound.js';
 import { play, W, H, seg, ease, stars, setT, miniSat } from './core.js';
 
 export function missionLost(container, { state, cause = 'hardware', caption, tip, hold = true } = {}) {
-  const ICON = { power: '🔋', comms: '📡', hardware: '🔧' };
+  const ICON = { power: '🔋', comms: '📡', hardware: '🔧', thermal: '🌡️', payload: '🎯' };
   return play(container, {
     scene: 'mission-lost', label: 'Mission lost', duration: 4200, caption, hold,
     setup({ svg, html }) {

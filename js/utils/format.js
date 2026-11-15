@@ -17,7 +17,7 @@ export const kg = (n) => `${num(n)} kg`;
 export const watts = (n) => `${num(n)} W`;
 export const wh = (n) => `${num(n)} Wh`;
 export const gbDay = (n) => `${num(n, n < 1 && n > 0 ? 2 : undefined)} GB/day`;
-export const money = (n) => `$${num(n)}M`;
+export const money = (n) => `$${num(n, Math.abs(n) < 10 && n % 1 !== 0 ? 2 : undefined)}M`;
 export const months = (n) => `${num(n)} mo`;
 export const years = (n) => `${num(n, 1)} yr`;
 export const pct = (fraction, digits = 0) => `${num(fraction * 100, digits)}%`;

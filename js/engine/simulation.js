@@ -5,79 +5,89 @@
 // `pending` (the event waiting for the player). The reducer appends the player's choice to
 // `decisions` and replays. This keeps all randomness reproducible and the state serializable.
 //
-// Explicit results for the UI (which animation to play) and scoring:
-//   outcome:      'pending' | 'launch_failure' | 'too_heavy' | 'wrong_orbit' | 'lost' | 'partial' | 'success'
-//   failureCause: null | 'launch' | 'mass' | 'thrusters' | 'power' | 'comms' | 'hardware'
+// There is NO random launch-failure roll (research §8.6): a launch fails only because of the design.
+// A physically invalid design is NO-GO; opts.anyway = "Simulate what would happen" plays out the
+// first failed hard gate and records a failed mission (sim.noGo = true).
 //
-// - Launch success uses only the launcher's reliability (+ pre-launch decisions).
-// - Too heavy / thrusters too weak: the rocket flies, but the satellite never reaches its orbit.
-// - Design flaws shape operations: a big power deficit or a radio Earth can't hear ends the
-//   mission early; smaller deficits cost science (safe mode) and add hardware failures.
-// - Spacecraft health sets the yearly chance of hardware-failure events; if repeated damage
-//   pushes health below LOST_HEALTH the spacecraft is lost.
+//   outcome:      'pending' | 'scrubbed' | 'too_heavy' | 'wrong_orbit' | 'lost' | 'partial' | 'success'
+//   failureCause: null | 'prep' | 'mass' | 'orbit' | 'power' | 'comms' | 'thermal' | 'hardware' | 'payload'
+//
+// Events are SIMULATED (game rates, never real statistics). Their effects change the mission's service
+// availability (`performance`), spend project reserve, or weaken the satellite (`damage`; 2 = lost).
 //
 // opts.autoChoice: resolve every event with this choice index, or (event) => index (tests / previews).
 
-import { EVENTS } from '../data/events.js';
+import { EVENTS, eventApplies } from '../data/events.js';
 import { mulberry32 } from '../utils/random.js';
-import { computeResources, getSelection, FAILURE_RATE_FACTOR } from './resources.js';
+import { computeResources, getSelection } from './resources.js';
+import { validateDesign } from './validation.js';
 import { evaluateObjectives } from './objectives.js';
-import { relaunchCostM } from './costs.js';
 
-const MAX_MONTHS = 120;
-export const LOST_HEALTH = 0.85;          // below this average reliability the spacecraft dies
-export const DEAD_POWER_RATIO = 2 / 3;    // generation below 2/3 of consumption = cannot survive
-
-const applies = (event, orbitId) => event.appliesTo === 'all' || event.appliesTo.includes(orbitId);
-
-/** Pick a part to fail, weighted by how unreliable it is. */
-function pickFailingItem(rng, items) {
-  const weights = items.map((it) => 1 - it.reliability + 0.005);
-  let r = rng() * weights.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < items.length; i++) {
-    r -= weights[i];
-    if (r <= 0) return items[i];
-  }
-  return items[items.length - 1];
-}
+export const LOST_DAMAGE = 2; // a second weakening ends the mission
 
 /** Design-level operating conditions (pure, from resources). Exported for the UI animations. */
 export function operatingConditions(res) {
   const { power, battery, data } = res;
-  const powerRatio = power.available ? power.available / Math.max(power.used, 1e-9) : 0;
-  const powerDead = power.used > 0 && (power.available == null || powerRatio < DEAD_POWER_RATIO);
-  const powerFactor = power.used > 0 && power.available != null ? Math.min(1, powerRatio) : 1;
-  const batteryFactor = battery.status === 'over' && battery.used > 0 ? Math.max(0, battery.available / battery.used) : 1;
-  // Dead link = Earth can't hear the spacecraft at all. A slow link only loses data (science).
-  const commsDead = data.status === 'blocked' || !!data.deepSpaceProblem;
+  const powerDead = power.available == null || power.used > power.available + 1e-9 || power.peakOk === false;
+  const batteryDead = battery.status === 'over';
+  const commsDead = data.status === 'blocked' || data.status === 'over';
   return {
-    powerRatio, powerDead, powerFactor, batteryFactor, commsDead,
+    powerDead, batteryDead, commsDead,
+    powerFactor: powerDead ? 0 : 1,
+    batteryFactor: batteryDead ? 0 : 1,
     dataLostFraction: data.lostFraction ?? 0,
-    // Fraction of time the spacecraft spends in "safe mode" (instruments off).
-    safeModeFraction: 1 - powerFactor * (1 - (1 - batteryFactor) * 0.5),
+    safeModeFraction: powerDead || batteryDead ? 1 : 0,
   };
+}
+
+// Which failure a NO-GO design shows when it is simulated anyway (first matching gate wins).
+const NO_GO_PLAY = [
+  ['spacecraft_size_mass_volume_compatible', 'too_heavy', 'mass'],
+  ['launch_adapter_compatible', 'too_heavy', 'mass'],
+  ['launcher_trajectory_compatible', 'wrong_orbit', 'orbit'],
+  ['orbit_service_compatible', 'wrong_orbit', 'orbit'],
+  ['power_peak_and_average_pass', 'lost', 'power'],
+  ['battery_eclipse_pass', 'lost', 'power'],
+  ['ground_network_compatible', 'lost', 'comms'],
+  ['communications_link_pass', 'lost', 'comms'],
+  ['bus_support_complete', 'lost', 'hardware'],
+  ['mandatory_payload_complete', 'partial', 'payload'],
+  ['legal_safety_disposal_plan_pass', 'scrubbed', 'prep'],
+];
+
+/** The first failed hard gate of a design (or null). */
+export function firstFailedGate(issues) {
+  for (const [gate, outcome, cause] of NO_GO_PLAY) {
+    const hit = issues.find((i) => i.gate === gate && (i.severity === 'error' || (gate === 'legal_safety_disposal_plan_pass' && i.severity === 'todo')));
+    if (hit) return { gate, outcome, cause, issue: hit };
+  }
+  return null;
 }
 
 export function runSimulation(state, seed, decisions = [], opts = {}) {
   const rng = mulberry32(seed);
   const res = computeResources(state);
   const sel = getSelection(state);
-  const orbitId = sel.orbit?.id ?? null;
+  const { scenario } = sel;
+  const scenarioId = scenario?.id ?? null;
   const items = [...sel.componentList, ...sel.instruments];
   const cond = operatingConditions(res);
-  const relaunches = state.relaunches ?? 0;
+  const issues = validateDesign(state, res);
+  const failed = firstFailedGate(issues);
+  const noGo = !!opts.anyway && !!failed;
+  const plannedMonths = scenario?.simMonths ?? 12;
+  const reserveM = scenario?.costModel.reserve ?? 0;
 
-  const mods = { science: 1, budgetM: relaunches * relaunchCostM(state, res), lifetimeYears: 0, health: 0, launchReliability: 0, delayMonths: 0 };
+  const mods = { performance: 1, reserveShare: 0, damage: 0, delayMonths: 0 };
   const events = [];
   const ticks = [];
   let pending = null;
-  let launched = null;      // did the rocket lift off and work?
-  let reachedOrbit = false; // did the satellite get to its working orbit?
+  let launched = null;
+  let reachedOrbit = false;
   let outcome = 'pending';
   let failureCause = null;
-  let science = 0;
+  let service = 0; // Σ monthly service availability (0..1 per month)
   let month = 0;
-  let plannedMonths = 0;
 
   /** Resolve an event with the recorded/auto decision. Returns false if we must wait for the player. */
   function decide(event, eventMonth, extra = {}) {
@@ -89,7 +99,7 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
       return false;
     }
     for (const [k, v] of Object.entries(event.choices[choiceIndex].effects)) {
-      if (k === 'science') mods.science *= v;
+      if (k === 'performance') mods.performance *= v;
       else mods[k] += v;
     }
     events.push({ index, month: eventMonth, eventId: event.id, choiceIndex, ...extra });
@@ -97,6 +107,7 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
   }
 
   const result = () => {
+    const serviceFraction = plannedMonths ? service / plannedMonths : 0;
     const sim = {
       seed,
       decisions: decisions.slice(0, events.length),
@@ -104,30 +115,29 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
       pending,
       launched,
       reachedOrbit,
+      noGo,
+      noGoGate: noGo ? failed.gate : null,
       outcome: pending ? 'pending' : outcome,
       failureCause,
-      relaunches,
       ticks,
       events,
       conditions: cond,
       summary: {
         monthsOperated: month,
         plannedMonths,
-        scienceCollected: science,
+        serviceFraction,
+        performanceMultiplier: mods.performance,
         hardwareFailures: events.filter((e) => e.eventId === 'hardware_failure').length,
         eventsSurvived: events.filter((e) => e.month > 0).length,
-        extraCostM: mods.budgetM,
-        relaunches,
+        reserveUsedM: Math.min(reserveM * mods.reserveShare, Number.MAX_VALUE),
+        extraCostM: reserveM * mods.reserveShare,
         delayMonths: mods.delayMonths,
-        scienceMultiplier: mods.science,
-        healthChange: mods.health,
-        finalHealth: Math.max(0, res.health.value + mods.health),
-        failuresPerYearAtStart: res.health.failuresPerYear,
+        damage: mods.damage,
         massKg: res.mass.used,
         capacityKg: res.mass.available,
       },
     };
-    if (sim.complete && (outcome === 'completed')) {
+    if (sim.complete && outcome === 'completed') {
       const objectives = evaluateObjectives(state, sim, res);
       sim.outcome = objectives.every((o) => o.met) ? 'success' : 'partial';
       sim.missed = objectives.filter((o) => !o.met).map((o) => o.id);
@@ -135,46 +145,45 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
     return sim;
   };
 
-  // ── Pre-launch
-  for (const ev of EVENTS.filter((e) => e.phase === 'prelaunch' && applies(e, orbitId))) {
-    if (rng() < ev.probability && !decide(ev, 0)) return result();
+  // ── NO-GO designs simulated anyway: show what physics would do.
+  if (noGo && failed.outcome !== 'partial') {
+    if (failed.outcome === 'scrubbed') { launched = false; outcome = 'scrubbed'; failureCause = 'prep'; return result(); }
+    launched = true;
+    ticks.push({ month: 0, science: 0 });
+    if (failed.outcome === 'too_heavy' || failed.outcome === 'wrong_orbit') { outcome = failed.outcome; failureCause = failed.cause; return result(); }
+    reachedOrbit = true;
+    month = 1;
+    ticks.push({ month, science: 0 });
+    outcome = 'lost'; failureCause = failed.cause;
+    return result();
   }
 
-  // ── Launch: only the rocket's reliability counts for lift-off
-  const launchChance = Math.max(0, (sel.launcher?.reliability ?? 0) + mods.launchReliability);
-  launched = rng() < launchChance;
-  ticks.push({ month: 0, science: 0 });
-  if (!launched) { outcome = 'launch_failure'; failureCause = 'launch'; return result(); }
-  if (res.mass.status === 'over' || res.mass.status === 'blocked') { outcome = 'too_heavy'; failureCause = 'mass'; return result(); }
-  const prop = sel.components.propulsion;
-  if (sel.orbit && (!prop || prop.deltaV < sel.orbit.requiredDeltaV)) { outcome = 'wrong_orbit'; failureCause = 'thrusters'; return result(); }
+  // ── Pre-launch (simulated)
+  for (const ev of EVENTS.filter((e) => e.phase === 'prelaunch' && eventApplies(e, scenarioId))) {
+    if (rng() < ev.perYear && !decide(ev, 0)) return result();
+  }
+
+  // ── Launch: the design passed every hard gate, so the rocket delivers it.
+  launched = true;
   reachedOrbit = true;
+  ticks.push({ month: 0, science: 0 });
 
   // ── Operations
-  const monthlyScience = (res.science.value / 12) * (1 - cond.safeModeFraction);
-  const orbitEvents = EVENTS.filter((e) => e.phase === 'orbit' && applies(e, orbitId));
-  const stress = res.health.stress;
-  while (month < MAX_MONTHS) {
-    plannedMonths = Math.min(MAX_MONTHS, Math.round((res.lifetime.value + mods.lifetimeYears) * 12));
-    if (month >= plannedMonths) break;
+  const payloadWorks = !noGo; // a NO-GO payload design flies but cannot do the mission
+  const orbitEvents = EVENTS.filter((e) => e.phase === 'orbit' && eventApplies(e, scenarioId));
+  while (month < plannedMonths) {
     month += 1;
-    // Fatal design flaws show up in the first month of operations.
-    if (cond.powerDead) { outcome = 'lost'; failureCause = 'power'; ticks.push({ month, science }); return result(); }
-    if (cond.commsDead) { outcome = 'lost'; failureCause = 'comms'; ticks.push({ month, science }); return result(); }
     for (const ev of orbitEvents) {
-      const perYear = ev.probabilityFrom === 'health'
-        ? Math.max(0, 1 - (res.health.value + mods.health)) * FAILURE_RATE_FACTOR + stress
-        : ev.probability;
-      if (rng() < perYear / 12) {
-        const extra = ev.probabilityFrom === 'health' && items.length ? { itemId: pickFailingItem(rng, items).id } : {};
+      if (rng() < ev.perYear / 12) {
+        const extra = ev.id === 'hardware_failure' && items.length ? { itemId: items[Math.floor(rng() * items.length)].id } : {};
         if (!decide(ev, month, extra)) { month -= 1; return result(); }
       }
     }
-    if (res.health.value + mods.health < LOST_HEALTH) { outcome = 'lost'; failureCause = 'hardware'; ticks.push({ month, science }); return result(); }
-    science += monthlyScience * mods.science;
-    ticks.push({ month, science });
+    if (mods.damage >= LOST_DAMAGE) { outcome = 'lost'; failureCause = 'hardware'; ticks.push({ month, science: service }); return result(); }
+    service += payloadWorks ? Math.min(1, mods.performance) : 0;
+    ticks.push({ month, science: service });
   }
-  plannedMonths = Math.min(MAX_MONTHS, Math.round((res.lifetime.value + mods.lifetimeYears) * 12));
   outcome = 'completed';
+  if (noGo) { outcome = 'partial'; failureCause = 'payload'; }
   return result();
 }

@@ -3,20 +3,24 @@
 import { T, SCREENS, MAX_PLAYERS } from './actions.js';
 import { emptyDesign } from './initialState.js';
 import { ROLES } from '../data/roles.js';
-import { COMPONENT_CATEGORIES, getComponent, isCubeSat } from '../data/components.js';
-import { getScenario, EASY_DEFAULT_STRUCTURE } from '../data/scenarios.js';
+import { COMPONENT_CATEGORIES, NONE, getComponent } from '../data/components.js';
+import { getScenario } from '../data/scenarios.js';
 import { applyBundles, getPowerPack, getKit } from '../data/bundles.js';
 import { getInstrument } from '../data/instruments.js';
 import { getOrbit } from '../data/orbits.js';
-import { getLauncher } from '../data/launchers.js';
+import { getLauncher, getDeployer } from '../data/launchers.js';
 import { getGroundStation } from '../data/groundStations.js';
 import { getNoGoReason } from '../data/roles.js';
 import { voteStatus } from '../engine/roleGoals.js';
+import { validateDesign, canLaunch } from '../engine/validation.js';
 import { runSimulation } from '../engine/simulation.js';
 import { scoreMission } from '../engine/scoring.js';
 
+const PREP_ITEMS = ['tests', 'licence', 'disposal'];
+const BUNDLE_KIT_CATS = ['computer', 'adcs', 'thermal', 'sensors', 'harness', 'propulsion', 'propellant'];
+
 // Any design change re-applies Easy bundles and invalidates votes and old results.
-const withDesign = (state, design) => ({ ...state, design: applyBundles(design), votes: {}, voteReasons: {}, simulation: null, score: null, relaunches: 0 });
+const withDesign = (state, design) => ({ ...state, design: applyBundles(design, state.scenarioId), votes: {}, voteReasons: {}, simulation: null, score: null });
 
 const firstFreeRole = (players) =>
   (ROLES.find((r) => !players.some((p) => p.roleId === r.id)) ?? ROLES[0]).id;
@@ -28,35 +32,33 @@ function fixActiveRole(state) {
   return { ...state, activeRoleId: state.players[0]?.roleId ?? 'director' };
 }
 
-// Easy + a CubeSat-friendly mission → start with a 6U CubeSat frame (if no frame chosen yet).
-function applyEasyDefaults(state) {
-  if (state.difficulty !== 'easy') return state;
-  const scenario = getScenario(state.scenarioId);
-  if (!scenario?.cubesatFeasible || state.design.components.structure) return state;
-  return withDesign(state, { ...state.design, components: { ...state.design.components, structure: EASY_DEFAULT_STRUCTURE } });
-}
-
-// Switching between a CubeSat and a full-size frame drops parts of the wrong size
+// Switching between a CubeSat and a large bus drops parts of the wrong size
 // (they become "to do" again instead of an error). Easy bundles then refill them.
 function changeStructure(design, structureId) {
-  const wasCube = isCubeSat(getComponent(design.components.structure));
-  const nowCube = isCubeSat(getComponent(structureId));
+  const now = getComponent(structureId);
   const components = { ...design.components, structure: structureId };
-  if (wasCube !== nowCube) {
-    for (const cat of COMPONENT_CATEGORIES) {
-      const c = getComponent(components[cat]);
-      if (cat !== 'structure' && c && isCubeSat(c) !== nowCube) components[cat] = null;
-    }
+  if (!now) return { ...design, components };
+  for (const cat of COMPONENT_CATEGORIES) {
+    const c = getComponent(components[cat]);
+    if (cat !== 'structure' && c && c.formFactor !== now.formFactor) components[cat] = null;
   }
-  return { ...design, components };
+  const instrumentIds = design.instrumentIds.filter((id) => {
+    const ins = getInstrument(id);
+    return ins && (ins.formFactor === 'any' || ins.formFactor === now.formFactor);
+  });
+  const dep = getDeployer(design.deployerId);
+  const deployerId = dep && dep.formFactor !== now.formFactor ? null : design.deployerId;
+  return { ...design, components, instrumentIds, deployerId };
 }
 
 // Replay the simulation with a decision list; score only when the run is complete.
-function withSimulation(state, seed, decisions) {
-  const simulation = runSimulation(state, seed, decisions);
+function withSimulation(state, seed, decisions, anyway = false) {
+  const simulation = runSimulation(state, seed, decisions, { anyway });
   const score = simulation.complete ? scoreMission(state, simulation) : null;
   return { ...state, simulation, score };
 }
+
+const validComponent = (cat, id) => id === NONE || getComponent(id)?.category === cat;
 
 export function reducer(state, action) {
   switch (action.type) {
@@ -75,11 +77,11 @@ export function reducer(state, action) {
 
     case T.SET_DIFFICULTY: {
       if (action.difficulty !== 'easy' && action.difficulty !== 'normal') return state;
-      // Easy uses bundles (auto kit); Normal lets players pick every part.
+      // Easy uses bundles (auto bus kit); Normal lets players pick every part.
       const design = action.difficulty === 'easy'
         ? { ...state.design, kit: state.design.kit ?? 'standard' }
         : { ...state.design, kit: null, powerPack: null };
-      return applyEasyDefaults(withDesign({ ...state, difficulty: action.difficulty }, design));
+      return withDesign({ ...state, difficulty: action.difficulty }, design);
     }
 
     case T.ADD_PLAYER: {
@@ -108,16 +110,22 @@ export function reducer(state, action) {
     case T.SET_ACTIVE_ROLE:
       return { ...state, activeRoleId: action.roleId };
 
-    case T.SELECT_SCENARIO:
-      return applyEasyDefaults({ ...state, scenarioId: action.scenarioId, votes: {}, simulation: null, score: null });
+    case T.SELECT_SCENARIO: {
+      if (!getScenario(action.scenarioId)) return state;
+      if (action.scenarioId === state.scenarioId) return state;
+      // Parts are mission-specific: a new mission starts from an empty design.
+      const fresh = { ...emptyDesign(), kit: state.difficulty === 'easy' ? 'standard' : null };
+      return withDesign({ ...state, scenarioId: action.scenarioId }, fresh);
+    }
 
     case T.SELECT_COMPONENT: {
       if (!COMPONENT_CATEGORIES.includes(action.category)) return state;
+      if (action.componentId !== null && !validComponent(action.category, action.componentId)) return state;
       if (action.category === 'structure') return withDesign(state, changeStructure(state.design, action.componentId));
-      // Picking a single power/brains part by hand turns the matching bundle off.
+      // Picking a single power/bus part by hand turns the matching bundle off.
       const design = { ...state.design, components: { ...state.design.components, [action.category]: action.componentId } };
       if (action.category === 'power' || action.category === 'battery') design.powerPack = null;
-      if (['computer', 'adcs', 'propulsion'].includes(action.category)) design.kit = null;
+      if (BUNDLE_KIT_CATS.includes(action.category)) design.kit = null;
       return withDesign(state, design);
     }
 
@@ -149,6 +157,14 @@ export function reducer(state, action) {
     case T.SELECT_GROUND:
       return withDesign(state, { ...state.design, groundId: action.groundId });
 
+    case T.SELECT_DEPLOYER:
+      if (action.deployerId !== null && !getDeployer(action.deployerId)) return state;
+      return withDesign(state, { ...state.design, deployerId: action.deployerId });
+
+    case T.TOGGLE_PREP:
+      if (!PREP_ITEMS.includes(action.item)) return state;
+      return withDesign(state, { ...state.design, prep: { ...state.design.prep, [action.item]: !!action.value } });
+
     case T.CAST_VOTE: {
       if (action.vote === 'nogo' && !getNoGoReason(action.reason)) return state; // a No-Go needs a reason
       const votes = { ...state.votes };
@@ -159,18 +175,19 @@ export function reducer(state, action) {
     }
 
     // Engine functions are pure and seeded, so calling them here keeps the reducer pure.
-    case T.RUN_SIMULATION:
-      if (!voteStatus(state).majority) return state; // team mode: launch needs a majority Go
-      return { ...withSimulation({ ...state, relaunches: 0 }, action.seed, []), screen: 'operations' };
-
-    case T.RELAUNCH:
-      if (state.simulation?.outcome !== 'launch_failure') return state;
-      return withSimulation({ ...state, relaunches: state.relaunches + 1 }, action.seed, []);
+    case T.RUN_SIMULATION: {
+      if (!state.scenarioId) return state;
+      const go = canLaunch(validateDesign(state));
+      // A NO-GO design never launches for real; "Simulate what would happen" plays it out as a failure.
+      if (!go && !action.anyway) return state;
+      if (go && !voteStatus(state).majority) return state; // team mode: launch needs a majority Go
+      return { ...withSimulation(state, action.seed, [], !go), screen: 'operations' };
+    }
 
     case T.CHOOSE_EVENT_OPTION: {
       const sim = state.simulation;
       if (!sim?.pending) return state;
-      return withSimulation(state, sim.seed, [...sim.decisions, action.choiceIndex]);
+      return withSimulation(state, sim.seed, [...sim.decisions, action.choiceIndex], sim.noGo);
     }
 
     case T.LOAD_DESIGN: {
@@ -178,12 +195,14 @@ export function reducer(state, action) {
       if (!sh || !getScenario(sh.scenarioId)) return state;
       const d = sh.design ?? {};
       const components = { ...emptyDesign().components };
-      for (const cat of COMPONENT_CATEGORIES) components[cat] = getComponent(d.components?.[cat])?.category === cat ? d.components[cat] : null;
+      for (const cat of COMPONENT_CATEGORIES) components[cat] = validComponent(cat, d.components?.[cat]) ? d.components[cat] : null;
+      const prep = Object.fromEntries(PREP_ITEMS.map((k) => [k, d.prep?.[k] === true]));
       const design = {
-        ...emptyDesign(), components,
-        instrumentIds: (d.instrumentIds ?? []).filter((id) => getInstrument(id)),
+        ...emptyDesign(), components, prep,
+        instrumentIds: [...new Set((d.instrumentIds ?? []).filter((id) => getInstrument(id)))],
         orbitId: getOrbit(d.orbitId) ? d.orbitId : null,
         launcherId: getLauncher(d.launcherId) ? d.launcherId : null,
+        deployerId: getDeployer(d.deployerId) ? d.deployerId : null,
         groundId: getGroundStation(d.groundId) ? d.groundId : null,
         powerPack: getPowerPack(d.powerPack) ? d.powerPack : null,
         kit: getKit(d.kit) ? d.kit : null,
@@ -202,7 +221,6 @@ export function reducer(state, action) {
         voteReasons: {},
         simulation: null,
         score: null,
-        relaunches: 0,
       };
 
     default:

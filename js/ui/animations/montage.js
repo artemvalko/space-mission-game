@@ -7,7 +7,7 @@ import { play, W, H, seg, ease, lerp, setT } from './core.js';
 
 const STAGES = ['🔧 Assembly', '📳 Shake test', '🧊 Thermal-vacuum test', '🚚 Truck to the pad', '🚀 Rollout'];
 
-export function montage(container, { state, devMonths = 20, caption = 'Real satellites are tested to survive launch and space.', hold = false, linger = 1600 } = {}) {
+export function montage(container, { state, devMonths = null, caption = 'Real satellites are tested to survive launch and space.', hold = false, linger = 1600 } = {}) {
   return play(container, {
     scene: 'montage', label: 'From the factory to the launch pad', duration: 5200, caption, hold, linger,
     setup({ svg }) {
@@ -37,13 +37,14 @@ export function montage(container, { state, devMonths = 20, caption = 'Real sate
       ]);
       const calNum = s('text', { x: W - 95, y: 162, class: 'mt-cal-num', 'text-anchor': 'middle' }, '0');
       cal.append(calNum);
-      svg.append(floor, waves, chamber, table, satG, arm, truck, rocket, stageLabel, cal);
+      svg.append(floor, waves, chamber, table, satG, arm, truck, rocket, stageLabel);
+      if (devMonths) svg.append(cal); // only when the research gives a planning window
       return {
         frame(t, ms) {
           const k = Math.min(4, Math.floor(t * 5));
           const lt = (t * 5) % 1;
           stageLabel.textContent = STAGES[k];
-          calNum.textContent = String(Math.round(ease.inOut(t) * devMonths));
+          if (devMonths) calNum.textContent = String(Math.round(ease.inOut(t) * devMonths));
           const show = (node, on) => node.setAttribute('opacity', on ? 1 : 0);
           show(arm, k === 0); show(table, k === 1); show(waves, k === 1); show(chamber, k === 2); show(truck, k === 3); show(rocket, k === 4);
           show(satG, k < 4);

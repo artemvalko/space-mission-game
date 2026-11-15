@@ -1,46 +1,52 @@
-// Step 4 — Power. Easy: one bundled "Power pack" choice. Normal: power source + battery.
+// Step 4 — Power: solar array + battery, with the eclipse explanation (research §3.3, §5.4, §8.2).
+// Easy: one bundled power pack (sum of its research parts). Normal: array + battery separately.
 
 import { mount, h } from '../dom.js';
-import { choiceCard, levels, previewDelta } from '../card.js';
-import { POWER_PACKS } from '../../data/bundles.js';
+import { term } from '../tooltip.js';
+import { choiceCard, previewDelta } from '../card.js';
+import { POWER_PACKS, bundleTotals } from '../../data/bundles.js';
 import { getComponent, isCubeSat } from '../../data/components.js';
 import { computeResources } from '../../engine/resources.js';
-import { CATEGORY_WHY } from '../../engine/explain.js';
 import { selectPowerPack } from '../../state/actions.js';
-import { kg, watts, wh, money } from '../../utils/format.js';
+import { kg, watts, wh, money, num } from '../../utils/format.js';
 import { subQuestion, componentCards } from './common.js';
 
+function eclipseNote(res) {
+  const { power, battery } = res;
+  if (power.generation == null) return null;
+  return h('div', { class: 'panel small' }, [
+    h('strong', {}, '☀️ Sunlight vs 🌑 shadow — '),
+    `average power ${num(power.generation, 2)} W for a ${watts(power.used)} load`,
+    battery.needWh != null && battery.usable != null ? `; shadow needs ${num(battery.needWh, 2)} Wh of ${wh(battery.usable)} usable` : '',
+    '. ', term('dutyCycle', 'Why an average?'), ' · ', term('eclipse', 'What is an eclipse?'),
+  ]);
+}
+
 function packCards(state, dispatch, before) {
-  const cube = isCubeSat(getComponent(state.design.components.structure));
-  const parts = POWER_PACKS.map((p) => {
-    const set = (cube ? p.cubesat : p.standard) ?? p.standard;
-    return { power: getComponent(set.power), battery: getComponent(set.battery) };
-  });
-  const out = levels(parts.map((x) => x.power.outputW));
-  const weight = levels(parts.map((x) => x.power.mass + x.battery.mass));
-  const cost = levels(parts.map((x) => x.power.cost + x.battery.cost));
-  return h('div', { class: 'choices' }, POWER_PACKS.map((p, i) => {
-    const x = parts[i];
+  const structure = getComponent(state.design.components.structure);
+  const cube = structure ? isCubeSat(structure) : null;
+  const packs = POWER_PACKS.filter((p) => cube == null || (p.formFactor === 'cubesat') === cube);
+  return h('div', { class: 'choices' }, packs.map((p) => {
+    const array = getComponent(p.parts.power);
+    const battery = getComponent(p.parts.battery);
+    const tot = bundleTotals(p.parts, state.scenarioId);
     const selected = state.design.powerPack === p.id;
-    const disabled = cube && !p.cubesat;
+    const own = p.missions.includes(state.scenarioId);
     return choiceCard({
       key: `pack-${p.id}`,
       icon: p.icon,
       title: p.plainName,
-      realTerm: `${x.power.plainName} + ${x.battery.plainName.toLowerCase()}`,
-      oneLiner: cube && p.cubesat ? 'Mini solar wings + CubeSat battery. Just right for a CubeSat.' : p.oneLiner,
-      meters: [
-        { label: 'Power', symbol: '⚡', level: out[i] },
-        { label: 'Weight', symbol: '●', level: weight[i] },
-        { label: 'Cost', symbol: '$', level: cost[i] },
-      ],
-      details: [['Solar output (full sun)', watts(x.power.outputW)], ['Battery', wh(x.battery.capacityWh)],
-        ['Weight', kg(x.power.mass + x.battery.mass)], ['Cost', money(x.power.cost + x.battery.cost)]],
+      realTerm: `${array.name}${battery ? ` + ${battery.name}` : ''}`,
+      oneLiner: p.oneLiner,
+      whatFor: 'Solar wings make electricity in sunlight; the battery keeps the satellite alive in Earth\'s shadow.',
+      badges: own ? ['Research build ★'] : [],
+      details: [['Array (full sun)', watts(array.arrayW)], ['Battery', battery ? wh(battery.capacityWh) : 'none'],
+        ['Mass (sum of parts)', kg(tot.mass)], ['Cost (sum of parts)', money(tot.cost)]],
+      data: array,
       selected,
-      disabled,
-      disabledReason: '✗ A CubeSat only has room for the small pack.',
+      warn: selected && p.trap,
       delta: selected ? null : `If chosen: ${previewDelta(state, selectPowerPack(p.id), before)}`,
-      why: `${CATEGORY_WHY.power} ${CATEGORY_WHY.battery}`,
+      why: p.trap ? 'In sunlight there is enough power, but in the shadow the satellite switches off (research §7.3 "power_only_peak").' : `${array.why} ${battery?.why ?? ''}`,
       onSelect: () => dispatch(selectPowerPack(p.id)),
     });
   }));
@@ -48,24 +54,23 @@ function packCards(state, dispatch, before) {
 
 export function render(container, state, dispatch) {
   const before = computeResources(state);
+  const hint = h('p', { class: 'step-hint' }, ['Solar wings only work in sunlight. In Earth\'s shadow (', term('eclipse', 'eclipse'), ') the battery must carry the load — and only 60% of it is used, to keep it healthy.']);
   if (state.difficulty === 'easy') {
-    mount(container, 
-      h('p', { class: 'step-hint' }, 'Solar panels make electricity in sunlight; the battery keeps everything running in the planet\'s shadow.'),
-      packCards(state, dispatch, before),
-    );
+    mount(container, hint, eclipseNote(before), packCards(state, dispatch, before));
     return;
   }
-  mount(container, 
-    subQuestion('Power source', 'power'),
+  mount(container,
+    hint, eclipseNote(before),
+    subQuestion('Solar array + EPS', 'power'),
     componentCards(state, dispatch, 'power', [
-      { label: 'Power', symbol: '⚡', value: (c) => c.outputW },
-      { label: 'Weight', symbol: '●', value: (c) => c.mass },
+      { label: 'Power', symbol: '⚡', value: (c) => c.arrayW },
+      { label: 'Mass', symbol: '●', value: (c) => c.mass },
       { label: 'Cost', symbol: '$', value: (c) => c.cost },
     ], before),
     subQuestion('Battery', 'battery'),
     componentCards(state, dispatch, 'battery', [
       { label: 'Storage', symbol: '🔋', value: (c) => c.capacityWh },
-      { label: 'Weight', symbol: '●', value: (c) => c.mass },
+      { label: 'Mass', symbol: '●', value: (c) => c.mass },
       { label: 'Cost', symbol: '$', value: (c) => c.cost },
     ], before),
   );
