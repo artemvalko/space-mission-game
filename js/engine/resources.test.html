@@ -116,7 +116,7 @@
     import { computeResources, getSelection, payloadNeeds } from './resources.js';
     import { validateDesign, hasBlockingErrors, canLaunch, gateStatus, GATES } from './validation.js';
     import { runSimulation, eventChoices, eventContext, eventDescription } from './simulation.js';
-    import { scoreMission, marginQuality, weightsFor, gradeFor, DISPOSAL_BONUS } from './scoring.js';
+    import { scoreMission, marginQuality, weightsFor, gradeFor, DISPOSAL_BONUS, LOST_JUNK, LOST_TUG, retirementAfterLoss } from './scoring.js';
     import { evaluateObjectives, satelliteSuccess, constellationStatus, checkClaim, variantFit } from './objectives.js';
     import { describeOutcome } from './outcome.js';
     import { evaluateRoleGoals, voteStatus } from './roleGoals.js';
@@ -596,6 +596,37 @@
       const susOf = (sm) => scoreMission(make(C), sm).parts.find((p) => p.id === 'disposal').points;
       check('extending gives more service but uses disposal margin (Sustainability drops)', extend.summary.serviceFraction >= retire.summary.serviceFraction && extend.summary.extended && susOf(extend) < susOf(retire), `${susOf(retire)} → ${susOf(extend)}`);
       check('replay: the same seed + decisions give the same run with the new choices', JSON.stringify(runSimulation(make(N), 9, extend.decisions.slice(0, 2), { autoChoice: best }).events) === JSON.stringify(runSimulation(make(N), 9, extend.decisions.slice(0, 2), { autoChoice: best }).events));
+    }
+
+    // ═══ 13. Lost in flight: only passive retirement still works ═══════════════
+    await tick();
+    section('13 · Satellite lost before it could retire');
+    {
+      const disp = (st, id, extra = {}) => ({ ...st, design: { ...st.design, disposalId: id, prep: { ...st.design.prep, disposal: true }, ...extra } });
+      const worst = (e) => { const i = e.choices.findIndex((c) => c.effects.damage); return i >= 0 ? i : 0; };
+      // Find a seed where the risky choices lose the satellite (seeded → reproducible).
+      const lostRun = (st) => { for (let sd = 1; sd < 200; sd++) { const r = runSimulation(st, sd, [], { autoChoice: worst }); if (r.outcome === 'lost') return r; } return null; };
+      const sus = (st, r) => scoreMission(st, r).parts.find((p) => p.id === 'disposal');
+      const decay = disp(make(C), 'disp_burn_up');
+      const rDecay = lostRun(decay);
+      check('lost runs exist for the test (seeded)', !!rDecay && rDecay.outcome === 'lost');
+      check('lost + natural decay: still retires passively, keeps its Sustainability points', sus(decay, rDecay).retire === 'passive' && sus(decay, rDecay).points === computeResources(decay).planet.score && !scoreMission(decay, rDecay).insights.bad.includes(LOST_JUNK));
+      for (const [eol, name] of [['eol_drag_sail', 'drag sail'], ['eol_attitude_drag', 'turn broadside']]) {
+        const st = disp(make(C, withParts({ eol })), 'disp_burn_up');
+        const r = lostRun(st); const p = sus(st, r); const pl = computeResources(st).planet;
+        check(`lost + ${name}: needs a working satellite → debris worst (0/15), "now it is space junk" in Results`, p.retire === 'failed' && p.points === pl.score - pl.meters.debris && /Debris 0\/15/.test(p.why) && scoreMission(st, r).insights.bad[0] === LOST_JUNK, `${p.points}/40`);
+      }
+      const nav = disp(make(N), 'disp_leave_in_orbit');
+      const rNav = lostRun(nav);
+      const pNav = rNav && sus(nav, rNav); const plNav = computeResources(nav).planet;
+      check('lost + disposal orbit (MEO): cannot move itself → debris worst, space junk', !!rNav && pNav.retire === 'failed' && pNav.points === plNav.score - plNav.meters.debris && scoreMission(nav, rNav).insights.bad.includes(LOST_JUNK));
+      // Controlled ocean reentry is never valid in this game's missions; force the rule directly.
+      const fakePlanet = { strategyId: 'disp_controlled_ocean' };
+      check('lost + controlled ocean reentry: needs a working satellite → fails', retirementAfterLoss({ outcome: 'lost', noGo: false }, getSelection(make(C)), fakePlanet, true) === 'failed');
+      const plate = disp(make(N), 'disp_leave_in_orbit', { dockingPlate: true });
+      const rPlate = lostRun(plate); const pPlate = rPlate && sus(plate, rPlate); const scPlate = rPlate && scoreMission(plate, rPlate);
+      check('lost + docking plate: a tug can still remove it → keeps debris points, budget uncertain', !!rPlate && pPlate.retire === 'tug' && pPlate.points === computeResources(plate).planet.score && scPlate.stats.budgetUncertain && scPlate.insights.good.includes(LOST_TUG) && !scPlate.insights.bad.includes(LOST_JUNK));
+      check('not lost: rule does not apply (completed run keeps the full score)', sus(nav, sim(nav)).retire == null && sus(nav, sim(nav)).points > 0);
     }
 
     const summary = document.getElementById('summary');

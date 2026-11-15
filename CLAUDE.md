@@ -43,7 +43,7 @@ Solo, or hot-seat team of 2–4 (Director, Engineer, Scientist, Flight Dynamics)
 cd space-mission-game
 python3 -m http.server        # then open http://localhost:8000
 ```
-- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 224 checks: data honesty, research
+- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 232 checks: data honesty, research
   BOM sums, power/battery/data numbers, every §10 QA case C-01…ALL-02, alternatives vs distractors,
   NO-GO rule, simulation replay, scoring, role goals, votes, sharing, badges, and every PASS build of
   every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path, disposal strategies + planet impact, design-reactive events).
@@ -223,6 +223,9 @@ wrong-size parts and payloads (→ todo). Selecting another mission starts a fre
 - Events react to the design (`simulation.js#eventChoices/eventContext`): thruster dodge, spare computer
   (obc_si_quad), rad-hard halves storm damage, low battery margin note, MEO radiation-belt note, and the
   end-of-mission "Extend or retire?" event. Multipliers only; chosen label/effects stored in the event log.
+- Lost in flight (`scoring.js#retirementAfterLoss`): only natural decay still works ('passive', keeps points). Drag
+  sail, broadside, ocean reentry, disposal orbit need a working satellite → 'failed': debris 0/15 + "Lost before it
+  could retire: now it is space junk." in Results — unless a docking plate was fitted ('tug': debris kept, budget uncertain).
 
 ## Hard gates (engine/validation.js — §8.5)
 orbit_service_compatible · spacecraft_size_mass_volume_compatible · mandatory_payload_complete ·

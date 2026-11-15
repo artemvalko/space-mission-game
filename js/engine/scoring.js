@@ -102,7 +102,12 @@ export function scoreMission(state, sim) {
   const planet = res.planet;
   const disposalOk = flew && !sim.noGo && sel.prep.disposal && planet.valid;
   // Extending the mission uses disposal margin: the debris part drops (end-of-mission event).
-  const sustain = disposalOk ? Math.max(0, planet.score - Math.min(planet.meters.debris, s.debrisPenalty ?? 0)) : 0;
+  // A satellite lost in flight can only retire passively (natural decay). Drag sail, turning broadside,
+  // ocean reentry and disposal orbit need a working satellite → debris meter worst — unless a docking
+  // plate lets a future tug remove it (its price stays unknown: budget uncertain).
+  const retire = retirementAfterLoss(sim, sel, planet, disposalOk);
+  const debrisLost = !disposalOk ? 0 : retire === 'failed' ? planet.meters.debris : Math.min(planet.meters.debris, s.debrisPenalty ?? 0);
+  const sustain = disposalOk ? Math.max(0, planet.score - debrisLost) : 0;
 
   const raw = { science: performance, objectives: objectivesScore, efficiency, survivability, teamwork };
   const WHY = {
@@ -118,12 +123,15 @@ export function scoreMission(state, sim) {
     max: Math.round(weights[id] * 1000), points: Math.round(raw[id] * weights[id] * 1000), why: WHY[id],
   })).filter((p) => p.weight > 0);
   parts.push({ id: 'disposal', label: 'Sustainability', weight: 0, score: sustain / DISPOSAL_BONUS, max: DISPOSAL_BONUS, points: sustain, bonus: true, best: planet.best,
-    why: disposalOk ? `${planet.explanation} Debris ${planet.meters.debris}/15 · atmosphere ${planet.meters.atmosphere}/15 · ground ${planet.meters.ground}/10. Best possible for your orbit: ${planet.best}/40.`
+    retire,
+    why: retire === 'failed' ? `${LOST_JUNK} Debris 0/15 · atmosphere ${planet.meters.atmosphere}/15 · ground ${planet.meters.ground}/10. Best possible for your orbit: ${planet.best}/40.`
+      : retire === 'tug' ? `${LOST_TUG} Debris ${planet.meters.debris}/15 · atmosphere ${planet.meters.atmosphere}/15 · ground ${planet.meters.ground}/10. Best possible for your orbit: ${planet.best}/40.`
+      : disposalOk ? `${planet.explanation} Debris ${planet.meters.debris}/15 · atmosphere ${planet.meters.atmosphere}/15 · ground ${planet.meters.ground}/10. Best possible for your orbit: ${planet.best}/40.`
       : `No valid retirement plan. Best possible for your orbit: ${planet.best}/40.` });
   let total = Math.max(0, Math.min(1000, parts.reduce((a, p) => a + p.points, 0)));
   if (sim.noGo) total = Math.min(total, 340); // a NO-GO design is a failed mission
 
-  const stats = { planetScore: sustain, planetBest: planet.best, atmosphereKg: planet.atmosphereKg, retire: planet.strategyId, spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives),
+  const stats = { retireAfterLoss: retire, planetScore: sustain, planetBest: planet.best, atmosphereKg: planet.atmosphereKg, retire: planet.strategyId, spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives),
     variantFit: fit.value, variantId: fit.variant?.id ?? null, budgetUncertain: !!res.budget.uncertain, unknownPrices: res.budget.unknownItems ?? [] };
   return {
     total,
@@ -139,6 +147,21 @@ export function scoreMission(state, sim) {
     tips: tips(parts, objectives, res, stats, sim),
     stats,
   };
+}
+
+export const LOST_JUNK = 'Lost before it could retire: now it is space junk.';
+export const LOST_TUG = 'Lost, but its docking plate lets a tug remove it (price not public).';
+/** Methods that work on a dead satellite: only letting the air pull it down by itself. */
+const ACTIVE_EOL = ['eol_drag_sail', 'eol_attitude_drag'];
+/**
+ * After an in-flight loss: null (not lost / no valid plan), 'passive' (natural decay still works),
+ * 'tug' (active plan failed, docking plate saves the debris points) or 'failed' (now it is space junk).
+ */
+export function retirementAfterLoss(sim, sel, planet, disposalOk) {
+  if (!disposalOk || sim.outcome !== 'lost' || sim.noGo) return null;
+  const passive = planet.strategyId === 'disp_burn_up' && !ACTIVE_EOL.includes(sel.components.eol?.id);
+  if (passive) return 'passive';
+  return sel.dockingPlate ? 'tug' : 'failed';
 }
 
 /** "What went well" / "What hurt your mission": short sentences with numbers. */
@@ -159,7 +182,9 @@ function insights(sim, res, sel, st, objectives) {
     if (res.mass.used > res.mass.available) bad.push({ w: 1, text: `${kg(res.mass.used - res.mass.available)} over the mass limit.` });
     else good.push({ w: 0.25, text: `Mass ${kg(res.mass.used)} of ${kg(res.mass.available)}.` });
   }
-  if (sim.reachedOrbit && !sim.noGo && res.planet.valid) {
+  if (st.retireAfterLoss === 'failed') bad.push({ w: 1.5, text: LOST_JUNK });
+  else if (st.retireAfterLoss === 'tug') good.push({ w: 0.6, text: LOST_TUG });
+  else if (sim.reachedOrbit && !sim.noGo && res.planet.valid) {
     const p = res.planet;
     good.push({ w: 0.5, text: p.strategyId === 'disp_leave_in_orbit' ? 'Retired to a disposal orbit: clean air, but it stays in space.'
       : `Your satellite burned up: no junk, ≈${p.atmosphereKg.toFixed(1)} kg aluminium oxide (science estimate).` });
