@@ -55,6 +55,32 @@ const NO_GO_PLAY = [
   ['legal_safety_disposal_plan_pass', 'scrubbed', 'prep'],
 ];
 
+// ── Events that react to the design (DISPOSAL.md phase 4). Multipliers / extra choices only.
+const HIGH = ['meo_gnss', 'meo_gps_20200', 'geo'];
+/** Design features the events care about. */
+export function eventContext(sel, res) {
+  const c = sel.components;
+  const b = res.battery;
+  return {
+    thrusters: (!!c.propulsion && !!c.propellant) || sel.included.has('propulsion'),
+    spareComputer: c.computer?.id === 'obc_si_quad',
+    radHard: c.computer?.id === 'obc_rad_hard',
+    lowBattery: b.usable != null && b.needWh ? b.usable / b.needWh - 1 < 0.2 : false,
+    highOrbit: !!sel.orbit && HIGH.includes(sel.orbit.id),
+  };
+}
+/** The choices this design allows for an event (with design-specific explanations). */
+export function eventChoices(ev, ctx) {
+  return ev.choices.filter((ch) => !ch.requires || ctx[ch.requires]).map((ch) => {
+    let explanation = ch.explanation;
+    if (ch.unsafeIfLowBattery && ctx.lowBattery) explanation += ' ⚠️ Your battery margin is under 20%: in a storm the battery cannot cover the extra load — safe mode is the only safe answer.';
+    else if (ch.damageHalvedBy && ctx[ch.damageHalvedBy]) explanation += ' Your radiation-hard computer halves the chance of damage (simulated).';
+    return { ...ch, explanation };
+  });
+}
+/** Event description for this design (qualitative orbit notes, no numbers). */
+export const eventDescription = (ev, ctx) => ev.description + (ev.highOrbitNote && ctx.highOrbit ? ev.highOrbitNote : '');
+
 /** The first failed hard gate of a design (or null). */
 export function firstFailedGate(issues) {
   for (const [gate, outcome, cause] of NO_GO_PLAY) {
@@ -90,24 +116,29 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
   let month = 0;
 
   /** Resolve an event with the recorded/auto decision. Returns false if we must wait for the player. */
+  const ctx = eventContext(sel, res);
   function decide(event, eventMonth, extra = {}) {
     const index = events.length;
-    const auto = typeof opts.autoChoice === 'function' ? opts.autoChoice(event) : opts.autoChoice;
+    const choices = eventChoices(event, ctx);
+    const auto = typeof opts.autoChoice === 'function' ? opts.autoChoice({ ...event, choices }) : opts.autoChoice;
     const choiceIndex = index < decisions.length ? decisions[index] : auto;
-    if (choiceIndex == null || !event.choices[choiceIndex]) {
+    if (choiceIndex == null || !choices[choiceIndex]) {
       pending = { index, eventId: event.id, month: eventMonth, ...extra };
       return false;
     }
-    for (const [k, v] of Object.entries(event.choices[choiceIndex].effects)) {
+    const ch = choices[choiceIndex];
+    for (const [k, v] of Object.entries(ch.effects)) {
       if (k === 'performance') mods.performance *= v;
-      else mods[k] += v;
+      else if (k === 'damage' && ch.damageHalvedBy && ctx[ch.damageHalvedBy] && !(ch.unsafeIfLowBattery && ctx.lowBattery)) mods.damage += rng() < 0.5 ? v : 0;
+      else mods[k] = (mods[k] ?? 0) + v;
     }
-    events.push({ index, month: eventMonth, eventId: event.id, choiceIndex, ...extra });
+    // Snapshot of what was chosen (choices depend on the design), for the log and the orbit view.
+    events.push({ index, month: eventMonth, eventId: event.id, choiceIndex, label: ch.label, explanation: ch.explanation, effects: ch.effects, ...extra });
     return true;
   }
 
   const result = () => {
-    const serviceFraction = plannedMonths ? service / plannedMonths : 0;
+    const serviceFraction = plannedMonths ? Math.min(1, service / plannedMonths + (mods.bonusService ?? 0)) : 0;
     const sim = {
       seed,
       decisions: decisions.slice(0, events.length),
@@ -133,6 +164,8 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
         extraCostM: reserveM * mods.reserveShare,
         delayMonths: mods.delayMonths,
         damage: mods.damage,
+        debrisPenalty: mods.debrisPenalty ?? 0,
+        extended: (mods.debrisPenalty ?? 0) > 0,
         massKg: res.mass.used,
         capacityKg: res.mass.available,
       },
@@ -182,6 +215,11 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
     if (mods.damage >= LOST_DAMAGE) { outcome = 'lost'; failureCause = 'hardware'; ticks.push({ month, science: service }); return result(); }
     service += payloadWorks ? Math.min(1, mods.performance) : 0;
     ticks.push({ month, science: service });
+  }
+  // End of the planned life: extend, or retire as planned? (ties events to the disposal choice)
+  if (!noGo) {
+    const endEv = EVENTS.find((e) => e.phase === 'end');
+    if (endEv && !decide(endEv, plannedMonths)) return result();
   }
   outcome = 'completed';
   if (noGo) { outcome = 'partial'; failureCause = 'payload'; }

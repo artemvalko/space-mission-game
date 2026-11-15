@@ -10,6 +10,7 @@ import { getSelection } from '../../engine/resources.js';
 import { describeOutcome, effectsSummary } from '../../engine/outcome.js';
 import { teamNameOf } from '../../engine/attempt.js';
 import { getEvent } from '../../data/events.js';
+import { eventChoices, eventContext, eventDescription } from '../../engine/simulation.js';
 import { getComponent } from '../../data/components.js';
 import { getInstrument } from '../../data/instruments.js';
 import { ROLES } from '../../data/roles.js';
@@ -54,7 +55,8 @@ function ensureRoot() {
 
 const reserveOf = (state) => getSelection(state).scenario?.costModel.reserve ?? null;
 const itemName = (id) => getComponent(id)?.plainName ?? getInstrument(id)?.plainName ?? 'a part';
-const describe = (ev, p) => ev.description.replace('{item}', itemName(p.itemId));
+const ctxOf = () => { const st = ctl.state; return eventContext(getSelection(st), computeResources(st)); };
+const describe = (ev, p) => eventDescription(ev, ctxOf()).replace('{item}', itemName(p.itemId));
 
 
 /** Modal: event + each choice with its trade-off. Resolves with the chosen index. */
@@ -70,7 +72,7 @@ function askChoice(ev, pending) {
       ev.realStory?.[state.scenarioId] && h('p', { class: 'small muted' }, ['📖 ', ev.realStory[state.scenarioId]]),
       ev.realPhenomenon && h('p', { class: 'small muted' }, ['🌍 ', ev.realPhenomenon, ev.id === 'solar_flare' ? [' ', h('a', { href: 'https://api.nasa.gov/', target: '_blank', rel: 'noopener noreferrer' }, 'NASA DONKI')] : '']),
       flight && h('p', { class: 'owner-badge' }, `👤 ${flight.name} (${role.name}) decides — others can advise.`),
-      h('div', { class: 'event-choices' }, ev.choices.map((c, i) => h('button', {
+      h('div', { class: 'event-choices' }, eventChoices(ev, ctxOf()).map((c, i) => h('button', {
         class: 'event-choice', type: 'button', 'data-choice': i,
         onClick: () => { ctl.modal.replaceChildren(); resolve(i); },
       }, [
@@ -95,7 +97,7 @@ async function eventFlow(container, alive) {
   const choiceIndex = await askChoice(ev, pending);
   if (!alive()) return;
   ctl.dispatch(chooseEventOption(choiceIndex)); // synchronous: ctl.state now holds the replayed run
-  const choice = ev.choices[choiceIndex];
+  const choice = eventChoices(ev, ctxOf())[choiceIndex];
   if (scene) await scene(container, { ...params, phase: 'outcome', choiceIndex, caption: choice.explanation, back: effectsSummary(choice.effects, reserveOf(ctl.state)).map((e) => e.text).join(' · ') });
   if (container !== ctl.stage) container.replaceChildren();
   react('idle');

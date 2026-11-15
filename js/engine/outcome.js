@@ -74,6 +74,8 @@ export function effectsSummary(effects, reserveM = null) {
     else if (k === 'reserveShare') out.push({ text: `−${pct(v)} of reserve${reserveM != null ? ` (${money(reserveM * v)})` : ''}`, good: false });
     else if (k === 'damage') out.push({ text: 'satellite weakened', good: false });
     else if (k === 'delayMonths') out.push({ text: `+${months(v)} delay`, good: false });
+    else if (k === 'bonusService') out.push({ text: `+${pct(v)} service`, good: true });
+    else if (k === 'debrisPenalty') out.push({ text: `−${v} debris score`, good: false });
   }
   return out;
 }

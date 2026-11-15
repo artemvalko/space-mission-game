@@ -5,6 +5,8 @@
 // Schema: { id, title, description, phase: 'prelaunch'|'orbit', missions?: [scenarioId], perYear (game rate),
 //           realPhenomenon?: text, choices: [{ label, effects, explanation }] }
 // `{item}` in a description is replaced with the name of the failing part.
+// Choices may need a design feature (`requires`: 'thrusters' | 'spareComputer'); the engine shows only
+// the choices the design allows (engine/simulation.js eventChoices). Multipliers only — never statistics.
 // Effect keys (all optional):
 //   performance  multiplier on the mission KPI from now on (packets / valid samples / signal availability)
 //   reserveShare fraction of the mission's model project reserve spent
@@ -24,6 +26,8 @@ export const EVENTS = [
         explanation: 'Engineers write a patch. It costs part of your reserve but saves most of the service.' },
       { label: 'Ignore it and carry on', effects: { damage: 1 },
         explanation: 'Free today, but the satellite is weakened — another hit could end the mission.' },
+      { label: 'Switch to a spare computer', effects: {}, requires: 'spareComputer',
+        explanation: 'Your 4-core computer has spares built in (Space Inventor, O54): no service lost.' },
     ],
   },
   {
@@ -33,9 +37,11 @@ export const EVENTS = [
     choices: [
       { label: 'Enter safe mode', effects: { performance: 0.97 },
         explanation: 'Switching the payload off protects the electronics, but you lose a few days of service.' },
-      { label: 'Keep working', effects: { damage: 1, performance: 1.01 },
+      { label: 'Keep working', effects: { damage: 1, performance: 1.01 }, damageHalvedBy: 'radHard', unsafeIfLowBattery: true,
         explanation: 'You keep the service running, but radiation may damage the electronics.' },
     ],
+    // Qualitative note for MEO (no numbers): navigation satellites fly through the radiation belts.
+    highOrbitNote: ' In MEO the satellite flies through the radiation belts, so storms matter even more.',
   },
   {
     id: 'debris', title: 'Space debris warning', phase: 'orbit', perYear: 0.25,
@@ -46,6 +52,8 @@ export const EVENTS = [
         explanation: 'You pause the service and turn the satellite to make a smaller target.' },
       { label: 'Accept the risk', effects: { damage: 1 },
         explanation: 'No collision — but tiny fragments chipped the solar wings and the satellite is weaker.' },
+      { label: 'Dodge with a thruster burn', effects: { reserveShare: 0.05 }, requires: 'thrusters',
+        explanation: 'Your own thrusters move the satellite out of the way: a little propellant and reserve, no damage. This is why propulsion matters.' },
     ],
   },
   {
@@ -88,6 +96,16 @@ export const EVENTS = [
         explanation: 'More passes cost a little reserve, but the storm data is valuable.' },
       { label: 'Stick to the plan', effects: { performance: 1.02 },
         explanation: 'You note the storm and keep the planned schedule.' },
+    ],
+  },
+  {
+    id: 'end_of_mission', title: 'Extend the mission or retire now?', phase: 'end', perYear: 1, // asked once, at the end of every flown mission
+    description: 'The planned mission is complete. The satellite still works.',
+    choices: [
+      { label: 'Retire now, as planned', effects: {},
+        explanation: 'You follow your retirement plan with full margin.' },
+      { label: 'Extend the mission', effects: { bonusService: 0.05, debrisPenalty: 3 },
+        explanation: 'More service for users — but the satellite stays up longer and uses its disposal margin (debris score worse).' },
     ],
   },
 ];

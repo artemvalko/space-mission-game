@@ -115,7 +115,7 @@
   <script type="module">
     import { computeResources, getSelection, payloadNeeds } from './resources.js';
     import { validateDesign, hasBlockingErrors, canLaunch, gateStatus, GATES } from './validation.js';
-    import { runSimulation } from './simulation.js';
+    import { runSimulation, eventChoices, eventContext, eventDescription } from './simulation.js';
     import { scoreMission, marginQuality, weightsFor, gradeFor, DISPOSAL_BONUS } from './scoring.js';
     import { evaluateObjectives, satelliteSuccess, constellationStatus, checkClaim, variantFit } from './objectives.js';
     import { describeOutcome } from './outcome.js';
@@ -562,6 +562,40 @@
       check('Results insight: "Your satellite burned up: no junk, ≈1.0 kg aluminium oxide (science estimate)"', sc11.insights.good.some((t) => /burned up: no junk, ≈1\.0 kg aluminium oxide \(science estimate\)/.test(t)), sc11.insights.good.join(' | '));
       const r1 = reducer(make(C), A.selectDisposal('disp_burn_up'));
       check('choosing a strategy ticks the old prep.disposal flag', r1.design.prep.disposal === true && r1.design.disposalId === 'disp_burn_up');
+    }
+
+    // ═══ 12. Events react to the design (DISPOSAL.md phase 4) ═══════════════════
+    await tick();
+    section('12 · Design-reactive events (multipliers only, still simulated)');
+    {
+      const ev = (id) => EVENTS.find((e) => e.id === id);
+      const ctxOf = (st) => eventContext(getSelection(st), computeResources(st));
+      const labels = (id, st) => eventChoices(ev(id), ctxOf(st)).map((c) => c.label);
+      check('debris: "Dodge with a thruster burn" only with thrusters + propellant (navigation yes, CubeSat no)', labels('debris', make(N)).includes('Dodge with a thruster burn') && !labels('debris', make(C)).includes('Dodge with a thruster burn'));
+      const dodge = eventChoices(ev('debris'), ctxOf(make(N))).find((c) => c.requires === 'thrusters');
+      check('dodge costs a small reserve share and causes no damage', dodge.effects.reserveShare > 0 && !dodge.effects.damage);
+      const quad = make(C, withParts({ computer: 'obc_si_quad' }));
+      check('hardware fault: Space Inventor 4-core OBC adds "Switch to a spare computer" (no performance loss)', labels('hardware_failure', quad).includes('Switch to a spare computer') && !labels('hardware_failure', make(C)).includes('Switch to a spare computer')
+        && !('performance' in eventChoices(ev('hardware_failure'), ctxOf(quad)).find((c) => c.requires === 'spareComputer').effects));
+      const keep = (ctx) => eventChoices(ev('solar_flare'), ctx).find((c) => c.label === 'Keep working');
+      check('solar storm: a radiation-hard computer halves the damage chance of "Keep working" (explained)', /halves the chance of damage/.test(keep({ radHard: true }).explanation));
+      check('solar storm: battery margin < 20% → "Enter safe mode" is the only safe answer (explained)', /safe mode is the only safe answer/.test(keep({ lowBattery: true, radHard: true }).explanation));
+      check('solar storm in MEO adds a radiation-belt note (no numbers)', /radiation belts/.test(eventDescription(ev('solar_flare'), ctxOf(make(N)))) && !/radiation belts/.test(eventDescription(ev('solar_flare'), ctxOf(make(C)))));
+      // rad-hard halving: over many seeds "Keep working" weakens a rad-hard satellite less often.
+      const always = (e) => Math.max(0, e.choices.findIndex((c) => c.label === 'Keep working'));
+      const radNav = make(N, withParts({ computer: 'obc_rad_hard' }));
+      const runs = [...Array(60).keys()].map((sd) => runSimulation(radNav, sd + 1, [], { autoChoice: always }));
+      const keeps = runs.reduce((a, r) => a + r.events.filter((e) => e.eventId === 'solar_flare').length, 0);
+      const hurt = runs.reduce((a, r) => a + r.summary.damage, 0);
+      check('rad-hard computer: storms ridden out with "Keep working" damage it only about half the time', ctxOf(radNav).radHard && keeps > 4 && hurt < keeps, `${hurt} damage from ${keeps} storms`);
+      // End of mission: extend or retire
+      const end = runSimulation(make(C), 3, [], { autoChoice: (e) => (e.id === 'end_of_mission' ? null : best(e)) });
+      check('end of mission: the flown mission asks "Extend the mission or retire now?" once', end.pending?.eventId === 'end_of_mission' && end.pending.month === end.summary.plannedMonths);
+      const retire = runSimulation(make(C), 3, [], { autoChoice: (e) => (e.id === 'end_of_mission' ? 0 : best(e)) });
+      const extend = runSimulation(make(C), 3, [], { autoChoice: (e) => (e.id === 'end_of_mission' ? 1 : best(e)) });
+      const susOf = (sm) => scoreMission(make(C), sm).parts.find((p) => p.id === 'disposal').points;
+      check('extending gives more service but uses disposal margin (Sustainability drops)', extend.summary.serviceFraction >= retire.summary.serviceFraction && extend.summary.extended && susOf(extend) < susOf(retire), `${susOf(retire)} → ${susOf(extend)}`);
+      check('replay: the same seed + decisions give the same run with the new choices', JSON.stringify(runSimulation(make(N), 9, extend.decisions.slice(0, 2), { autoChoice: best }).events) === JSON.stringify(runSimulation(make(N), 9, extend.decisions.slice(0, 2), { autoChoice: best }).events));
     }
 
     const summary = document.getElementById('summary');

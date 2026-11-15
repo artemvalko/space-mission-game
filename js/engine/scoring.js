@@ -101,7 +101,8 @@ export function scoreMission(state, sim) {
   //    retirement — debris 15, atmosphere 15, ground 10. No option scores 40: every choice is a compromise.
   const planet = res.planet;
   const disposalOk = flew && !sim.noGo && sel.prep.disposal && planet.valid;
-  const sustain = disposalOk ? planet.score : 0;
+  // Extending the mission uses disposal margin: the debris part drops (end-of-mission event).
+  const sustain = disposalOk ? Math.max(0, planet.score - Math.min(planet.meters.debris, s.debrisPenalty ?? 0)) : 0;
 
   const raw = { science: performance, objectives: objectivesScore, efficiency, survivability, teamwork };
   const WHY = {
@@ -212,7 +213,7 @@ function tips(parts, objectives, res, st, sim) {
 export function eventLog(sim) {
   return sim.events.map((e) => {
     const ev = getEvent(e.eventId);
-    const c = ev.choices[e.choiceIndex];
+    const c = e.label ? { label: e.label, explanation: e.explanation, effects: e.effects } : ev.choices[e.choiceIndex];
     return { month: e.month, eventId: e.eventId, title: ev.title, choice: c.label, explanation: c.explanation, effects: c.effects, itemId: e.itemId ?? null, simulated: true };
   });
 }
