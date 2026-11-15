@@ -11,6 +11,21 @@ import { sound } from './sound.js';
 import { getSource, DATA_KIND } from '../data/sources.js';
 import { COST_TYPE } from '../data/launchers.js';
 import { icon } from './icons.js';
+import { priceOf } from '../engine/resources.js';
+import { money } from '../utils/format.js';
+
+/**
+ * Price for Details / Compare (CLARITY P0.6): known → "$0.35M"; euro catalog → converted at the labelled fixed
+ * rate; rough same-role estimate → "≈ $0.35M (rough estimate, like: IoT SDR model)" + ESTIMATE tag (never CATALOG);
+ * no public price and no same-role analog → "not public (?)" — never $0.
+ */
+export function priceCell(item, scenarioId = null, { short = false } = {}) {
+  const p = priceOf(item, scenarioId);
+  if (p.kind === 'unknown') return short ? '?' : 'not public (?)';
+  if (p.kind === 'estimate') return [`≈ ${money(p.value)}${short ? '' : ` (rough estimate, like: ${p.fromName})`} `, dataBadge('model')];
+  if (p.kind === 'converted') return short ? `${money(p.value)}` : `${money(p.value)} (${p.note})`;
+  return money(p.value);
+}
 
 /** Data-honesty tags: tiny mono uppercase labels with a hairline border (no emoji). */
 export const KIND_TAG = { fact: 'FACT', catalog: 'CATALOG', model: 'ESTIMATE', reported: 'REPORTED', rfq: 'PRICE ?' };
@@ -39,6 +54,7 @@ const TAG_FACE = {
   'PRICE ?': ['money', '?', 'Price not public — never guessed (budget becomes uncertain)'],
   'MASS ?': ['weight', '?', 'Mass not public — the mass gate cannot verify it'],
   'MASS ≈': ['weight', '≈', 'Mass estimated from the research model of the same class'],
+  'PRICE ≈': ['money', '≈', 'Price not public — rough estimate copied from a same-role part (ESTIMATE)'],
 };
 function badgeFace(b) {
   if (TAG_FACE[b]) { const [name, mark, title] = TAG_FACE[b]; return { face: [icon(name, 12), mark], title, tag: true }; }
@@ -118,8 +134,10 @@ export function meter({ label, icon: name, level, text }) {
 export function dataMarks(d) {
   if (!d) return [];
   const out = [];
-  if (('cost' in d && d.cost === null) || ('priceM' in d && d.priceM === null)) out.push('PRICE ?');
+  if ('cost' in d && d.cost === null) out.push(priceOf(d).kind === 'unknown' ? 'PRICE ?' : priceOf(d).kind === 'estimate' ? 'PRICE ≈' : null);
+  else if ('priceM' in d && d.priceM === null) out.push('PRICE ?');
   if ('mass' in d && d.mass === null && !d.reference && d.formFactor !== 'any' && !d.leoOnly && !d.cancelled) out.push(d.massClassOf ? 'MASS ≈' : 'MASS ?');
+  if (out[0] == null) out.shift();
   if (d.heritage) out.push(`FLEW ${d.heritage}`);
   return out;
 }

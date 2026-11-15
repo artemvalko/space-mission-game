@@ -47,6 +47,7 @@
   <link rel="modulepreload" href="../../js/engine/scoring.js">
   <link rel="modulepreload" href="../../js/engine/simulation.js">
   <link rel="modulepreload" href="../../js/engine/validation.js">
+  <link rel="modulepreload" href="../../js/engine/verdicts.js">
   <link rel="modulepreload" href="../../js/main.js">
   <link rel="modulepreload" href="../../js/state/actions.js">
   <link rel="modulepreload" href="../../js/state/initialState.js">
@@ -117,7 +118,7 @@
 
   <script type="module">
     import { computeResources, getSelection, payloadNeeds } from './resources.js';
-    import { validateDesign, hasBlockingErrors, canLaunch, gateStatus, GATES } from './validation.js';
+    import { validateDesign, hasBlockingErrors, canLaunch, gateStatus, GATES, engineeringVerdict } from './validation.js';
     import { runSimulation, eventChoices, eventContext, eventDescription } from './simulation.js';
     import { scoreMission, marginQuality, weightsFor, gradeFor, DISPOSAL_BONUS, LOST_JUNK, LOST_TUG, retirementAfterLoss } from './scoring.js';
     import { evaluateObjectives, satelliteSuccess, constellationStatus, checkClaim, variantFit } from './objectives.js';
@@ -148,6 +149,14 @@
     import { MISSION_DEPENDENCIES, RULE_STATUS, EVIDENCE_LEVELS, rulesFor } from '../data/missionDependencies.js';
     import { evaluateDependencies, matrixWhyNot, dependencyLine, rulesForItem } from './dependencies.js';
     import { matrixMarkdown } from '../../tools/matrix-doc.mjs';
+    import { missionVerdicts } from './verdicts.js';
+    import { priceOf, cheaperOf } from './resources.js';
+    import { priceCell, dataMarks } from '../ui/card.js';
+    import { h } from '../ui/dom.js';
+    import { gbDay } from '../utils/format.js';
+    import { getInstrument } from '../data/instruments.js';
+    import { EUR_TO_USD } from '../data/components.js';
+    import { HONEST_LIMITS } from '../data/missionDependencies.js';
 
     const out = document.getElementById('out');
     const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -254,7 +263,7 @@
       check('IoT is judged as a packet chain, not GB/day', c.data.kind === 'packets' && c.data.chainOk && c.data.used == null);
       const n = computeResources(make(N));
       check('navigation is not judged by GB/day; 1.1 kW avg & 1.5 kW peak vs 1.6 kW array', n.data.kind === 'nav' && n.data.chainOk && n.power.used === 1100 && n.power.peak === 1500 && n.power.peakOk && n.power.available === 1600);
-      check('MEO has no single eclipse value: battery is checked present, not with an invented number', n.battery.needWh == null && n.battery.status === 'ok');
+      check('MEO has no single eclipse value: battery UNVERIFIED (never a silent ok, never an invented number)', n.battery.needWh == null && n.battery.validity === 'unverified' && n.battery.status !== 'ok');
       check('lifetime: no "thrusters add years" bonus — plan comes from the mission', computeResources(make(N)).lifetime.plannedMonths === 12 && computeResources(make(C)).lifetime.plannedMonths === 12 && computeResources(make(W)).lifetime.plannedMonths === 24);
     }
 
@@ -305,7 +314,8 @@
         check(`ALL-02 ${sid} without licence + disposal plan → NO-GO before launch`, !canLaunch(validateDesign(noPaper)) && g.status === 'todo' && /NO-GO/.test(g.issues[0].message));
       }
       check('all 11 hard gates of §8.5 are defined', GATES.length === 11);
-      check('the correct builds pass all 11 gates', [C, N, W].every((sid) => gateStatus(validateDesign(make(sid))).every((g) => g.status === 'pass')));
+      check('the correct builds pass all 11 gates (unknown size / eclipse shown as UNVERIFIED, never fail)', [C, N, W].every((sid) => gateStatus(validateDesign(make(sid))).every((g) => g.status === 'pass' || g.status === 'unverified')),
+        [C, N, W].map((sid) => gateStatus(validateDesign(make(sid))).filter((g) => g.status !== 'pass').map((g) => `${sid}:${g.id}=${g.status}`).join(' ')).join(' | '));
     }
 
     // ═══ 5. Valid alternatives & distractors ═══════════════════════════════════
@@ -503,10 +513,11 @@
       // ── Unknown prices → uncertain budget (amber, not a fail, never a guess)
       const nb = make(C, (d) => ({ ...d, instrumentIds: ['iot_nbiot_ntn', 'ant_iot_deploy'] }));
       const nbRes = computeResources(nb);
-      check('NOT PUBLIC price → budget "uncertain" (not over, not guessed); RFQ caution; still GO', nbRes.budget.uncertain && nbRes.budget.unknownItems.includes('5G NB-IoT NTN') && nbRes.budget.status !== 'over'
-        && validateDesign(nb).some((i) => i.severity === 'caution' && /Budget uncertain/.test(i.message)) && go(nb));
-      const nbScore = scoreMission(nb, sim(nb));
-      check('uncertain budget: cost efficiency uses known items only; results say "request a quote (RFQ)"', /request a quote/.test(nbScore.parts.find((p) => p.id === 'efficiency').why) && nbScore.stats.budgetUncertain);
+      check('NOT PUBLIC price with a same-role analog → rough ESTIMATE (like: IoT SDR model), budget ESTIMATED; still GO', !nbRes.budget.uncertain && nbRes.budget.program === 'estimated'
+        && nbRes.budget.estimatedItems.some((e) => e.id === 'iot_nbiot_ntn' && e.from === 'payload_iot_sdr' && near(e.value, 0.35)) && validateDesign(nb).some((i) => /Budget estimated/.test(i.message)) && go(nb));
+      const issSt = make(C, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }));
+      const issScore = scoreMission(issSt, sim(issSt));
+      check('uncertain budget (RFQ launch): cost efficiency uses known items only; results say "request a quote (RFQ)"', /request a quote/.test(issScore.parts.find((p) => p.id === 'efficiency').why) && issScore.stats.budgetUncertain);
       check('≈ estimate: the NB-IoT radio uses the research SDR class mass (1.50 kg), shown as estimated', near(nbRes.mass.parts, 7.55) && nbRes.mass.estimated.includes('iot_nbiot_ntn'));
       const iss = computeResources(make(C, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' })));
       check('NOT PUBLIC renders as unknown — never as 0 (ISS launch line is null, not $0)', iss.budget.lines.find((l) => l.id === 'launch').value === null && iss.budget.uncertain);
@@ -519,12 +530,14 @@
       check('RainCube reference build: 12 kg — exactly at the 6U limit (tight, but GO)', computeResources(ref(W, 'ref_raincube_6u')).mass.used === 12 && computeResources(ref(W, 'ref_raincube_6u')).mass.status === 'caution');
       check('GPS III reference build: 3,681 kg real launch mass', computeResources(gps).mass.used === 3681);
       const trParts = make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_3u' }, instrumentIds: ['wx_tropics_radiometer'] }));
-      const cv = errorsOf(trParts).find((e) => /cannot be verified/.test(e.message));
-      check('TROPICS radiometer part by part: mass NOT PUBLIC → "cannot verify" NO-GO, offering the reference build', !!cv && /TROPICS 3U \(real\)/.test(cv.alternative ?? ''));
-      check('6U XL frame (mass not public) → cannot verify', errorsOf(make(C, withParts({ structure: 'str_es_6u_xl' }))).some((e) => /cannot be verified/.test(e.message)));
+      const trCal = { ...trParts, design: { ...trParts.design, instrumentIds: ['wx_tropics_radiometer', 'radiometer_calibration'] } };
+      const cv = validateDesign(trCal).find((e) => e.unverified && /Mass not verified/.test(e.message));
+      check('TROPICS radiometer part by part: mass NOT PUBLIC → UNVERIFIED (CONDITIONAL GO, not NO-GO), offering the reference build', !!cv && /TROPICS 3U \(real\)/.test(cv.alternative ?? '')
+        && !errorsOf(trCal).some((e) => /mass/i.test(e.message)) && engineeringVerdict(validateDesign(trCal)).verdict === 'CONDITIONAL', errorsOf(trCal).map((e) => e.message).join(' | '));
+      check('6U XL frame (mass not public) → mass UNVERIFIED, CONDITIONAL GO', validateDesign(make(C, withParts({ structure: 'str_es_6u_xl' }))).some((e) => e.unverified && /Mass not verified/.test(e.message)) && go(make(C, withParts({ structure: 'str_es_6u_xl' }))));
       check('a reference build is complete: extra payload → NO-GO', errorsOf(ref(C, 'ref_sateliot_6u', { instrumentIds: ['payload_iot_sdr'] })).some((e) => /is complete/.test(e.message)));
       check('a reference build for another mission → NO-GO', gatesFailed(ref(C, 'ref_tropics_3u')).includes('spacecraft_size_mass_volume_compatible'));
-      check('laser retroreflector on the Galileo part build: mass NOT PUBLIC → cannot verify (it only flew inside GPS III)', errorsOf(make(N, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'nav_lra'] }))).some((e) => /cannot be verified/.test(e.message)));
+      check('laser retroreflector on the Galileo part build: mass NOT PUBLIC → UNVERIFIED (it only flew inside GPS III)', validateDesign(make(N, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'nav_lra'] }))).some((e) => e.unverified && /Mass not verified/.test(e.message)));
       check('Swarm: licensing caution (FCC refused the first licence in 2017)', validateDesign(ref(C, 'ref_swarm_spacebee')).some((i) => /hard to track/.test(i.message)));
 
       // ── Launch pairs, X-band, reuse, CIRAS
@@ -738,6 +751,80 @@
       check('phone_chips + LoRa → NOT MET', goalOf(variant(swap(make(C), ['iot_lora', 'ant_iot_deploy']), 'phone_chips')).verdict === 'not_met');
       check('licensed + generic SDR → NOT MET (reason names the L-band payload)', goalOf(variant(make(C), 'licensed')).verdict === 'not_met' && /L-band IoT payload/.test(goalOf(variant(make(C), 'licensed')).reasons[0]));
       check('one GNSS satellite: node success, constellation never claimed', satelliteSuccess(evaluateObjectives(make(N), sim(make(N)))) && !constellationStatus(1).met && goalOf(make(N)).limits.some((l) => /≠ 3D positioning/.test(l.text)));
+    }
+
+    // ═══ 17. Honest engine (CLARITY Phase 2) ═══════════════════════════════════
+    await tick();
+    section('17 · Honest engine: three verdicts, unverified ≠ pass, instrument data, whole-satellite volume, budget status, rough estimates');
+    {
+      const V = (st) => missionVerdicts(st, sim(st));
+      const tv = V(variant(make(W), 'rain_inside'));
+      check('rain_inside + TEMPEST-D only: flies (GO/CONDITIONAL), objective NOT MET, reason + fix name the radar', ['GO', 'CONDITIONAL'].includes(tv.engineering) && tv.objective === 'NOT MET'
+        && tv.reasons.some((r) => /choose a radar/.test(r)) && tv.fixes.some((f) => /RainCube radar/.test(f)), `${tv.engineering}/${tv.objective} · ${tv.reasons.join(' | ')} · ${tv.fixes.join(' | ')}`);
+      check('phone_chips + LoRa → objective NOT MET', V(variant(make(C, (d) => ({ ...d, instrumentIds: ['iot_lora', 'ant_iot_deploy'] })), 'phone_chips')).objective === 'NOT MET');
+      check('licensed + generic SDR → objective NOT MET', V(variant(make(C), 'licensed')).objective === 'NOT MET');
+      const nv = V(make(N));
+      check('one GNSS satellite → node MET, constellation not claimed (honest limit shown)', nv.objective === 'MET' && nv.limits.some((l) => /≠ 3D positioning/.test(l.text)));
+      for (const sid of [C, W, N]) {
+        const v = V(make(sid));
+        check(`${sid} research build: objective MET, program FUNDED; engineering CONDITIONAL (unknown size/eclipse is never a silent GO)`, v.objective === 'MET' && v.program === 'FUNDED' && v.engineering === 'CONDITIONAL' && v.unverified.length > 0, `${v.engineering}/${v.objective}/${v.program} · ${v.unverified.join(' | ')}`);
+      }
+      const trv = V(ref(W, 'ref_tropics_3u'));
+      check('reference build with a public total mass and size: full GO (price not public → program UNCERTAIN)', trv.engineering === 'GO' && trv.program === 'UNCERTAIN', `${trv.engineering}/${trv.program} ${trv.unverified.join(' | ')}`);
+      const ng = make(C, (d) => ({ ...d, orbitId: 'geo' }));
+      const ngv = missionVerdicts(ng, runSimulation(ng, 3, [], { autoChoice: best, anyway: true }));
+      check('NO-GO simulated anyway → engineering NO-GO, objective NOT MET, a fix offered', ngv.engineering === 'NO-GO' && ngv.objective === 'NOT MET' && ngv.fixes.length > 0, `${ngv.engineering}/${ngv.objective}`);
+
+      // ── Unknown ≠ pass
+      const aws = make(W, (d) => ({ ...d, groundId: 'gs_aws' }));
+      check('unknown contact time (AWS) → data UNVERIFIED (warning, CONDITIONAL GO — not NO-GO, not ok)', computeResources(aws).data.validity === 'unverified' && validateDesign(aws).some((i) => i.unverified && i.gate === 'communications_link_pass') && go(aws));
+      const trData = computeResources(make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_3u' }, instrumentIds: ['wx_tropics_radiometer', 'radiometer_calibration'] })));
+      check('unknown sensor data rate (TROPICS radiometer part build) → data UNVERIFIED, never 0', trData.data.generated == null && trData.data.validity === 'unverified');
+      check('gate list shows UNVERIFIED as its own status', gateStatus(validateDesign(make(N))).some((g) => g.id === 'battery_eclipse_pass' && g.status === 'unverified'));
+
+      // ── Data generated by the chosen instrument
+      const w = computeResources(make(W));
+      check('no universal 2 GB/day: the mission has no fixed value; the research radiometer carries its own data model', !('generatedGBperDay' in SCENARIOS.find((x) => x.id === W).data) && getInstrument('payload_mw_radiometer').dataGBperDay === 2 && w.data.generated === 2);
+      check('Details show the bare instrument stream with units: 8 kbps = 86 MB/day', /8 kbps = 86 MB\/day/.test(w.data.explanation) && gbDay(0.0864) === '86 MB/day' && gbDay(2.25) === '2.3 GB/day');
+      const ro = getInstrument('wx_gnss_ro');
+      try {
+        ro.dataKbps = 8; // temporary test value — exercises the formula only (not game data)
+        const g = computeResources(make(W, (d) => ({ ...d, instrumentIds: ['wx_gnss_ro'] }))).data;
+        check('formula: dataKbps × 86,400 s × 100% duty / 8 → GB/day, labelled simulated', near(g.generated, 0.0864, 1e-6) && /86,400 s × 100% duty \(simulated\)/.test(g.explanation), g.explanation);
+      } finally { delete ro.dataKbps; }
+      check('radar (rate not in our data) → generated unknown, not the radiometer\'s 2 GB/day', computeResources(make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] }))).data.generated == null);
+
+      // ── Whole-satellite volume
+      const cv = computeResources(make(C)).mass.volume;
+      check('whole-satellite volume: parts with no published size are never 0U → UNVERIFIED with a count', cv.validity === 'unverified' && cv.unknownParts.length >= 8 && /no published size/.test(cv.explanation), cv.explanation);
+      const r12 = computeResources(make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] }))).mass.volume;
+      check('known sizes are summed (RainCube 4.5U of 12U) and the rest stays unverified', near(r12.used, 4.5) && r12.available === 12 && r12.validity === 'unverified');
+      check('known sizes over the frame → fail (4U radiometer in 3U)', computeResources(make(W, withParts({ structure: 'str_cube_3u' }))).mass.volume.validity === 'fail');
+      check('reference build: its whole-satellite size is known → volume pass', computeResources(ref(W, 'ref_tropics_3u')).mass.volume.validity === 'pass');
+
+      // ── Budget status
+      const prog = (st) => computeResources(st).budget.program;
+      check('budget status: FUNDED · ESTIMATED · UNCERTAIN · OVER', prog(make(C)) === 'funded' && prog(make(C, (d) => ({ ...d, instrumentIds: ['iot_lora', 'ant_iot_deploy'] }))) === 'estimated'
+        && prog(make(C, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }))) === 'uncertain' && prog(make(C, (d) => ({ ...d, launcherId: 'lv_electron_kickstage' }))) === 'over');
+      check('an estimate that pushes past the budget is still OVER', prog(make(C, (d) => ({ ...d, instrumentIds: ['iot_lora', 'ant_iot_deploy'], launcherId: 'lv_electron_kickstage' }))) === 'over');
+      const noAnalog = ['wx_raincube_radar', 'wx_gnss_ro', 'clk_drafs_demo', 'nav_lra', 'eol_drag_sail', 'eol_nano_thruster', 'ref_swarm_spacebee', 'ref_tropics_3u', 'dl_es_xband_tx'];
+      check('items with no same-role analog keep "?" (radar, GNSS-RO, sail, thruster, whole satellites, X-band)', noAnalog.every((id) => priceOf(getInstrument(id) ?? getComponent(id)).kind === 'unknown'), noAnalog.filter((id) => priceOf(getInstrument(id) ?? getComponent(id)).kind !== 'unknown').join(', '));
+      check('analogs are always the same role (IoT radio ← SDR, TROPICS ← TEMPEST-D, OBC ← Space Inventor, ADCS ← research ADCS)', [...COMPONENTS, ...INSTRUMENTS].filter((x) => x.estimatedFrom).every((x) => {
+        const a = getComponent(x.estimatedFrom) ?? getInstrument(x.estimatedFrom); return a && (a.category === x.category) && (a.role == null || x.role == null || a.role === x.role || x.category === 'timing');
+      }));
+      const lora = h('div', {}, priceCell(getInstrument('iot_lora'), C)).textContent;
+      check('an estimate is never shown as a catalog price: "≈ $0.35M (rough estimate, like: IoT radio (generic SDR) model) ESTIMATE"', /^≈ \$0\.35M \(rough estimate, like: IoT radio \(generic SDR\) model\)/.test(lora) && /ESTIMATE/.test(lora) && !/CATALOG/.test(lora)
+        && dataMarks(getInstrument('iot_lora')).includes('PRICE ≈') && dataMarks(getInstrument('wx_raincube_radar')).includes('PRICE ?'), lora);
+      check('euro catalog price converted at ONE fixed labelled rate (Space Inventor €9,000)', priceOf(getComponent('obc_si_quad')).kind === 'converted' && near(priceOf(getComponent('obc_si_quad')).value, 0.009 * EUR_TO_USD, 1e-9) && /fixed game rate/.test(priceOf(getComponent('obc_si_quad')).note));
+      const est = getInstrument('iot_lora');
+      check('cheapest: unknown never wins; an estimate within 20% of a known price is "too close to call"', cheaperOf(getInstrument('wx_raincube_radar'), getInstrument('payload_mw_radiometer')).winner?.id !== 'wx_raincube_radar'
+        && cheaperOf({ id: 't', cost: 0.40 }, est).why === 'too_close' && cheaperOf({ id: 't', cost: 1.0 }, est).winner === est);
+      check('unknown price never counts as $0 (ISS launch line null; radar not in the hardware sum)', computeResources(make(C, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }))).budget.lines.find((l) => l.id === 'launch').value === null
+        && computeResources(make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] }))).budget.uncertain);
+
+      // ── Honest limits
+      const lim = Object.values(HONEST_LIMITS).flat().map((l) => l.text).join(' ');
+      check('honest limits: 24/7, 3D positioning, hurricane revisit, climate trend, GTO ≠ MEO', [/24\/7/, /3D positioning/, /hurricane revisit/, /climate trend/, /GTO ≠ MEO/].every((re) => re.test(lim)));
     }
 
     const summary = document.getElementById('summary');

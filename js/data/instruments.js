@@ -46,7 +46,7 @@ export const INSTRUMENTS = [
 
   // ── Weather / microwave radiometer (§5.2, §5.3)
   {
-    id: 'payload_mw_radiometer', category: 'service_payload', role: 'mw_radiometer', sensor: true, passive: true, powerW: 3.8, dataKbps: 8, icon: 'cloud', plainName: 'TEMPEST-D radiometer', name: 'TEMPEST-D-class 5-channel radiometer, 89–182 GHz (research model)', formFactor: 'cubesat', volumeU: 4,
+    id: 'payload_mw_radiometer', category: 'service_payload', role: 'mw_radiometer', sensor: true, passive: true, powerW: 3.8, dataKbps: 8, dataGBperDay: 2, dataText: '1–2 GB/day after compression (research model §5.4; we use 2)', icon: 'cloud', plainName: 'TEMPEST-D radiometer', name: 'TEMPEST-D-class 5-channel radiometer, 89–182 GHz (research model)', formFactor: 'cubesat', volumeU: 4,
     mass: 2.70, cost: 4.00, missions: [M_WX], status: 'must', dataKind: 'model', sources: ['S06', 'S07'], ref: '§5.3',
     oneLiner: 'Measures the atmosphere\'s natural microwave glow — through clouds, day and night.', why: 'The main science measurement.',
     heritage: 'TEMPEST-D',
@@ -63,23 +63,23 @@ export const INSTRUMENTS = [
   //    "≈ same class" estimate (massClassOf); price stays unknown → uncertain budget.
   {
     id: 'iot_lora', category: 'service_payload', role: 'iot_transceiver', language: 'lora', massClassOf: 'payload_iot_sdr', icon: 'radio', plainName: 'LoRa space gateway', name: 'LoRa / LoRaWAN store-and-forward receiver (like Lacuna Space)', formFactor: 'cubesat',
-    mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['O26', 'O27'], ref: 'options §2.2',
+    mass: null, cost: null, estimatedFrom: 'payload_iot_sdr', missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['O26', 'O27'], ref: 'options §2.2',
     oneLiner: 'Cheap standard LoRa sensors on the ground.', why: 'Receives LoRa messages from ordinary sensors.',
   },
   {
     id: 'iot_lband', category: 'service_payload', role: 'iot_transceiver', language: 'lband', massClassOf: 'payload_iot_sdr', icon: 'signal', plainName: 'L-band licensed IoT', name: 'Licensed L-band IoT payload (like Astrocast)', formFactor: 'cubesat',
-    mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['O24', 'O25'], ref: 'options §2.2',
+    mass: null, cost: null, estimatedFrom: 'payload_iot_sdr', missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['O24', 'O25'], ref: 'options §2.2',
     oneLiner: 'Protected spectrum; access via a partner.', why: 'Licensed IoT link with tiny ground antennas.',
   },
   {
     id: 'iot_nbiot_ntn', category: 'service_payload', role: 'iot_transceiver', language: 'nbiot', massClassOf: 'payload_iot_sdr', icon: 'phone', plainName: '5G NB-IoT NTN', name: '5G NB-IoT non-terrestrial network payload (like Sateliot)', formFactor: 'cubesat',
-    mass: null, cost: null, missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['S31'], ref: 'options §2.2',
+    mass: null, cost: null, estimatedFrom: 'payload_iot_sdr', missions: ['mission_comms_iot'], dataKind: 'fact', sources: ['S31'], ref: 'options §2.2',
     oneLiner: 'Works with standard phone IoT chips.', why: 'Talks to normal cellular IoT modules — the newest standard.',
   },
   // ── Weather sensors (§3.1)
   {
     id: 'wx_tropics_radiometer', category: 'service_payload', role: 'mw_radiometer', sensor: true, passive: true, powerW: 3, volumeU: 1, icon: 'storm', plainName: 'TROPICS radiometer', name: 'TROPICS 12-channel radiometer, 90–205 GHz', formFactor: 'cubesat',
-    mass: null, cost: null, heritage: 'TROPICS', missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1',
+    mass: null, cost: null, estimatedFrom: 'payload_mw_radiometer', heritage: 'TROPICS', missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1',
     oneLiner: 'More channels in 1U; mass not public.', why: 'Temperature + humidity profiles and precipitation.',
   },
   {
@@ -101,7 +101,7 @@ export const INSTRUMENTS = [
   // ── Navigation clocks and add-ons (§4.2, §4.4). Masses/prices NOT PUBLIC; they fly inside GPS III.
   {
     id: 'clk_rafs_3', category: 'timing', role: 'atomic_clocks', clockType: 'rafs3', icon: 'clock', plainName: '3 rubidium clocks', name: '3 rubidium atomic frequency standards (RAFS)', formFactor: 'large',
-    mass: null, cost: null, flewOn: 'ref_gps_iii', heritage: 'GPS III', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O40'], ref: 'options §4.2',
+    mass: null, cost: null, estimatedFrom: 'clock_phm_rubidium_4', flewOn: 'ref_gps_iii', heritage: 'GPS III', missions: ['mission_navigation_meo'], dataKind: 'fact', sources: ['O40'], ref: 'options §4.2',
     oneLiner: 'Proven and simpler (GPS III).', why: 'Reference time for GPS-style signals.',
   },
   {

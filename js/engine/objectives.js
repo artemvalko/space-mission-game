@@ -90,7 +90,7 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
   // Model budget
   const spent = res.budget.used + (s.extraCostM ?? 0);
   out.push({ id: 'budget', icon: 'money', label: 'Inside the model budget', met: spent <= scenario.budgetM + 1e-9,
-    why: `Spent ${money(spent)} of ${money(scenario.budgetM)}${s.extraCostM ? ` (incl. ${money(s.extraCostM)} of reserve used in flight)` : ''}${res.budget.launchUnknown ? '; launch price on request (not counted)' : ''}.` });
+    why: `Spent ${money(spent)} of ${money(scenario.budgetM)}${s.extraCostM ? ` (incl. ${money(s.extraCostM)} of reserve used in flight)` : ''}${res.budget.estimated ? '; incl. rough price estimates' : ''}${res.budget.launchUnknown ? '; launch price on request (not counted)' : ''}.` });
   // Schedule window
   if (scenario.deadlineMonths) {
     const [lo, hi] = scenario.deadlineMonths;

@@ -6,7 +6,7 @@
 import { mount, h } from '../dom.js';
 import { icon } from '../icons.js';
 import { term } from '../tooltip.js';
-import { choiceCard, previewDelta } from '../card.js';
+import { choiceCard, previewDelta, priceCell } from '../card.js';
 import { INSTRUMENTS, PAYLOAD_PLAIN, ROLE_INFO, getInstrument } from '../../data/instruments.js';
 import { getScenario } from '../../data/scenarios.js';
 import { matrixWhyNot } from '../../engine/dependencies.js';
@@ -71,7 +71,7 @@ export function render(container, state, dispatch) {
       oneLiner: whyNot ? `${cap(whyNot)}` : ins.oneLiner,
       whatFor: ins.why,
       badges: [...(ins.missions.includes(scenario?.id) && ['payload_iot_sdr', 'ant_iot_deploy', 'payload_mw_radiometer', 'radiometer_calibration', 'clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'].includes(ins.id) ? ['Research build'] : []), ...(ins.category !== 'service_payload' ? [PAYLOAD_PLAIN[ins.category].plainName] : [])],
-      details: [['Mass', ins.mass != null ? kg(ins.mass) : ins.massClassOf ? '≈ research SDR class (estimate)' : 'not public (?)'], ['Price', ins.cost == null ? 'not public (?)' : money(ins.cost)],
+      details: [['Mass', ins.mass != null ? kg(ins.mass) : ins.massClassOf ? '≈ research SDR class (estimate)' : 'not public (?)'], ['Price', priceCell(ins, scenario?.id)],
         ...(ins.powerW ? [['Power', `${ins.powerW} W`]] : []), ...(ins.dataKbps ? [['Data rate', `${ins.dataKbps} kbps`]] : []),
         ...(ins.volumeU ? [['Volume', `about ${ins.volumeU}U`]] : [])],
       data: ins,

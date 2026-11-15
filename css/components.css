@@ -64,6 +64,8 @@
 .dot-pass, .is-go .status-dot { background: var(--ok); }
 .dot-fail, .is-nogo .status-dot { background: var(--danger); }
 .dot-todo { background: transparent; box-shadow: inset 0 0 0 1px var(--text-3); }
+.dot-unverified, .is-conditional .status-dot { background: var(--caution); }
+.goal-verdict { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; }
 
 /* ── Question header ─────────────────────────────────────── */
 .question { padding-top: 4px; }

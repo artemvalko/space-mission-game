@@ -8,7 +8,9 @@ import { ROLES, NO_GO_REASONS, getNoGoReason } from '../../data/roles.js';
 import { evaluateRoleGoals, voteStatus } from '../../engine/roleGoals.js';
 import { rerender } from '../view.js';
 import { computeResources } from '../../engine/resources.js';
-import { validateDesign, canLaunch, gateStatus } from '../../engine/validation.js';
+import { validateDesign, canLaunch, gateStatus, engineeringVerdict } from '../../engine/validation.js';
+import { evaluateDependencies } from '../../engine/dependencies.js';
+import { getSelection } from '../../engine/resources.js';
 import { getScenario } from '../../data/scenarios.js';
 import { dataBadge, meter } from '../card.js';
 import { money } from '../../utils/format.js';
@@ -139,6 +141,12 @@ export function render(container, state, dispatch) {
   const scenario = getScenario(state.scenarioId);
   const todos = issues.filter((i) => i.severity === 'todo' && i.step !== 'launchPrep');
   const canSimulate = !go && todos.length === 0;
+  // Engineering verdict: an unverified value (unknown mass, size, eclipse, rate) gives CONDITIONAL GO, never a silent GO.
+  const eng = engineeringVerdict(issues).verdict;
+  const goWord = !go ? 'NO-GO' : eng === 'CONDITIONAL' ? 'CONDITIONAL GO' : 'GO';
+  const sel = getSelection(state);
+  const goal = sel.variant ? evaluateDependencies(sel) : null;
+  const GOAL_WORD = { met: 'MET', partly: 'PARTLY', not_met: 'NOT MET', todo: 'to do' };
 
   mount(container,
     h('div', { class: 'final-grid' }, [
@@ -152,7 +160,8 @@ export function render(container, state, dispatch) {
 
       ]),
       h('div', { class: 'panel' }, [
-        h('h2', { title: 'Flight Readiness Review: hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.' }, h('span', { class: ['go-word', go ? 'is-go' : 'is-nogo'] }, [h('span', { class: 'status-dot', 'aria-hidden': 'true' }), go ? 'GO' : 'NO-GO'])),
+        h('h2', { title: 'Flight Readiness Review: hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.' }, h('span', { class: ['go-word', !go ? 'is-nogo' : eng === 'CONDITIONAL' ? 'is-conditional' : 'is-go'], title: eng === 'CONDITIONAL' ? 'It can fly, but some values are not public, so they cannot be checked.' : null }, [h('span', { class: 'status-dot', 'aria-hidden': 'true' }), goWord])),
+        goal && h('p', { class: 'goal-verdict muted small', title: goal.reasons.join(' ') || null }, [h('span', { class: `status-dot dot-${goal.verdict === 'met' ? 'pass' : goal.verdict === 'not_met' ? 'fail' : goal.verdict === 'partly' ? 'unverified' : 'todo'}`, 'aria-hidden': 'true' }), ` Goal "${sel.variant.label}": ${GOAL_WORD[goal.verdict]}`]),
         gatesPanel(issues, dispatch),
         report(issues, dispatch),
       ]),

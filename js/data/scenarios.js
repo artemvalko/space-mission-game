@@ -88,7 +88,7 @@ export const SCENARIOS = [
     groundServes: 'weather', launchers: ['lv_falcon9_rideshare'],
     costModel: { ait: 7.00, licensing: 0.15, ops: 1.00, reserve: 2.61 },
     powerModel: { avgLoadW: 17, note: 'Average over observe / idle / downlink modes. Radiometer and radio peaks are higher; the battery covers them.' },
-    data: { kind: 'gb', generatedGBperDay: 2, generatedText: '1–2 GB/day after compression (we use 2)', validTarget: 0.90, deliveredTarget: 0.95 },
+    data: { kind: 'gb', validTarget: 0.90, deliveredTarget: 0.95 },
     kpis: ['valid_samples', 'calibration', 'data_delivered', 'coverage', 'reference_comparison'],
     impossibleClaim: { id: 'climate_trend', title: 'One 18-month CubeSat ≠ a climate trend', text: 'Climate trends need many years of calibrated measurements, a constellation, or a link to long existing data records. One short demonstration cannot prove a decades-long trend.' },
     payloadWhyNot: {

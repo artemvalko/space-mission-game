@@ -15,7 +15,7 @@ import { goToScreen } from '../state/actions.js';
 import { getStep } from './steps.js';
 import { kg, watts, money, gbDay, months, pct, num, wh } from '../utils/format.js';
 
-const WORD = { ok: 'OK', caution: 'Tight', over: 'Over', blocked: 'Over', unknown: 'To do', uncertain: 'Uncertain' };
+const WORD = { ok: 'OK', caution: 'Tight', over: 'Over', blocked: 'Over', unknown: 'To do', uncertain: 'Uncertain', unverified: 'Unverified', estimated: 'Estimated' };
 const GAUGES = [
   { key: 'budget', icon: 'money', label: 'Money' },
   { key: 'mass', icon: 'weight', label: 'Weight' },
@@ -61,7 +61,7 @@ function build(container, dispatch) {
 
 function gaugeView(res) {
   switch (res.key) {
-    case 'budget': return res.available == null ? '' : `${money(res.used)} / ${money(res.available)}${res.uncertain ? ` · ${res.unknownItems.length} price ?` : ''}`;
+    case 'budget': return res.available == null ? '' : `${res.estimated ? '≈ ' : ''}${money(res.used)} / ${money(res.available)}${res.uncertain ? ` · ${res.unknownItems.length} price ?` : ''}`;
     case 'mass':
       if (res.status === 'blocked') return 'orbit unreachable';
       if (res.cannotVerify?.length) return `? ${res.cannotVerify[0]} mass not public`;
@@ -110,10 +110,12 @@ export function renderSidebar(container, state, dispatch) {
     const el = els.gauges[g.key];
     let status = r.status;
     if (g.key === 'budget' && r.uncertain && status !== 'over') status = 'uncertain'; // amber, hatched — not a fail
+    // Unknown value (mass / eclipse / data rate): a visible "Unverified", never a silent OK (CLARITY P0.3).
+    if (r.validity === 'unverified' && status !== 'over' && status !== 'blocked') status = 'unverified';
     const ratio = r.ratio == null ? 0 : Number.isFinite(r.ratio) ? r.ratio : 1.2;
     el.fill.style.width = `${Math.min(ratio, 1) * 100}%`;
-    el.row.className = `gauge gauge-${status === 'uncertain' ? 'caution gauge-uncertain' : status}`;
-    el.word.textContent = g.key === 'mass' && r.cannotVerify?.length ? 'Can\'t verify' : WORD[status];
+    el.row.className = `gauge gauge-${status === 'uncertain' || status === 'unverified' ? 'caution gauge-uncertain' : status}`;
+    el.word.textContent = g.key === 'budget' && r.program === 'estimated' && status === 'ok' ? WORD.estimated : WORD[status];
     el.text.textContent = gaugeView(r);
     const wasOver = lastStatus[g.key] === 'over' || lastStatus[g.key] === 'blocked';
     if ((status === 'over' || status === 'blocked') && !wasOver && lastStatus[g.key] !== undefined) {

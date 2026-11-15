@@ -3,7 +3,8 @@
 import { h } from '../dom.js';
 import { icon } from '../icons.js';
 import { term, infoTerm } from '../tooltip.js';
-import { choiceCard, levels, previewDelta } from '../card.js';
+import { choiceCard, levels, previewDelta, priceCell } from '../card.js';
+import { cheapestOf } from '../../engine/resources.js';
 import { CATEGORY_PLAIN, NONE, getComponent, componentsByCategory, costFor } from '../../data/components.js';
 import { getScenario } from '../../data/scenarios.js';
 import { whyComponent } from '../../engine/explain.js';
@@ -38,7 +39,7 @@ export function optionsFor(state, category) {
 
 const partDetails = (c, sid) => [
   ['Mass', c.mass != null ? kg(c.mass) : c.massClassOf ? '≈ research SDR class (estimate)' : 'not public (?)'],
-  ['Price', c.cost != null ? money(costFor(c, sid)) : 'not public (?)'],
+  ['Price', priceCell(c, sid)],
   ...(c.costText ? [['Price sources', c.costText]] : []),
   ...(c.massText ? [['Mass sources', c.massText]] : []),
   ...(c.arrayW ? [['Array output (full sun)', `${watts(c.arrayW)}${c.arrayWMax ? `–${watts(c.arrayWMax)}` : ''}`]] : []),
@@ -62,7 +63,7 @@ const cell = (v) => (v == null ? '?' : v);
 export function compareRow(o, sid) {
   const mass = o.reference ? `${o.reference.totalMassKg} kg (real)` : 'mass' in o ? (o.mass != null ? `${o.mass} kg` : o.massClassOf ? '≈1.5 kg' : '?') : o.altitudeText ?? '—';
   const power = o.arrayW ? `${o.arrayW} W` : o.capacityWh ? `${o.capacityWh} Wh` : o.powerW ? `${o.powerW} W` : o.rateMbps ? `${o.rateMbps} Mbps` : o.inclinationText ?? '—';
-  const price = 'cost' in o ? (o.cost != null ? money(costFor(o, sid)) : '?') : 'priceM' in o ? (o.priceM != null ? money(o.priceM) : '?') : '—';
+  const price = 'cost' in o ? priceCell(o, sid, { short: true }) : 'priceM' in o ? (o.priceM != null ? money(o.priceM) : '?') : '—';
   return [o.plainName, cell(mass), cell(power), cell(price), o.oneLiner ?? ''];
 }
 export function compareToggle(key, items, sid, headers = ['Option', 'Mass', 'Power / size', 'Price', 'Trade-off']) {
@@ -72,7 +73,12 @@ export function compareToggle(key, items, sid, headers = ['Option', 'Mass', 'Pow
       title: 'Show the options side by side', onClick: () => { if (open) compareOpen.delete(key); else compareOpen.add(key); rerender(); } }, [icon('layers', 14), ' Compare']),
     open && h('table', { class: 'compare-real compare-table' }, [
       h('thead', {}, h('tr', {}, headers.map((t) => h('th', {}, t)))),
-      h('tbody', {}, items.map((o) => h('tr', {}, compareRow(o, sid).map((v) => h('td', {}, v))))),
+      h('tbody', {}, (() => {
+        // Unknown prices never win "cheapest"; an estimate within 20% of a known price is "too close to call".
+        const cheap = cheapestOf(items, sid);
+        return items.map((o) => h('tr', {}, compareRow(o, sid).map((v, i) => h('td', {}, i === 3 && cheap.item === o ? [v, h('span', { class: 'muted small' }, ' · cheapest')] : v))));
+      })()),
+      (() => { const cheap = cheapestOf(items, sid); return cheap.note && !cheap.item ? h('caption', { class: 'muted small' }, `Cheapest: ${cheap.note}.`) : null; })(),
     ]),
   ]);
 }

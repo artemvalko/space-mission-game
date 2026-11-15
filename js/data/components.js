@@ -288,17 +288,17 @@ export const COMPONENTS = [
   // ── EPS + battery (§1.2, EnduroSat 2022 catalog — historical; prices NOT PUBLIC)
   {
     id: 'bat_eps1', category: 'battery', icon: 'battery', plainName: 'EPS I · 10.2 Wh', name: 'EnduroSat EPS I (power board + battery)', formFactor: 'cubesat', capacityWh: 10.2,
-    mass: 0.208, cost: null, missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
+    mass: 0.208, cost: null, estimatedFrom: 'battery_6u_60wh', missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
     oneLiner: 'Lightest — too small for a long shadow?', why: 'Power board + battery for the shadow.',
   },
   {
     id: 'bat_eps1plus', category: 'battery', icon: 'battery', plainName: 'EPS I+ · 20.4 Wh', name: 'EnduroSat EPS I+ (power board + battery)', formFactor: 'cubesat', capacityWh: 20.4,
-    mass: 0.298, cost: null, missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
+    mass: 0.298, cost: null, estimatedFrom: 'battery_6u_60wh', missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
     oneLiner: 'Just enough, thin margin.', why: 'Power board + battery for the shadow.',
   },
   {
     id: 'bat_eps2', category: 'battery', icon: 'battery', plainName: 'EPS II · 84 Wh', name: 'EnduroSat EPS II (redundant buses)', formFactor: 'cubesat', capacityWh: 84,
-    mass: 1.28, cost: null, missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
+    mass: 1.28, cost: null, estimatedFrom: 'battery_6u_80wh', missions: [], dataKind: 'catalog', sources: ['O06'], ref: 'options §1.2',
     oneLiner: 'Huge margin, ~1 kg heavier.', why: 'Power board + battery with redundant buses.',
   },
   // ── Control radio (§1.3)
@@ -309,7 +309,7 @@ export const COMPONENTS = [
   },
   {
     id: 'ttc_gom_ax100', category: 'comms', icon: 'radio', plainName: 'GomSpace AX100', name: 'GomSpace NanoCom AX100 (VHF/UHF)', formFactor: 'cubesat',
-    mass: 0.0245, cost: null, missions: [], dataKind: 'catalog', sources: ['S18'], ref: 'options §1.3',
+    mass: 0.0245, cost: null, estimatedFrom: 'ttc_uhf', missions: [], dataKind: 'catalog', sources: ['S18'], ref: 'options §1.3',
     oneLiner: 'Only 24.5 g; price not public.', why: 'Controlling the satellite.',
   },
   {
@@ -320,7 +320,7 @@ export const COMPONENTS = [
   // ── Data downlink (§1.4)
   {
     id: 'dl_es_sband_tx', category: 'downlink', icon: 'signal', plainName: 'S-band transmitter', name: 'EnduroSat S-Band Transmitter (20 Mbps)', formFactor: 'cubesat', serves: ['iot', 'weather'], rateMbps: 20,
-    mass: 0.25, cost: null, missions: [], dataKind: 'catalog', sources: ['O12'], ref: 'options §1.4',
+    mass: 0.25, cost: null, estimatedFrom: 'science_sband', missions: [], dataKind: 'catalog', sources: ['O12'], ref: 'options §1.4',
     oneLiner: 'Fast enough for science data.', why: 'Sends the mission data to Earth (needs S-band ground).',
   },
   {
@@ -336,38 +336,38 @@ export const COMPONENTS = [
   // ── Pointing (§1.5; prices NOT PUBLIC)
   {
     id: 'adcs_cubespace_small', category: 'adcs', icon: 'compass', plainName: 'CubeSpace 3-Axis Small', name: 'CubeSpace CubeADCS 3-Axis Small (~0.1° class)', formFactor: 'cubesat',
-    mass: 0.55, cost: null, missions: [], dataKind: 'fact', sources: ['O14'], ref: 'options §1.5',
+    mass: 0.55, cost: null, estimatedFrom: 'adcs_6u', missions: [], dataKind: 'fact', sources: ['O14'], ref: 'options §1.5',
     oneLiner: 'Light; enough to point down.', why: 'Points antennas and sensors.',
   },
   {
     id: 'adcs_bct_xact15', heritage: 'ASTERIA, MinXSS', category: 'adcs', icon: 'target', plainName: 'Blue Canyon XACT-15', name: 'Blue Canyon XACT-15 (0.007°)', formFactor: 'cubesat',
-    mass: 0.885, cost: null, missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
+    mass: 0.885, cost: null, estimatedFrom: 'adcs_6u', missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
     oneLiner: 'Very precise; flew on ASTERIA.', why: 'Points antennas and sensors very precisely.',
   },
   {
     id: 'adcs_bct_xact50', category: 'adcs', icon: 'target', plainName: 'Blue Canyon XACT-50', name: 'Blue Canyon XACT-50 (0.007°, big wheels)', formFactor: 'cubesat',
-    mass: 1.23, cost: null, missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
+    mass: 1.23, cost: null, estimatedFrom: 'adcs_6u', missions: [], dataKind: 'fact', sources: ['O14', 'O15'], ref: 'options §1.5',
     oneLiner: 'For heavy sats; overkill on a light 6U.', why: 'Points heavier satellites.',
   },
   // ── On-board computer (§1.8)
   {
     id: 'obc_es_type1', category: 'computer', icon: 'chip', plainName: 'OBC Type I', name: 'EnduroSat Onboard Computer Type I (0.9 W)', formFactor: 'cubesat', storesPackets: true, powerW: 0.9,
-    mass: 0.13, cost: null, massText: '58 g (satcatalog) · 130 g (2022 catalog; we count 130 g)', missions: [], dataKind: 'catalog', sources: ['O50', 'O06'], ref: 'options §1.8',
+    mass: 0.13, cost: null, estimatedFrom: 'obc_si_quad', massText: '58 g (satcatalog) · 130 g (2022 catalog; we count 130 g)', missions: [], dataKind: 'catalog', sources: ['O50', 'O06'], ref: 'options §1.8',
     oneLiner: 'Light; stores data on microSD.', why: 'Runs the satellite and stores data.',
   },
   {
     id: 'obc_es_gnss', category: 'computer', icon: 'satellite', plainName: 'OBC with GNSS', name: 'EnduroSat Onboard Computer with GNSS (8 GB)', formFactor: 'cubesat', storesPackets: true, providesGnss: true,
-    mass: 0.18, cost: null, missions: [], dataKind: 'catalog', sources: ['O51'], ref: 'options §1.8',
+    mass: 0.18, cost: null, estimatedFrom: 'obc_si_quad', missions: [], dataKind: 'catalog', sources: ['O51'], ref: 'options §1.8',
     oneLiner: 'Built-in GNSS: no separate receiver.', why: 'Runs the satellite, stores data and knows its own position (20 ns time).',
   },
   {
     id: 'obc_isis_iobc', category: 'computer', icon: 'chip', plainName: 'ISISPACE iOBC', name: 'ISISPACE iOBC (0.4 W)', formFactor: 'cubesat', storesPackets: true, powerW: 0.4,
-    mass: 0.094, cost: null, costText: 'price on request (RFQ)', missions: [], dataKind: 'catalog', sources: ['O52', 'O53'], ref: 'options §1.8',
+    mass: 0.094, cost: null, estimatedFrom: 'obc_si_quad', costText: 'price on request (RFQ)', missions: [], dataKind: 'catalog', sources: ['O52', 'O53'], ref: 'options §1.8',
     oneLiner: 'Lowest power; flying since 2012.', why: 'Runs the satellite and stores data.',
   },
   {
     id: 'obc_si_quad', category: 'computer', icon: 'chip', plainName: 'Space Inventor OBC (4 cores)', name: 'Space Inventor OBC — 4 independent computers', formFactor: 'cubesat', storesPackets: true,
-    mass: 0.16, cost: null, costText: '€9,000 MSRP (euro price: not converted, counted as unknown)', missions: [], dataKind: 'catalog', sources: ['O54'], ref: 'options §1.8',
+    mass: 0.16, cost: null, priceEUR: 0.009, costText: '€9,000 MSRP (converted at the fixed game rate EUR_TO_USD)', missions: [], dataKind: 'catalog', sources: ['O54'], ref: 'options §1.8',
     oneLiner: 'Built-in redundancy: 4 computers.', why: 'Runs the satellite with spare brains.',
   },
   // ── End of life (§1.9, CubeSats in LEO)
@@ -405,6 +405,11 @@ export const getComponent = (id) => (id && id !== NONE ? byId.get(id) ?? null : 
 export const componentsByCategory = (category) => COMPONENTS.filter((c) => c.category === category);
 export const isCubeSat = (c) => c?.formFactor === 'cubesat';
 /** Model cost of a part for this mission (some research rows differ per mission). */
+// ONE fixed euro → dollar rate for the few euro catalog prices (Space Inventor OBC €9,000). A game constant,
+// labelled wherever it is used — not a live exchange rate, and not from the research.
+export const EUR_TO_USD = 1.08;
+export const EUR_RATE_LABEL = `€1 = $${EUR_TO_USD} (fixed game rate, not live)`;
+
 export const costFor = (part, scenarioId) => (part ? part.costByMission?.[scenarioId] ?? part.cost : 0);
 
 // Plain-English names for the UI; real engineering term as a subtitle; research category (§7.1).

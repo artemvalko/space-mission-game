@@ -8,6 +8,8 @@
 //           'warning' = launchable, but an objective will be missed (e.g. over the model budget)
 //           'caution' = close to a limit
 //           'info'    = tips
+// `unverified: true` (with severity 'caution') = a value the data does not give (unknown mass, size, eclipse,
+// data rate / contact time). Never a silent pass and never a NO-GO: the design gets a CONDITIONAL GO (CLARITY P0.3).
 
 import { CATEGORY_PLAIN, isCubeSat } from '../data/components.js';
 import { ROLE_INFO } from '../data/instruments.js';
@@ -45,8 +47,9 @@ const SIZE_NAME = { '6u': 'a 6U CubeSat', large: 'a ~700 kg Galileo-class bus' }
 
 export function validateDesign(state, resources = computeResources(state)) {
   const out = [];
-  const add = (severity, gate, resource, step, message, why = '', fix = '', alternative = null) =>
-    out.push({ severity, gate, resource, step, message, why, fix, alternative });
+  const add = (severity, gate, resource, step, message, why = '', fix = '', alternative = null, extra = {}) =>
+    out.push({ severity, gate, resource, step, message, why, fix, alternative, ...extra });
+  const unverified = (gate, resource, step, message, why, fix = '', alternative = null) => add('caution', gate, resource, step, message, why, fix, alternative, { unverified: true });
   const sel = getSelection(state);
   const { orbit, launcher, deployer, ground, scenario, components, instruments, left, prep, reference, included } = sel;
 
@@ -114,14 +117,19 @@ export function validateDesign(state, resources = computeResources(state)) {
     }
     if (mass.cannotVerify?.length) {
       const refs = ['ref_swarm_spacebee', 'ref_astrocast_3u', 'ref_sateliot_6u', 'ref_tropics_3u', 'ref_raincube_6u', 'ref_gps_iii'].filter((id) => getComponent(id).missions.includes(scenario.id)).map((id) => getComponent(id).plainName);
-      add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'size', `Mass cannot be verified: ${mass.cannotVerify[0]} has no public mass.`,
-        `We never guess a mass. Not public: ${mass.cannotVerify.join(', ')}. Without it the dispenser and rocket limits cannot be checked.`,
+      unverified('spacecraft_size_mass_volume_compatible', 'mass', 'size', `Mass not verified: ${mass.cannotVerify[0]} has no public mass.`,
+        `We never guess a mass. Not public: ${mass.cannotVerify.join(', ')}. The dispenser and rocket limits cannot be checked: CONDITIONAL GO, not a full GO.`,
         'Pick parts with a public mass, or a Reference build (a real satellite\'s total mass).',
         refs.length ? `Reference builds with a public total mass: ${refs.join(', ')}.` : null);
     }
     if (mass.misfits.length) {
       add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'science', `${mass.misfits.length} part(s) are the wrong size for this frame.`,
         `They are built for a ${cube ? 'large satellite' : 'CubeSat'}. CubeSat parts and large-satellite parts are not interchangeable.`, 'Use the parts made for your frame size.');
+    }
+    if (mass.volume.validity === 'unverified') {
+      unverified('spacecraft_size_mass_volume_compatible', 'mass', 'size', `Volume not verified: ${mass.volume.unknownParts.length} part${mass.volume.unknownParts.length > 1 ? 's have' : ' has'} no published size.`,
+        `${mass.volume.explanation} Mass fitting does not prove that everything fits inside (research §3.2).${scenario.id === 'mission_weather_mw' ? ' TEMPEST-D fitted a 4U radiometer + 2U bus in a 6U (S07).' : ''}`,
+        'A reference build (a whole real satellite) has a known size.');
     }
     if (!mass.volume.ok) {
       add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'size', `Payload needs ${mass.volume.used}U but the ${plain(structure)} has only ${mass.volume.available}U.`,
@@ -239,6 +247,9 @@ export function validateDesign(state, resources = computeResources(state)) {
       'Solar panels are made for one CubeSat size.', 'Pick the array made for your frame.');
   }
   // ── Gate: battery in eclipse
+  if (battery.validity === 'unverified') {
+    unverified('battery_eclipse_pass', 'battery', 'power', 'Battery not verified: no single shadow length here.', battery.explanation);
+  }
   if (components.battery && battery.needWh != null && battery.needWh > battery.usable) {
     add('error', 'battery_eclipse_pass', 'battery', 'power', 'Battery too small: it switches off in the shadow.', `In sunlight there is enough power, but not in the shadow. ${battery.explanation}`, 'Pick a bigger battery.');
   }
@@ -258,8 +269,8 @@ export function validateDesign(state, resources = computeResources(state)) {
   if (dl?.needsXband) {
     add('caution', null, 'data', 'comms', 'X-band is overkill here and needs X-band ground.', `150 Mbps is far more than IoT bytes or a radiometer's ~8 kbps (O16) need. X-band ground stations cost more${ground?.xband ? ' — your ground segment has X-band.' : ' — check that your ground segment has X-band (AWS does).'}`);
   }
-  if (data.status === 'unknown' && data.unmeasured && data.chainOk) {
-    add('info', null, 'data', 'comms', 'Data volume not measurable: a rate is not public.', data.explanation);
+  if (data.validity === 'unverified') {
+    unverified('communications_link_pass', 'data', 'comms', 'Data link not verified: a rate or contact time is not public.', data.explanation);
   }
   // ── End of life: the retirement strategy must be possible for this orbit and satellite (DISPOSAL.md)
   const planet = resources.planet;
@@ -285,9 +296,12 @@ export function validateDesign(state, resources = computeResources(state)) {
   if (budget.status === 'over') {
     add('warning', null, 'budget', 'rocket', `${money(budget.used - budget.available)} over the model budget.`, budget.explanation, 'Choose cheaper options; check the launch line.');
   } else if (budget.uncertain) {
-    add('caution', null, 'budget', null, `Budget uncertain: ${budget.unknownItems.length} item${budget.unknownItems.length > 1 ? 's have' : ' has'} no public price.`, `${budget.unknownItems.join(', ')}. Real engineers would request a quote (RFQ). Not a fail, and never a guess.`);
+    add('caution', null, 'budget', null, `Budget uncertain: ${budget.unknownItems.length} item${budget.unknownItems.length > 1 ? 's have' : ' has'} no public price.`, `${budget.unknownItems.join(', ')}. Real engineers would request a quote (RFQ). Not a fail, and never a guess.${budget.estimated ? ` Rough estimates also used: ${budget.estimatedItems.map((e) => e.name).join(', ')}.` : ''}`);
   } else if (budget.status === 'caution') {
     add('caution', null, 'budget', 'rocket', `Eating into the reserve: ${money(budget.reserveLeft)} left.`, `The research plan keeps ${money(budget.plannedReserve)}. ${budget.explanation}`);
+  }
+  if (budget.estimated && !budget.uncertain && budget.status !== 'over') {
+    add('info', null, 'budget', null, `Budget estimated: ${budget.estimatedItems.length} rough price${budget.estimatedItems.length > 1 ? 's' : ''}.`, `${budget.estimatedItems.map((e) => `${e.name} ≈ ${money(e.value)} (like: ${e.fromName})`).join(', ')}. Copied from a same-role item — not a quote.`);
   }
 
   return out.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
@@ -298,11 +312,22 @@ export const hasBlockingErrors = (issues) => issues.some((i) => i.severity === '
 /** Launch needs every choice made and no failed hard gate. */
 export const canLaunch = (issues) => !issues.some((i) => i.severity === 'error' || i.severity === 'todo');
 
-/** Status of each §8.5 gate: 'pass' | 'fail' | 'todo'. */
+/** Status of each §8.5 gate: 'pass' | 'fail' | 'todo' | 'unverified' (a value the data does not give). */
 export function gateStatus(issues) {
   return GATES.map((g) => {
     const mine = issues.filter((i) => i.gate === g.id);
-    const status = mine.some((i) => i.severity === 'error') ? 'fail' : mine.some((i) => i.severity === 'todo') ? 'todo' : 'pass';
-    return { ...g, status, issues: mine.filter((i) => i.severity === 'error' || i.severity === 'todo') };
+    const status = mine.some((i) => i.severity === 'error') ? 'fail' : mine.some((i) => i.severity === 'todo') ? 'todo' : mine.some((i) => i.unverified) ? 'unverified' : 'pass';
+    return { ...g, status, issues: mine.filter((i) => i.severity === 'error' || i.severity === 'todo' || i.unverified) };
   });
+}
+
+/**
+ * Engineering verdict (CLARITY P0.1/P0.3): can it fly?
+ *   'NO-GO' (a failed hard gate) · 'TODO' (choices missing) · 'CONDITIONAL' (flies, but something is unverified) · 'GO'
+ */
+export function engineeringVerdict(issues) {
+  const errors = issues.filter((i) => i.severity === 'error');
+  const unverifiedItems = issues.filter((i) => i.unverified);
+  const verdict = errors.length ? 'NO-GO' : issues.some((i) => i.severity === 'todo') ? 'TODO' : unverifiedItems.length ? 'CONDITIONAL' : 'GO';
+  return { verdict, errors, unverified: unverifiedItems };
 }
