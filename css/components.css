@@ -309,11 +309,14 @@ details.group > summary { cursor: pointer; }
   .hero-visual { max-width: 340px; }
   }
 
-.team-panel { max-width: 720px; margin: 24px auto 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.team-panel { width: 100%; max-width: 1100px; margin: 24px auto 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .player-list { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .player-row { display: grid; grid-template-columns: 1fr 1fr 44px; gap: 8px; }
-.role-hints { margin: 4px 0; padding: 0; list-style: none; color: var(--text-2); font-size: 15px; display: grid; gap: 8px; }
-.role-hints li { display: flex; gap: 8px; align-items: flex-start; }
+.role-hints { margin: 4px 0; padding: 0; list-style: none; color: var(--text-2); font-size: 15px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-self: stretch; }
+.role-hints li { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; row-gap: 6px; align-items: center; align-content: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.role-hints strong { white-space: nowrap; }
+.role-desc { grid-column: 1 / -1; }
+@media (max-width: 800px) { .role-hints { grid-template-columns: 1fr; } }
 .role-hints strong { color: var(--text); font-weight: 500; }
 
 /* ── Modals ──────────────────────────────────────────────── */

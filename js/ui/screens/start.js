@@ -60,7 +60,7 @@ function teamPanel(state, dispatch) {
         : h('span'),
     ]))),
     state.players.length < MAX_PLAYERS && h('button', { class: 'btn btn-ghost', type: 'button', key: 'add-player', onClick: () => dispatch(addPlayer('')) }, '+ Add player'),
-    h('ul', { class: 'role-hints' }, ROLES.map((r) => h('li', {}, [h('span', { class: 'monogram monogram-sm', 'aria-hidden': 'true' }, initials(r.name)), ' ', h('strong', {}, `${r.name}: `), r.description]))),
+    h('ul', { class: 'role-hints' }, ROLES.map((r) => h('li', {}, [h('span', { class: 'monogram monogram-sm', 'aria-hidden': 'true' }, initials(r.name)), ' ', h('strong', {}, `${r.name}: `), h('span', { class: 'role-desc' }, r.description)]))),
     h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'start-team', onClick: () => dispatch(goToScreen('pickMission')) }, 'Start mission →'),
   ]);
 }
