@@ -11,6 +11,9 @@ const BODY = {
   str_gnss_meo: [84, 76],
 };
 
+// The snap glow takes the part's own colour (matches the fills in components.css).
+const GLOW = { structure: '#d4aa3c', power: '#4a7bd0', comms: '#cfd4db', downlink: '#cfd4db', adcs: '#8e96a3', propulsion: '#e8742a', instrument: '#9a7cc0' };
+
 let previousKeys = new Set();
 
 function grid(x, y, w, hgt, cols, rows, cls) {
@@ -141,7 +144,7 @@ export function renderSatellite(state, opts = {}) {
     const g = s('g', {
       'data-part': pt.cat, 'data-id': pt.id,
       class: ['part', glow && !previousKeys.has(pt.key) && previousKeys.size > 0 && 'snap'].filter(Boolean).join(' '),
-      style: `--dx:${dx.toFixed(1)}px;--dy:${dy.toFixed(1)}px`,
+      style: `--dx:${dx.toFixed(1)}px;--dy:${dy.toFixed(1)}px;--glow:${GLOW[pt.cat] ?? '#ffffff'}`,
     }, pt.nodes);
     return g;
   };
@@ -174,7 +177,7 @@ export function renderSatellite(state, opts = {}) {
 
   const svg = s('svg', { viewBox: opts.exploded ? '-50 -40 340 260' : '0 0 240 180', class: ['satellite', opts.exploded && 'exploded'].filter(Boolean).join(' '), role: 'img', 'aria-label': describe(sel) }, [
     ...parts.filter((pt) => pt.behind).map(group),
-    s('g', { 'data-part': 'structure', 'data-id': c.structure?.id ?? 'none', class: glow && c.structure && !previousKeys.has(`structure:${c.structure.id}`) && previousKeys.size > 0 ? 'snap' : null }, body),
+    s('g', { 'data-part': 'structure', 'data-id': c.structure?.id ?? 'none', class: glow && c.structure && !previousKeys.has(`structure:${c.structure.id}`) && previousKeys.size > 0 ? 'snap' : null, style: `--glow:${GLOW.structure}` }, body),
     ...parts.filter((pt) => !pt.behind).map(group),
     ...labels,
   ]);

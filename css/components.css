@@ -195,34 +195,35 @@ details.group > summary { cursor: pointer; }
 .sat-caption { color: var(--muted); font-size: 12px; }
 .satellite { width: 100%; height: auto; max-height: 220px; display: block; }
 /* Monochrome line art: light strokes, minimal #151515 fills. */
-.sat-body { fill: #151515; stroke: #d6d6d6; stroke-width: 1.2; }
-.sat-foil { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: .6; stroke-dasharray: 3 2; }
-.sat-unit { stroke: rgba(255, 255, 255, .35); stroke-width: .8; }
+/* Satellite picture: the only coloured thing in the UI. Realistic, slightly muted; outlines stay white. */
+.sat-body { fill: #a9832b; stroke: #ededed; stroke-width: 1.5; }
+.sat-foil { fill: none; stroke: #e0bf6a; stroke-width: .7; stroke-dasharray: 3 2; }
+.sat-unit { stroke: #7a5f1c; stroke-width: .9; }
 .sat-ghost { fill: none; stroke: var(--line-strong); stroke-width: 1.2; stroke-dasharray: 5 4; }
 .sat-ghost-text { fill: var(--muted); font-size: 24px; font-family: var(--font); }
-.sat-cells { fill: #111; stroke: #cfcfcf; stroke-width: 1; }
-.sat-cells-line { stroke: rgba(255, 255, 255, .25); stroke-width: .5; }
-.sat-boom { stroke: #9a9a9a; stroke-width: 1.2; }
-.sat-box { fill: #151515; stroke: #bdbdbd; stroke-width: .8; }
-.sat-rtg { fill: #151515; stroke: #9a9a9a; }
-.sat-fin { stroke: #9a9a9a; stroke-width: 1.2; }
-.sat-dish { fill: #151515; stroke: #d6d6d6; stroke-width: 1; }
-.sat-feed { stroke: #9a9a9a; stroke-width: 1; }
-.sat-patch { fill: #151515; stroke: #bdbdbd; stroke-width: .8; }
-.sat-nozzle { fill: #151515; stroke: #9a9a9a; stroke-width: .8; }
-.sat-lens { fill: #050505; stroke: #ededed; stroke-width: 1; }
-.sat-lens-hot { fill: #050505; stroke: var(--danger); stroke-width: 1.2; }
-.sat-tube { fill: #151515; stroke: #bdbdbd; }
-.sat-uv { fill: #151515; stroke: #ededed; }
-.sat-mirror { fill: #151515; stroke: #ededed; }
-.sat-shield { fill: none; stroke: #9a9a9a; opacity: .8; }
-.sat-radar { fill: #151515; stroke: #bdbdbd; }
-.sat-rainbow { fill: #151515; stroke: #ededed; }
-.sat-gamma { fill: #151515; stroke: #ededed; }
+.sat-cells { fill: #1a366b; stroke: #ededed; stroke-width: 1.5; }
+.sat-cells-line { stroke: #6f94c9; stroke-width: .5; }
+.sat-boom { stroke: #b9bec6; stroke-width: 1.2; }
+.sat-box { fill: #8e96a3; stroke: #ededed; stroke-width: 1; }
+.sat-rtg { fill: #6c7380; stroke: #ededed; stroke-width: 1; }
+.sat-fin { stroke: #b9bec6; stroke-width: 1.2; }
+.sat-dish { fill: #c8cdd4; stroke: #ededed; stroke-width: 1.5; }
+.sat-feed { stroke: #b9bec6; stroke-width: 1; }
+.sat-patch { fill: #c8cdd4; stroke: #ededed; stroke-width: 1; }
+.sat-nozzle { fill: #2e3138; stroke: #ededed; stroke-width: 1; filter: drop-shadow(0 1.5px 1.5px rgba(232, 116, 42, .8)); }
+.sat-lens { fill: #0b1a2e; stroke: #ededed; stroke-width: 1; }
+.sat-lens-hot { fill: #3a1410; stroke: var(--danger); stroke-width: 1.2; }
+.sat-tube { fill: #c9ced6; stroke: #ededed; }
+.sat-uv { fill: #8f74d1; stroke: #ededed; }
+.sat-mirror { fill: #d8b85a; stroke: #ededed; }
+.sat-shield { fill: #9a7cc0; stroke: #ededed; opacity: .85; }
+.sat-radar { fill: #2f3a4b; stroke: #ededed; }
+.sat-rainbow { fill: #d9669f; stroke: #ededed; }
+.sat-gamma { fill: #d9b73a; stroke: #ededed; }
 .satellite .snap { animation: snap .6s ease-out; transform-box: fill-box; transform-origin: center; }
 @keyframes snap {
   0% { opacity: 0; transform: scale(.85); }
-  60% { opacity: 1; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .5)); }
+  60% { opacity: 1; filter: drop-shadow(0 0 6px var(--glow, rgba(255, 255, 255, .5))); }
   100% { transform: scale(1); filter: none; }
 }
 
