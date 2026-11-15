@@ -31,7 +31,7 @@
 
 /* Shared scene pieces */
 .an-space { fill: #000; }
-.an-stars circle { fill: #fff; opacity: .5; }
+.an-stars { display: none; }
 .an-ground { fill: #0a0a0a; stroke: rgba(255, 255, 255, .3); stroke-width: 1; }
 .an-pad { fill: #151515; stroke: #9a9a9a; stroke-width: 1; }
 .an-tower { fill: none; stroke: #bdbdbd; stroke-width: 1.5; }
@@ -248,7 +248,7 @@
 .mood-over .monogram-dot { background: var(--danger); }
 .react-name { font-size: 12px; color: var(--text-2); }
 .an-orbit.graveyard { stroke: rgba(255, 155, 155, .7); }
-.prelaunch-bg { background: radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, .08), transparent 60%), #000; display: grid; place-items: end center; }
+.prelaunch-bg { background: #000; display: grid; place-items: end center; }
 .prelaunch-pad { color: #ededed; margin-bottom: 14%; }
 .an-ozone { fill: rgba(255, 255, 255, .04); stroke: rgba(255, 255, 255, .25); stroke-dasharray: 4 6; }
 .an-dust { fill: #9a9a9a; }

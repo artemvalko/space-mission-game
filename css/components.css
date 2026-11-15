@@ -13,8 +13,8 @@
 .btn:disabled { opacity: .35; cursor: not-allowed; }
 .btn-primary { background: var(--text); border-color: var(--text); color: #000; }
 .btn-primary:hover:not(:disabled) { background: #fff; border-color: #fff; opacity: .88; }
-.btn-ghost { background: transparent; border-color: transparent; color: var(--text-2); }
-.btn-ghost:hover:not(:disabled) { color: var(--text); background: transparent; border-color: transparent; }
+.btn-ghost { background: transparent; border-color: var(--line-strong); color: var(--text-2); }
+.btn-ghost:hover:not(:disabled) { color: var(--text); background: transparent; border-color: var(--line-strong); }
 .btn-big { font-size: 15px; padding: 12px 24px; }
 .btn-small { font-size: 13px; padding: 6px 14px; }
 .btn-active { border-color: var(--text); background: var(--panel-2); }
@@ -188,7 +188,7 @@ details.group > summary { cursor: pointer; }
 /* ── Sidebar: satellite, advisor, gauges, details ────────── */
 .sat-frame {
   border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; text-align: center;
-  background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .06) 0%, rgba(255, 255, 255, 0) 60%), var(--bg-2);
+  background: var(--bg-2);
 }
 .sat-caption { color: var(--muted); font-size: 12px; }
 .satellite { width: 100%; height: auto; max-height: 220px; display: block; }
@@ -287,14 +287,14 @@ details.group > summary { cursor: pointer; }
   min-height: min(78vh, 720px); padding: 72px 0 48px;
 }
 .hero > * { position: relative; z-index: 1; }
-.hero > .dot-field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; fill: #fff; pointer-events: none; }
+.hero > .dot-field { display: none; position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; fill: #fff; pointer-events: none; }
 .hero-copy { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
 .hero-title { font-size: clamp(2.75rem, 5.6vw, 4rem); font-weight: 500; letter-spacing: -0.04em; line-height: 1.02; margin: 0; }
 .hero-tagline { font-size: 18px; color: var(--text-2); margin: 0; max-width: 40ch; }
 .hero-buttons { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0 4px; }
 .hero-visual-wrap { display: grid; place-items: center; }
 .hero-visual { width: 100%; max-width: 520px; height: auto; overflow: visible; }
-.hv-planet { fill: #050505; stroke: rgba(255, 255, 255, .7); stroke-width: 1.2; }
+.hv-planet { fill: none; stroke: rgba(255, 255, 255, .7); stroke-width: 1.2; }
 .hv-lat { fill: none; stroke: rgba(255, 255, 255, .1); stroke-width: 1; }
 .hv-orbit { fill: none; stroke: rgba(255, 255, 255, .22); stroke-width: 1; }
 .hv-orbit-front { stroke: rgba(255, 255, 255, .38); }

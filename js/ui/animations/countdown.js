@@ -9,7 +9,7 @@ export function countdown(container, { launcher, caption = null, hold = false } 
   return play(container, {
     scene: 'countdown', label: 'Countdown and liftoff', duration: 5200, caption, hold,
     setup({ svg }) {
-      const bg = sky('#121212', '#262626');
+      const bg = sky('#000', '#000');
       const st = stars(90, 11);
       st.setAttribute('opacity', 0);
       const world = s('g', {}, [

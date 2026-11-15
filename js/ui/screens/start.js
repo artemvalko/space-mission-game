@@ -143,7 +143,7 @@ export function render(container, state, dispatch) {
         h('p', { class: 'hero-tagline', title: 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.' }, 'Real missions. Real data. GO or NO-GO?'),
         h('div', { class: 'hero-buttons' }, [
           h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'play-solo', onClick: () => { dispatch(setMode('solo')); dispatch(goToScreen('pickMission')); } }, 'Play solo'),
-          h('button', { class: ['btn', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', title: 'Play as a team (2–4 on one screen)', onClick: () => dispatch(setMode('team')) }, 'Play as a team'),
+          h('button', { class: ['btn', 'btn-ghost', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', title: 'Play as a team (2–4 on one screen)', onClick: () => dispatch(setMode('team')) }, 'Play as a team'),
           h('button', { class: 'text-link', type: 'button', key: 'how-to', onClick: () => { slide = 0; rerender(); } }, ['How to play ', icon('arrowRight', 14)]),
         ]),
         h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Difficulty' }, ['easy', 'normal'].map((d) =>

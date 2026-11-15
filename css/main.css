@@ -80,7 +80,7 @@ code { font-family: var(--mono); font-size: .9em; }
   display: flex; align-items: center; justify-content: space-between; gap: var(--gap);
   height: 56px; padding: 0 24px;
   border-bottom: 1px solid var(--line);
-  background: rgba(0, 0, 0, .8); backdrop-filter: saturate(1.2) blur(8px);
+  background: #000;
   position: sticky; top: 0; z-index: 40;
 }
 .brand { display: flex; align-items: center; gap: 10px; background: none; border: 0; color: var(--text); cursor: pointer; font: inherit; padding: 4px; }
@@ -88,10 +88,11 @@ code { font-family: var(--mono); font-size: .9em; }
 .brand-name { font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 12.5px; white-space: nowrap; }
 .header-actions { display: flex; align-items: center; gap: 4px; }
 .top-link {
-  font: inherit; font-size: 14px; color: var(--text-2); background: none; border: 0; cursor: pointer;
-  padding: 6px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 14px; color: var(--text-2); cursor: pointer;
+  padding: 6px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid var(--line-strong);
 }
-.top-link:hover { color: var(--text); }
+.top-link:hover { color: var(--text); background: transparent; }
 
 /* ── Goal strip + step list ──────────────────────────────── */
 .goal-strip, .step-list { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
