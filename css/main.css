@@ -1,4 +1,4 @@
-@font-face { font-family: "Inter Tight"; src: url("../fonts/InterTight-Variable.ttf") format("truetype"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Space Grotesk"; src: url("../fonts/SpaceGrotesk-Variable.ttf") format("truetype"); font-weight: 300 700; font-style: normal; font-display: swap; }
 /* Design tokens, base typography, page layout (VISUAL_REDESIGN.md §2).
    Calm monochrome engineering tool: black canvas, hairline borders, one soft glow.
    Colour carries meaning only (status): ok / tight / over / info — as small dots or thin bars. */
@@ -39,7 +39,7 @@
   --gap: 24px;
   --sidebar: 320px;
   --font: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Inter, Arial, sans-serif;
-  --font-heading: "Inter Tight", -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Space Grotesk", -apple-system, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 }
 
