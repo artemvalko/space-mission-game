@@ -41,6 +41,7 @@
   <link rel="modulepreload" href="js/state/reducer.js">
   <link rel="modulepreload" href="js/state/store.js">
   <link rel="modulepreload" href="js/ui/animations/balanceScale.js">
+  <link rel="modulepreload" href="js/ui/animations/burnUp.js">
   <link rel="modulepreload" href="js/ui/animations/cardFlip.js">
   <link rel="modulepreload" href="js/ui/animations/constellation.js">
   <link rel="modulepreload" href="js/ui/animations/core.js">
@@ -58,10 +59,12 @@
   <link rel="modulepreload" href="js/ui/animations/missionPartial.js">
   <link rel="modulepreload" href="js/ui/animations/missionSuccess.js">
   <link rel="modulepreload" href="js/ui/animations/montage.js">
+  <link rel="modulepreload" href="js/ui/animations/oceanReentry.js">
   <link rel="modulepreload" href="js/ui/animations/orbitView.js">
   <link rel="modulepreload" href="js/ui/animations/patch.js">
   <link rel="modulepreload" href="js/ui/animations/solarFlare.js">
   <link rel="modulepreload" href="js/ui/animations/tooHeavy.js">
+  <link rel="modulepreload" href="js/ui/animations/tugRemoval.js">
   <link rel="modulepreload" href="js/ui/card.js">
   <link rel="modulepreload" href="js/ui/dom.js">
   <link rel="modulepreload" href="js/ui/gallery.js">
@@ -207,6 +210,10 @@
         'P2 End of life: deorbit (LEO)': () => S.endOfLife(stage, { orbitId: 'leo_550' }),
         'P2 End of life: leave MEO (graveyard)': () => S.endOfLife(stage, { orbitId: 'meo_gnss' }),
         'P2 End of life: no disposal plan': () => S.endOfLife(stage, { orbitId: 'leo_550', disposal: false }),
+        'D1 Burn up (oxide cloud drifts to the ozone layer)': () => S.burnUp(stage, { kg: 8.68 * 0.12 }),
+        'D2 Controlled ocean reentry (Point Nemo)': () => S.oceanReentry(stage, {}),
+        'D3 Leave in orbit / disposal orbit': () => S.endOfLife(stage, { orbitId: 'meo_gnss' }),
+        'D4 Docking plate: tug removes it': () => S.tugRemoval(stage, {}),
       },
       'Mission end & lessons': {
         '14 Success': () => S.missionSuccess(stage, { name: 'Connect Remote Sensors', team: 'Team Rocket', orbitId: 'leo_550', grade: 'A', caption: 'Mission accomplished! Every KPI was met.' }),

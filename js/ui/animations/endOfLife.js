@@ -8,7 +8,7 @@ import { sound } from '../sound.js';
 
 export const END_OF_LIFE_CAPTION = {
   deorbit: 'Mission over: following the disposal plan, it drops into the air and burns up — no junk left behind.',
-  graveyard: 'Mission over: its own thrusters move it out of the busy navigation orbit, so it can never hit a working satellite.',
+  graveyard: 'Still in space: one more object to track. Its own thrusters moved it out of the busy orbit.',
   farewell: 'Mission over: one last message home, then the satellite is switched off.',
   none: 'Mission over — but there was no disposal plan. The satellite stays up as space junk. Real missions must plan this.',
 };

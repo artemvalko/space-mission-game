@@ -37,3 +37,6 @@ export { goConsole } from './goConsole.js';
 export { montage } from './montage.js';
 export { groundTrack, trackPoints } from './groundTrack.js';
 export { endOfLife } from './endOfLife.js';
+export { burnUp } from './burnUp.js';
+export { oceanReentry } from './oceanReentry.js';
+export { tugRemoval } from './tugRemoval.js';

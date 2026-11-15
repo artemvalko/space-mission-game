@@ -237,3 +237,7 @@
 .prelaunch-bg { background: linear-gradient(#123a6b, #0a1a33 70%, #1a2438 70%); display: grid; place-items: end center; }
 .prelaunch-pad { font-size: 5rem; margin-bottom: 18%; filter: drop-shadow(0 0 12px rgba(0, 0, 0, .6)); }
 .ops-root { min-height: 200px; }
+.an-ozone { fill: rgba(120, 190, 255, .12); stroke: rgba(143, 208, 255, .35); stroke-dasharray: 4 6; }
+.an-dust { fill: #c9c2b8; }
+.an-splash { fill: none; stroke: #8fd0ff; stroke-width: 3; }
+.an-tug { fill: #9aa3b2; stroke: #e6edf7; stroke-width: 1.5; }

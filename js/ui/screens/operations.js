@@ -21,6 +21,9 @@ import {
 } from '../animations/index.js';
 import { clearGallery } from '../gallery.js';
 import { endOfLife } from '../animations/endOfLife.js';
+import { burnUp } from '../animations/burnUp.js';
+import { oceanReentry } from '../animations/oceanReentry.js';
+import { tugRemoval } from '../animations/tugRemoval.js';
 import { computeResources } from '../../engine/resources.js';
 import { getNoGoReason } from '../../data/roles.js';
 import { votingRoles } from '../../engine/roleGoals.js';
@@ -172,8 +175,13 @@ async function run(token) {
     if (fin.outcome === 'lost') { react('shock'); getOrbitView(ctl.stage)?.dim(); await wait(1600); if (!alive()) return; }
     else {
       // Responsible retirement: deorbit, graveyard orbit or a last goodbye.
-      await endOfLife(ctl.stage, { orbitId: sel.orbit?.id, disposal: getSelection(ctl.state).prep.disposal });
+      // Retirement: play the strategy the player chose (DISPOSAL.md).
+      const planet = computeResources(ctl.state).planet;
+      if (planet.valid && planet.strategyId === 'disp_burn_up') await burnUp(ctl.stage, { kg: planet.atmosphereKg });
+      else if (planet.valid && planet.strategyId === 'disp_controlled_ocean') await oceanReentry(ctl.stage, {});
+      else await endOfLife(ctl.stage, { orbitId: sel.orbit?.id, disposal: planet.valid });
       if (!alive()) return;
+      if (planet.valid && planet.dockingPlate && planet.strategyId === 'disp_leave_in_orbit') { await tugRemoval(ctl.stage, {}); if (!alive()) return; }
     }
     react(fin.outcome === 'success' ? 'cheer' : fin.outcome === 'partial' ? 'meh' : 'facepalm');
     if (fin.outcome === 'success') await missionSuccess(ctl.stage, info);
