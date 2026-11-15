@@ -98,7 +98,7 @@ export const SOURCES = [
   { code: 'O54', title: 'Space Inventor — OBC', url: 'https://space-inventor.com/modules/subsystems/guidance-navigation-control/on-board-computer', confirms: '4 independent computers, 160 g, €9,000 MSRP.' },
   { code: 'O55', title: 'NASA SoA 2022 — Deorbit systems (PDF)', url: 'https://nasa.gov/wp-content/uploads/2023/05/13.-soa-deorbit-2022.pdf', confirms: 'Natural decay, drag sails, attitude-raised drag; 5-year post-mission rule.' },
   { code: 'O56', title: 'arXiv 2408.13562 — drag-sail flights', url: 'https://arxiv.org/html/2408.13562v1', confirms: 'Real drag-sail flights (CanX-7 5 m², RemoveDEBRIS 0.35 m²).' },
-  // ── End of life / disposal (DISPOSAL.md, D01–D08)
+  // ── End of life / disposal (DISPOSAL.md, D01–D10)
   { code: 'D01', title: 'Ferreira et al. 2024 (GRL) + AGU press release — satellite reentry aluminium oxide', url: 'https://doi.org/10.1029/2024GL109280', confirms: 'Simulation: a 250 kg satellite (30% aluminium) makes ~30 kg of aluminium-oxide nanoparticles when it burns up; ~17 t from reentries in 2022; >360 t/yr possible with mega-constellations. Ozone impact still uncertain.' },
   { code: 'D02', title: 'Phys.org — megaconstellations could jeopardise ozone recovery (2024)', url: 'https://phys.org/news/2024-06-satellite-megaconstellations-jeopardize-recovery-ozone.amp', confirms: 'Aluminium oxides catalyse ozone-destroying chlorine reactions without being used up; up to 30 years to drift down to the ozone layer.' },
   { code: 'D03', title: 'Murphy et al. 2023 (PNAS) + NOAA CSL news', url: 'https://doi.org/10.1073/pnas.2313374120', confirms: 'Spacecraft metals found in ~10% of stratospheric sulfuric-acid particles; could reach ~50%; effect unknown.' },
@@ -107,6 +107,8 @@ export const SOURCES = [
   { code: 'D06', title: 'Orbital Radar — controlled reentry (reported)', url: 'https://orbitalradar.com/glossary/controlled-reentry', confirms: 'South Pacific Ocean Uninhabited Area near Point Nemo, >2,700 km from land; 263+ spacecraft deorbited there since 1971.' },
   { code: 'D07', title: 'Astroscale — ELSA-M', url: 'https://astroscale.com/ja/elsa-m/', confirms: 'Docking plates let a future servicer (ELSA-M, demo planned 2026) capture and remove a satellite. Price not public.' },
   { code: 'D08', title: 'FCC 5-year rule (S22) and NASA SoA deorbit chapter (O55) — reused', url: 'https://regulations.justia.com/regulations/fedreg/2024/08/09/2024-17093.html', confirms: 'Reuses S22 (5-year post-mission disposal rule) and O55 (deorbit methods).' },
+  { code: 'D09', title: 'HPS — ADEO drag sail, ESA Clean Space Days 2024 (Hoffmann)', url: 'https://indico.esa.int/event/516/contributions/10000/attachments/6287/10797/CSD2024_Hoffmann_ADEO.pdf', confirms: 'ADEO small: 0.45 kg, 9.8 × 9.8 × 3.6 cm, satellites 1–20 kg; ADEO: 0.8 kg, 9.5 × 9.5 × 7.2 cm, satellites 5–50 kg; ADEO-N2 (3.6 m²) deployed Dec 2022 on ION-SCV003, TRL 9.' },
+  { code: 'D10', title: 'HPS / DLR — ADEO drag sail, ISSS 2023 (Stelzl)', url: 'https://www.citytech.cuny.edu/isss2023/docs/presentations/48_June_9_Stelzl.pdf', confirms: 'Manufacturer claim: deorbit about 6 to 10 times quicker than without a sail.' },
 ];
 
 const byCode = new Map(SOURCES.map((s) => [s.code, s]));

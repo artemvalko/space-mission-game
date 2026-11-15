@@ -19,7 +19,7 @@ import { getOrbit } from '../data/orbits.js';
 import { getLauncher, getDeployer, launchPrice } from '../data/launchers.js';
 import { getScenario, variantOf } from '../data/scenarios.js';
 import { INCLUDED_IN_REFERENCE } from '../data/bundles.js';
-import { DISPOSAL_STRATEGIES, DOCKING_PLATE, PLANET_MAX, LOW_ORBITS, HIGH_ORBITS, al2o3Kg, EMISSION_BADGE } from '../data/disposal.js';
+import { DISPOSAL_STRATEGIES, DOCKING_PLATE, PLANET_MAX, LOW_ORBITS, HIGH_ORBITS, al2o3Kg, EMISSION_BADGE, dragSailFor, SAIL_EFFECT } from '../data/disposal.js';
 import { getGroundStation, groundServes } from '../data/groundStations.js';
 
 /** Does this downlink serve this kind of data? (`serves` may be a string or a list) */
@@ -119,9 +119,11 @@ function computeMass(sel) {
   const { componentList, instruments, components, launcher, orbit, reference, satsPerLaunch } = sel;
   const structure = components.structure;
   // Reference build: the real total mass replaces part-by-part mass; add-ons that flew on it are inside it.
-  const items = reference
+  // The drag sail is sized from the satellite mass (HPS ADEO, D09) and added after the design reserve.
+  const sailPart = componentList.find((c) => c.autoSized);
+  const items = (reference
     ? [...componentList.filter((c) => c !== structure), ...instruments.filter((i) => i.flewOn !== structure.id)]
-    : [...componentList, ...instruments];
+    : [...componentList, ...instruments]).filter((c) => c !== sailPart);
   const unknown = items.filter((it) => massOf(it) == null && it.formFactor !== 'any');
   const distractorUnknown = items.filter((it) => massOf(it) == null && it.formFactor === 'any');
   const estimated = items.filter((it) => it.mass == null && massOf(it) != null);
@@ -129,7 +131,9 @@ function computeMass(sel) {
   const cube = isCubeSat(structure);
   const reserveFraction = structure && !reference ? (structure.reserveFraction ?? (cube ? MASS_RESERVE_6U : 0)) : 0;
   const reserve = round(parts * reserveFraction);
-  const total = round(parts + reserve);
+  const satKg = round(parts + reserve);
+  const sail = sailPart ? dragSailFor(satKg, structure) : null;
+  const total = round(satKg + (sail?.massKg ?? 0));
   const propellant = components.propellant?.mass ?? 0;
   const limit = structure ? (cube ? structure.maxMassKg ?? null : structure.targetMassKg ?? null) : null;
   const { reaches, capacity: cap1 } = launcherReach(launcher, orbit);
@@ -163,6 +167,8 @@ function computeMass(sel) {
   if (cannotVerify.length) explanation += ` Cannot verify: no public mass for ${cannotVerify.join(', ')} — we never guess it.`;
   if (estimated.length) explanation += ` ≈ Estimated with the research SDR class mass: ${estimated.map((u) => u.plainName).join(', ')}.`;
   if (distractorUnknown.length) explanation += ` No mass in our data: ${distractorUnknown.map((u) => u.plainName).join(', ')}.`;
+  if (sail) explanation += ` + ${sail.name} drag sail ${kg(sail.massKg)} (HPS, D09).`;
+  if (sailPart && !sail) explanation += ` No ADEO drag sail fits a ${kg(satKg)} satellite (1–50 kg).`;
   if (!volume.ok) explanation += ` ⚠ The payload needs ${volume.used}U but the frame has only ${volume.available}U.`;
 
   // A large bus is checked against the model launch-mass target: at or below it is fine (not "tight").
@@ -172,7 +178,7 @@ function computeMass(sel) {
   if (reference && available == null && !cannotVerify.length && !blocked) status = 'ok';
   return bar('mass', 'Mass', 'kg', total, available, explanation, {
     status, blocked, parts, reserve, reserveFraction, propellant, limit, capacity, reaches, unknown: unknown.map((u) => u.id),
-    cannotVerify, estimated: estimated.map((u) => u.id), reference: !!reference,
+    cannotVerify, estimated: estimated.map((u) => u.id), reference: !!reference, sail: sail ? { id: sail.id, name: sail.name, massKg: sail.massKg } : null, sailMisfit: !!sailPart && !sail,
     dry: parts - propellant, volume, misfits: misfits.map((m) => m.id),
     payload: { used: payloadUnits, available: structure?.units ?? null, ok: volume.ok },
   });
@@ -428,7 +434,7 @@ function computePlanet(sel, mass) {
   let explanation = !chosen ? 'Choose how your satellite retires.'
     : whyNot ? whyNot
       : chosen === 'disp_leave_in_orbit' ? 'It stays in space: one more object to track, but nothing burns or falls.'
-        : `It burns up: ≈ ${num(m.kg, 1)} kg of aluminium oxide (${EMISSION_BADGE}).`;
+        : `${sel.components.eol?.id === 'eol_drag_sail' ? `${SAIL_EFFECT.text} ` : ''}It burns up: ≈ ${num(m.kg, 1)} kg of aluminium oxide (${EMISSION_BADGE}).`;
   if (chosen && !whyNot && m.kg && fleet) explanation += ` If all ${fleet} satellites burn up: ≈ ${num(m.kg * fleet, 1)} kg.`;
   return {
     key: 'planet', label: 'Planet impact', strategyId: chosen, valid: !!chosen && !whyNot, whyNot,

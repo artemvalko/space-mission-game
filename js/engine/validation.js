@@ -267,6 +267,7 @@ export function validateDesign(state, resources = computeResources(state)) {
     add('caution', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Large satellites must pass the 1-in-10,000 rule.', 'If the casualty risk is higher, uncontrolled reentry is not allowed (D04).');
   }
   if (sel.dockingPlate) add('info', null, 'mass', 'launchPrep', 'Docking plate: mass and price not public.', 'Not counted in the mass check; its price makes the budget uncertain (D07).');
+  if (resources.mass.sailMisfit) add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'No drag sail size fits this satellite.', 'HPS ADEO sails are made for 1–50 kg satellites (D09).', 'Pick natural decay or turn broadside.');
   const eol = components.eol;
   if (eol?.id === 'eol_natural_decay' && orbit && ['leo_550', 'sso_550_650', 'leo_550_32deg'].includes(orbit.id)) {
     add('info', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Natural decay from 550+ km may miss the 5-year rule.', 'Higher orbits decay much slower (NASA SoA, O55). The FCC 5-year rule (S22) applies to listed US systems. Not verified with a decay model here.');

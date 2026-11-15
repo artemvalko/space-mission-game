@@ -377,9 +377,12 @@ export const COMPONENTS = [
     oneLiner: 'Free — but slow from higher orbits.', why: 'Drag ends the mission; works best low down.',
   },
   {
-    id: 'eol_drag_sail', category: 'eol', icon: '⛵', plainName: 'Drag sail', name: 'Passive drag sail (like CanX-7)', formFactor: 'cubesat',
-    mass: null, cost: null, missions: [], dataKind: 'fact', sources: ['O55', 'O56'], ref: 'options §1.9',
-    oneLiner: 'Falls faster; mass not public.', why: 'A sail adds drag so the satellite re-enters sooner (5-year rule).',
+    id: 'eol_drag_sail', category: 'eol', icon: '⛵', plainName: 'Drag sail', name: 'HPS ADEO drag sail (size picked from satellite mass)', formFactor: 'cubesat',
+    // Vendor mass (D09): ADEO small 0.45 kg for 1–20 kg satellites, ADEO 0.8 kg for 5–50 kg — the engine
+    // picks the size (resources.js computeMass). `mass` here = the small sail, for the card. Price NOT PUBLIC.
+    mass: 0.45, autoSized: true, cost: null, missions: [], dataKind: 'fact', sources: ['D09', 'D10', 'O55'], ref: 'D09 ADEO',
+    oneLiner: 'Deorbits much faster: meets the 5-year rule.',
+    why: 'A sail unfolds at the end of the mission and adds drag, so the satellite re-enters much sooner — about 6 to 10 times quicker than without a sail (manufacturer claim, 📰 D10). ADEO-N2 deployed in orbit in Dec 2022 (TRL 9, D09). It must deploy, so the satellite has to be working. Price not public.',
   },
   {
     id: 'eol_attitude_drag', category: 'eol', icon: '🔄', plainName: 'Turn broadside', name: 'Raise drag with the pointing system', formFactor: 'cubesat', needsAdcs: true,

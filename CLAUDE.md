@@ -13,7 +13,7 @@ Where they disagree on a catalog price, the store price is used and the others a
 ## Data honesty rule (never break it)
 - **Never invent a number.** Every mass, power, price, capacity, altitude, budget and date comes from
   the research. Each data item stores `dataKind` (`fact` | `catalog` | `model` | `reported`) and
-  `sources: ['Sxx' | 'Oxx']` (codes in `js/data/sources.js`, S01–S34 + O01–O56 + D01–D08 end of life), plus `ref`.
+  `sources: ['Sxx' | 'Oxx']` (codes in `js/data/sources.js`, S01–S34 + O01–O56 + D01–D10 end of life), plus `ref`.
 - UI badges: ✔ Real fact · 🏷 Catalog price · ≈ Estimate · 📰 Reported (press / third-party, never
   official) · ✉️ Price on request (RFQ). Card faces show "💰 ?" / "⚖️ ?" for NOT PUBLIC values and
   "⚖️ ≈" for a same-class research estimate (IoT radios borrow the research SDR mass).
@@ -43,7 +43,7 @@ Solo, or hot-seat team of 2–4 (Director, Engineer, Scientist, Flight Dynamics)
 cd space-mission-game
 python3 -m http.server        # then open http://localhost:8000
 ```
-- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 232 checks: data honesty, research
+- Self-test: `/js/engine/resources.test.html` (title shows PASS/FAIL; 240 checks: data honesty, research
   BOM sums, power/battery/data numbers, every §10 QA case C-01…ALL-02, alternatives vs distractors,
   NO-GO rule, simulation replay, scoring, role goals, votes, sharing, badges, and every PASS build of
   every objective variant + EPS/solar thresholds, uncertain budget, reference-build mass path, disposal strategies + planet impact, design-reactive events).
@@ -223,6 +223,10 @@ wrong-size parts and payloads (→ todo). Selecting another mission starts a fre
 - Events react to the design (`simulation.js#eventChoices/eventContext`): thruster dodge, spare computer
   (obc_si_quad), rad-hard halves storm damage, low battery margin note, MEO radiation-belt note, and the
   end-of-mission "Extend or retire?" event. Multipliers only; chosen label/effects stored in the event log.
+- Drag sail = HPS ADEO (D09, vendor fact): auto-sized in `computeMass` via `disposal.js#dragSailFor` — ADEO small 0.45 kg
+  (1–20 kg sats, ≤6U) or ADEO 0.8 kg (5–50 kg, 12U / references), added after the design reserve; none fits → NO-GO.
+  Price NOT PUBLIC → budget uncertain. Effect "6–10× quicker" is a 📰 manufacturer claim (D10), used only as
+  "Deorbits much faster: meets the 5-year rule" — no invented years.
 - Lost in flight (`scoring.js#retirementAfterLoss`): only natural decay still works ('passive', keeps points). Drag
   sail, broadside, ocean reentry, disposal orbit need a working satellite → 'failed': debris 0/15 + "Lost before it
   could retire: now it is space junk." in Results — unless a docking plate was fitted ('tug': debris kept, budget uncertain).

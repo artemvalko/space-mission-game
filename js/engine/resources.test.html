@@ -141,6 +141,7 @@
     import { SOURCES, getSource } from '../data/sources.js';
     import { POWER_PACKS, KITS, bundleTotals } from '../data/bundles.js';
     import { EVENTS } from '../data/events.js';
+    import { dragSailFor, SAIL_EFFECT } from '../data/disposal.js';
 
     const out = document.getElementById('out');
     const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -189,7 +190,7 @@
     {
       const sCodes = SOURCES.filter((s) => s.code.startsWith('S')); const oCodes = SOURCES.filter((s) => s.code.startsWith('O'));
       const dCodes = SOURCES.filter((s) => s.code.startsWith('D'));
-      check('sources.js lists S01–S34 + O01–O56 + D01–D08 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && dCodes.length === 8 && new Set(SOURCES.map((s) => s.code)).size === 98
+      check('sources.js lists S01–S34 + O01–O56 + D01–D10 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && dCodes.length === 10 && new Set(SOURCES.map((s) => s.code)).size === 100
         && sCodes.every((s, i) => s.code === `S${String(i + 1).padStart(2, '0')}`) && oCodes.every((s, i) => s.code === `O${String(i + 1).padStart(2, '0')}`) && SOURCES.every((s) => /^https:\/\//.test(s.url)));
       const items = [...COMPONENTS, ...INSTRUMENTS, ...ORBITS, ...LAUNCHERS, ...DEPLOYERS, ...GROUND_STATIONS, ...SCENARIOS, ...REAL_MISSIONS];
       const bad = items.filter((it) => !['fact', 'catalog', 'model', 'reported'].includes(it.dataKind) || !Array.isArray(it.sources) || it.sources.some((c) => !getSource(c)));
@@ -511,7 +512,7 @@
       const trParts = make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_3u' }, instrumentIds: ['wx_tropics_radiometer'] }));
       const cv = errorsOf(trParts).find((e) => /cannot be verified/.test(e.message));
       check('TROPICS radiometer part by part: mass NOT PUBLIC → "cannot verify" NO-GO, offering the reference build', !!cv && /TROPICS 3U \(real\)/.test(cv.alternative ?? ''));
-      check('6U XL frame (mass not public) → cannot verify; drag sail (mass not public) → cannot verify', errorsOf(make(C, withParts({ structure: 'str_es_6u_xl' }))).some((e) => /cannot be verified/.test(e.message)) && errorsOf(make(C, withParts({ eol: 'eol_drag_sail' }))).some((e) => /cannot be verified/.test(e.message)));
+      check('6U XL frame (mass not public) → cannot verify', errorsOf(make(C, withParts({ structure: 'str_es_6u_xl' }))).some((e) => /cannot be verified/.test(e.message)));
       check('a reference build is complete: extra payload → NO-GO', errorsOf(ref(C, 'ref_sateliot_6u', { instrumentIds: ['payload_iot_sdr'] })).some((e) => /is complete/.test(e.message)));
       check('a reference build for another mission → NO-GO', gatesFailed(ref(C, 'ref_tropics_3u')).includes('spacecraft_size_mass_volume_compatible'));
       check('laser retroreflector on the Galileo part build: mass NOT PUBLIC → cannot verify (it only flew inside GPS III)', errorsOf(make(N, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'nav_lra'] }))).some((e) => /cannot be verified/.test(e.message)));
@@ -627,6 +628,24 @@
       const rPlate = lostRun(plate); const pPlate = rPlate && sus(plate, rPlate); const scPlate = rPlate && scoreMission(plate, rPlate);
       check('lost + docking plate: a tug can still remove it → keeps debris points, budget uncertain', !!rPlate && pPlate.retire === 'tug' && pPlate.points === computeResources(plate).planet.score && scPlate.stats.budgetUncertain && scPlate.insights.good.includes(LOST_TUG) && !scPlate.insights.bad.includes(LOST_JUNK));
       check('not lost: rule does not apply (completed run keeps the full score)', sus(nav, sim(nav)).retire == null && sus(nav, sim(nav)).points > 0);
+    }
+
+    // ═══ 14. HPS ADEO drag sail (D09, D10) ═══════════════════════════════════
+    await tick();
+    section('14 · Drag sail: real ADEO mass, auto-sized, price not public');
+    {
+      const sailC = { ...make(C, withParts({ eol: 'eol_drag_sail' })), design: { ...make(C, withParts({ eol: 'eol_drag_sail' })).design, disposalId: 'disp_burn_up' } };
+      const r = computeResources(sailC);
+      check('6U research comms + ADEO small passes the mass gate: 8.68 + 0.45 = 9.13 kg ≤ 12 kg', r.mass.sail?.id === 'adeo_small' && near(r.mass.used, 8.68 + 0.45, 0.01) && r.mass.used <= 12 && !gatesFailed(sailC).includes('spacecraft_size_mass_volume_compatible'), `${r.mass.used} kg`);
+      check('drag-sail option is now flyable (GO) and its mass is no longer "cannot verify"', go(sailC) && !r.mass.cannotVerify.length && runSimulation(sailC, 3, [], { autoChoice: best }).reachedOrbit);
+      check('drag sail price NOT PUBLIC → budget uncertain', r.budget.uncertain && r.budget.unknownItems.some((n) => /Drag sail/.test(n)));
+      check('size picked from satellite mass: 1–20 kg 6U → ADEO small 0.45 kg; 12U / reference ≤ 50 kg → ADEO 0.8 kg; out of range → none', dragSailFor(9, { units: 6 })?.id === 'adeo_small' && dragSailFor(15, { units: 12 })?.id === 'adeo' && dragSailFor(10, { reference: {} })?.id === 'adeo' && dragSailFor(0.4, { reference: {} }) === null && dragSailFor(60, { units: 12 }) === null);
+      const sailRef = ref(C, 'ref_sateliot_6u', { components: { ...ref(C, 'ref_sateliot_6u').design.components, eol: 'eol_drag_sail' } });
+      check('reference build (Sateliot 10 kg) gets the 0.8 kg ADEO, counted in its mass', computeResources(sailRef).mass.sail?.id === 'adeo' && near(computeResources(sailRef).mass.used, 10.8, 0.01), `${computeResources(sailRef).mass.used}`);
+      const swarmSail = ref(C, 'ref_swarm_spacebee', { components: { ...ref(C, 'ref_swarm_spacebee').design.components, eol: 'eol_drag_sail' } });
+      check('no ADEO size fits a 0.4 kg Swarm → NO-GO with a reason (never guessed)', gatesFailed(swarmSail).includes('legal_safety_disposal_plan_pass') && errorsOf(swarmSail).some((e) => /No drag sail size fits/.test(e.message)));
+      check('debris text uses the 6–10× claim only qualitatively (no invented years)', /Deorbits much faster: meets the 5-year rule/.test(r.planet.explanation) && !/\d+\s*years?/.test(r.planet.explanation));
+      check('effect claim is badged reported (📰) with source D10; mass is a vendor fact (D09)', SAIL_EFFECT.dataKind === 'reported' && SAIL_EFFECT.sources.includes('D10') && getComponent('eol_drag_sail').dataKind === 'fact' && getComponent('eol_drag_sail').sources.includes('D09'));
     }
 
     const summary = document.getElementById('summary');

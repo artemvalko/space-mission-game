@@ -49,6 +49,24 @@ export const DOCKING_PLATE = {
   mass: null, cost: null, dataKind: 'fact', sources: ['D07'], ref: 'DISPOSAL.md',
 };
 
+// HPS ADEO drag sails (vendor figures, D09). Price NOT PUBLIC. The size is picked from the satellite mass.
+export const DRAG_SAILS = [
+  { id: 'adeo_small', name: 'ADEO small', massKg: 0.45, stowedCm: [9.8, 9.8, 3.6], satKg: [1, 20], maxUnits: 6, dataKind: 'fact', sources: ['D09'] },
+  { id: 'adeo', name: 'ADEO', massKg: 0.8, stowedCm: [9.5, 9.5, 7.2], satKg: [5, 50], dataKind: 'fact', sources: ['D09'] },
+];
+// Effect: manufacturer claim (📰 reported) — used only qualitatively, never turned into years.
+export const SAIL_EFFECT = { text: 'Deorbits much faster: meets the 5-year rule.', claim: 'about 6 to 10 times quicker than without a sail (manufacturer claim)', dataKind: 'reported', sources: ['D10'] };
+export const SAIL_HERITAGE = 'ADEO-N2 (3.6 m² sail) deployed in Dec 2022 on ION-SCV003 — flight proven, TRL 9 (D09).';
+/** The ADEO size for a satellite of this mass (kg, without the sail), or null if none fits. */
+export function dragSailFor(satKg, structure) {
+  const units = structure?.units ?? null;
+  const small = DRAG_SAILS[0];
+  if (satKg >= small.satKg[0] && satKg <= small.satKg[1] && (units == null || units <= small.maxUnits) && !structure?.reference) return small;
+  const big = DRAG_SAILS[1];
+  if (satKg >= big.satKg[0] && satKg <= big.satKg[1]) return big;
+  return null;
+}
+
 const byId = new Map(DISPOSAL_STRATEGIES.map((d) => [d.id, d]));
 export const getDisposal = (id) => (id ? byId.get(id) ?? null : null);
 
