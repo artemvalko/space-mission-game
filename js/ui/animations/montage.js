@@ -5,7 +5,7 @@ import { s } from '../dom.js';
 import { renderSatellite } from '../satellite.js';
 import { play, W, H, seg, ease, lerp, setT } from './core.js';
 
-const STAGES = ['🔧 Assembly', '📳 Shake test', '🧊 Thermal-vacuum test', '🚚 Truck to the pad', '🚀 Rollout'];
+const STAGES = ['Assembly', 'Shake test', 'Thermal-vacuum test', 'Truck to the pad', 'Rollout'];
 
 export function montage(container, { state, devMonths = null, caption = 'Real satellites are tested to survive launch and space.', hold = false, linger = 1600 } = {}) {
   return play(container, {

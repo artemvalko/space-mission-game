@@ -1,7 +1,8 @@
-// Screen switching driven by state.screen: step list (✓ done / ● current / ○ to do),
+// Screen switching driven by state.screen: numbered step tabs (current = underline, done = check icon),
 // question header (+ team owner badge), the screen itself, and Back / Next.
 
 import { mount, h } from './dom.js';
+import { icon, initials } from './icons.js';
 import { goToScreen } from '../state/actions.js';
 import { ROLES } from '../data/roles.js';
 import { STEPS, getStep, visibleSteps, isReachable, nextStep, prevStep } from './steps.js';
@@ -29,14 +30,14 @@ export function renderStepList(container, state, dispatch) {
     const idx = STEPS.findIndex((s) => s.id === st.id);
     const current = st.id === state.screen;
     const done = !current && st.answered?.(state) && (idx < currentIdx || st.id !== 'results');
-    const mark = current ? '●' : done ? '✓' : '○';
-    // Only the current step shows its name; the others are icons (name in the tooltip).
+    // Numbered tabs: the number is a CSS counter ("01"), only the current step shows its name
+    // (the others: name in the tooltip / aria-label); done steps get a small check icon.
     return h('li', { class: ['step', current && 'current', done && 'done'] },
       h('button', {
         type: 'button', key: `step-${st.id}`, disabled: !isReachable(st.id, state),
         'aria-current': current ? 'step' : null, title: st.label, 'aria-label': `${st.label}${done ? ' (done)' : ''}`,
         onClick: () => dispatch(goToScreen(st.id)),
-      }, [h('span', { class: 'step-mark', 'aria-hidden': 'true' }, mark), ' ', h('span', { class: 'step-short', 'aria-hidden': 'true' }, st.icon), current ? ` ${st.label}` : '']));
+      }, [current ? h('span', { class: 'step-name' }, st.label) : null, done ? icon('check', 12) : null]));
   })));
 }
 
@@ -45,8 +46,8 @@ function ownerBadge(state, step) {
   const role = ROLES.find((r) => r.id === step.owner);
   const players = state.players.filter((p) => p.roleId === step.owner).map((p) => p.name);
   return h('div', { class: 'owner-badge' }, players.length
-    ? `👤 ${players.join(' & ')} decides`
-    : `👥 Decide together`);
+    ? [h('span', { class: 'monogram monogram-sm', 'aria-hidden': 'true' }, initials(players.join(' '))), ` ${players.join(' & ')} decides`]
+    : [icon('team', 14), ' Decide together']);
 }
 
 function navBar(state, dispatch) {

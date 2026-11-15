@@ -2,19 +2,20 @@
 // what the decision cost.
 
 import { h } from '../dom.js';
+import { icon } from '../icons.js';
 import { sound } from '../sound.js';
 import { play, seg } from './core.js';
 
 export function cardFlip(container, { kind = 'budget', title, front, back = '', phase = 'intro', caption, linger = 1800 } = {}) {
   const intro = phase === 'intro';
-  const icon = kind === 'budget' ? '💰' : '📅';
+  const front0 = kind === 'budget' ? 'money' : 'calendar';
   return play(container, {
     onStart: () => { if (phase === 'intro') sound.radio(); },
     scene: intro ? `card-${kind}` : `card-${kind}-outcome`, overlay: true, label: title ?? 'Card flip', duration: intro ? 1600 : 1400, caption, linger: intro ? 0 : linger,
     setup({ html }) {
       const card = h('div', { class: 'flip-card' }, [
-        h('div', { class: 'flip-face flip-front' }, [h('div', { class: 'flip-icon' }, icon), h('div', { class: 'flip-title' }, title), h('div', { class: 'flip-text' }, front)]),
-        h('div', { class: 'flip-face flip-back' }, [h('div', { class: 'flip-icon' }, kind === 'budget' ? '📉' : '⏳'), h('div', { class: 'flip-text' }, back)]),
+        h('div', { class: 'flip-face flip-front' }, [h('div', { class: 'flip-icon' }, icon(front0, 32)), h('div', { class: 'flip-title' }, title), h('div', { class: 'flip-text' }, front)]),
+        h('div', { class: 'flip-face flip-back' }, [h('div', { class: 'flip-icon' }, icon(kind === 'budget' ? 'chart' : 'hourglass', 32)), h('div', { class: 'flip-text' }, back)]),
       ]);
       html.append(h('div', { class: 'flip-wrap' }, card));
       return {

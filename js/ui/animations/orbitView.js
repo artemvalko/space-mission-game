@@ -1,7 +1,7 @@
 // Scene 5 — Operations orbit view, plus problem modes:
 //   6 power problem (dims in shadow, battery drains red, grey "SAFE MODE", recovers or stays dark)
 //   7 data overflow (storage fills, extra packets turn red and fade — "lost data")
-//   8 comms loss (signal waves fade before Earth, "📡 NO SIGNAL" blinks)
+//   8 comms loss (signal waves fade before Earth, "NO SIGNAL" blinks)
 // The satellite orbits Earth matching the chosen orbit (LEO hugging the surface, polar SSO, a big
 // slow tilted MEO at true relative scale, GEO not to scale), flashes over ground stations, data
 // packets fly to the dish, the simulated service counter ticks. Timeline with event markers,
@@ -11,6 +11,7 @@
 // toMonth. The view persists on the container between calls (one view per simulation run).
 
 import { h, s } from '../dom.js';
+import { icon } from '../icons.js';
 import { getSelection, computeResources } from '../../engine/resources.js';
 import { visualConditions } from '../../engine/outcome.js';
 import { getEvent } from '../../data/events.js';
@@ -26,7 +27,7 @@ const MAX_IMAGES = 6;
 const SEC_PER_MONTH = 0.32; // at 1×
 // Station directions (degrees around Earth) — illustration only.
 const STATIONS = { gs_iot_gateways: [-90, 50], gs_gnss_monitoring: [-150, -90, -30, 30, 90, 150], gs_weather_science: [-90] };
-const EVENT_ICON = { hardware_failure: '🔧', solar_flare: '☀️', debris: '☄️', budget_cut: '💸', launch_delay: '⏱', rare_storm: '🌀', radar_power: '🌧️', end_of_mission: '🏁' };
+const EVENT_ICON = { hardware_failure: 'wrench', solar_flare: 'sun', debris: 'warning', budget_cut: 'money', launch_delay: 'clock', rare_storm: 'storm', radar_power: 'rain', end_of_mission: 'flagFinish' };
 
 // Earth radius 34 px for MEO/GEO so the orbit fits at TRUE relative scale (MEO = 4.64 Earth radii);
 // low orbits are drawn with a bigger Earth so they stay readable (LEO hugs the surface).
@@ -98,7 +99,7 @@ class OrbitView {
     const g = this.g;
     const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, class: 'anim-svg', role: 'img', 'aria-label': `Your satellite in ${sel.orbit?.plainName ?? 'orbit'}` });
     svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(120, 5));
-    svg.append(s('g', { class: 'an-sunlight' }, [s('line', { x1: 14, y1: H - 30, x2: 70, y2: H - 30 }), s('text', { x: 14, y: H - 12, class: 'an-small-label' }, '☀ sunlight →')]));
+    svg.append(s('g', { class: 'an-sunlight' }, [s('line', { x1: 14, y1: H - 30, x2: 70, y2: H - 30 }), s('text', { x: 14, y: H - 12, class: 'an-small-label' }, 'sunlight →')]));
     // Shadow band behind the body we orbit (height from the orbit's eclipse fraction)
     if (g.center && this.vis.eclipseFraction > 0) {
       const R = g.path.r ?? g.path.rx ?? 120;
@@ -126,24 +127,24 @@ class OrbitView {
     svg.append(this.packets, this.waves, this.sat, this.satLabel);
 
     // HUD
-    const gauge = (icon, label) => {
+    const gauge = (name, label) => {
       const val = h('span', { class: 'hud-val' });
       const bar = h('div', { class: 'hud-bar' }, h('div', { class: 'hud-fill' }));
-      return { el: h('div', { class: 'hud-item' }, [h('span', { class: 'hud-label' }, `${icon} ${label}`), val, bar]), val, fill: bar.firstChild };
+      return { el: h('div', { class: 'hud-item' }, [h('span', { class: 'hud-label' }, [icon(name, 13), ` ${label}`]), val, bar]), val, fill: bar.firstChild };
     };
-    this.hud = { battery: gauge('🔋', 'Battery'), data: gauge('📡', 'Link'), science: gauge('🎯', 'Service (sim.)'), money: gauge('💰', 'Money'), health: gauge('🛡️', 'Condition') };
+    this.hud = { battery: gauge('battery', 'Battery'), data: gauge('antenna', 'Link'), science: gauge('target', 'Service (sim.)'), money: gauge('money', 'Money'), health: gauge('shield', 'Condition') };
     const hudEl = h('div', { class: 'hud' }, Object.values(this.hud).map((x) => x.el));
     this.timeFill = h('div', { class: 'tl-fill' });
     this.timeMarkers = h('div', { class: 'tl-markers' });
     this.monthLabel = h('span', { class: 'tl-label' });
     const ctrl = (label, fn, key) => h('button', { class: 'btn btn-small', type: 'button', 'data-ctl': key, onClick: fn }, label);
     this.ctrls = h('div', { class: 'tl-controls' }, [
-      ctrl('⏸ Pause', () => this.setPaused(!this.paused), 'pause'),
+      ctrl('Pause', () => this.setPaused(!this.paused), 'pause'),
       ctrl('1×', () => this.setSpeed(1), 'speed1'),
       ctrl('4×', () => this.setSpeed(4), 'speed4'),
     ]);
     const timeline = h('div', { class: 'timeline-bar' }, [h('div', { class: 'tl-track' }, [this.timeFill, this.timeMarkers]), this.monthLabel, this.ctrls]);
-    this.skipBtn = h('button', { class: 'anim-skip', type: 'button', 'data-anim-skip': '' }, 'Skip ▶▶');
+    this.skipBtn = h('button', { class: 'anim-skip', type: 'button', 'data-anim-skip': '' }, ['Skip ', icon('skip', 12)]);
     this.skipBtn.addEventListener('click', () => this.jump());
     this.overlay = h('div', { class: 'anim-overlay' });
     this.photo = h('div', { class: 'downlink', hidden: true });
@@ -167,13 +168,13 @@ class OrbitView {
     this.timeMarkers.replaceChildren(...evs.map((e) => h('span', {
       class: ['tl-marker', e.eventId === 'hardware_failure' && 'bad', e === this.sim.pending && 'pending'],
       style: { left: `${clamp01(e.month / this.planned) * 100}%` }, title: `Month ${e.month}: ${getEvent(e.eventId)?.title}`,
-    }, EVENT_ICON[e.eventId] ?? '•')));
+    }, icon(EVENT_ICON[e.eventId] ?? 'dot', 14))));
   }
 
   setSpeed(x) { this.speed = x; this.paused = false; this.syncControls(); }
   setPaused(p) { this.paused = p; this.syncControls(); }
   syncControls() {
-    this.ctrls.querySelector('[data-ctl="pause"]').textContent = this.paused ? '▶ Play' : '⏸ Pause';
+    this.ctrls.querySelector('[data-ctl="pause"]').textContent = this.paused ? 'Play' : 'Pause';
     this.ctrls.querySelector('[data-ctl="speed1"]').classList.toggle('btn-active', !this.paused && this.speed === 1);
     this.ctrls.querySelector('[data-ctl="speed4"]').classList.toggle('btn-active', !this.paused && this.speed === 4);
   }
@@ -260,7 +261,7 @@ class OrbitView {
     if (v.commsDead) {
       this.waveTimer += dt;
       if (this.waveTimer > 380) { this.waveTimer = 0; this.spawnWave(p); }
-      this.satLabel.textContent = Math.floor(performance.now() / 450) % 2 ? '📡 NO SIGNAL' : '';
+      this.satLabel.textContent = Math.floor(performance.now() / 450) % 2 ? 'NO SIGNAL' : '';
     } else {
       this.satLabel.textContent = this.safeMode ? 'SAFE MODE' : '';
     }
@@ -291,7 +292,7 @@ class OrbitView {
     const canvas = drawView(document.createElement('canvas'), this.camera.id, { seed: (this.sim.seed % 997) + m, lostRows: this.vis.dataLostFraction });
     canvas.className = 'downlink-canvas';
     canvas.style.clipPath = 'inset(0 0 100% 0)';
-    this.photo.replaceChildren(h('div', { class: 'downlink-label' }, `📥 Month ${m} · ${this.camera.plainName} · simulated`), canvas);
+    this.photo.replaceChildren(h('div', { class: 'downlink-label' }, `Month ${m} · ${this.camera.plainName} · simulated`), canvas);
     this.photo.hidden = false;
     this.imaging = { canvas, u: 0, m };
     sound.radio();

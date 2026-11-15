@@ -1,4 +1,4 @@
-// Scene 14 — Mission success: final orbit, mission patch animates in, star confetti, grade stamp.
+// Scene 14 — Mission success: final orbit, mission patch animates in, a few thin sparkles, grade mark.
 
 import { s } from '../dom.js';
 import { mulberry32 } from '../../utils/random.js';
@@ -16,7 +16,7 @@ export function missionSuccess(container, { name, team, orbitId, grade = 'A', ca
       const sat = miniSat(1.2);
       const patch = missionPatch({ name, team, orbitId, r: 110 });
       const rng = mulberry32(5);
-      const conf = Array.from({ length: 46 }, () => ({ node: s('polygon', { points: '0,-6 1.8,-2 6,-2 2.6,1 4,6 0,3 -4,6 -2.6,1 -6,-2 -1.8,-2', class: rng() < 0.5 ? 'an-conf-a' : 'an-conf-b' }), x: rng() * W, v: 0.12 + rng() * 0.2, d: rng() * 300, spin: (rng() - 0.5) * 0.6 }));
+      const conf = Array.from({ length: 14 }, () => ({ node: s('polygon', { points: '0,-7 .7,-.7 7,0 .7,.7 0,7 -.7,.7 -7,0 -.7,-.7', class: rng() < 0.5 ? 'an-conf-a' : 'an-conf-b' }), x: rng() * W, v: 0.12 + rng() * 0.2, d: rng() * 300, spin: (rng() - 0.5) * 0.6 }));
       const stamp = s('g', { opacity: 0 }, [
         s('rect', { x: -60, y: -60, width: 120, height: 120, rx: 14, class: 'an-stamp' }),
         s('text', { x: 0, y: 30, class: 'an-stamp-text', 'text-anchor': 'middle' }, grade),
@@ -37,7 +37,7 @@ export function missionSuccess(container, { name, team, orbitId, grade = 'A', ca
           });
           const st = seg(t, 0.55, 0.72);
           stamp.setAttribute('opacity', st > 0 ? 1 : 0);
-          setT(stamp, W / 2 + 190, H / 2 - 90, -14, lerp(3, 1, ease.out(st)));
+          setT(stamp, W / 2 + 190, H / 2 - 90, 0, lerp(1.4, 1, ease.out(st)));
         },
       };
     },

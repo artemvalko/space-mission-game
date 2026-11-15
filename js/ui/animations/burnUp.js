@@ -14,7 +14,7 @@ export function burnUp(container, { caption, kg = null, hold = false, linger = 1
     caption: caption ?? `${kg != null ? `≈ ${kg.toFixed(1)} kg of aluminium oxide (science estimate). ` : ''}${BURN_UP_CAPTION}`, hold, linger,
     setup({ svg }) {
       const glowId = newId('plasma');
-      svg.append(s('defs', {}, s('radialGradient', { id: glowId }, [s('stop', { offset: 0, 'stop-color': '#fff3c4' }), s('stop', { offset: 0.45, 'stop-color': '#ff9a3c' }), s('stop', { offset: 1, 'stop-color': '#ff4d1a', 'stop-opacity': 0 })])));
+      svg.append(s('defs', {}, s('radialGradient', { id: glowId }, [s('stop', { offset: 0, 'stop-color': '#ffffff' }), s('stop', { offset: 0.45, 'stop-color': '#ffc58a', 'stop-opacity': 0.55 }), s('stop', { offset: 1, 'stop-color': '#ff9a3c', 'stop-opacity': 0 })])));
       svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(70, 12));
       svg.append(s('rect', { x: 0, y: 300, width: W, height: 26, class: 'an-ozone' }), s('text', { x: 16, y: 318, class: 'an-small-label' }, 'ozone layer'));
       svg.append(s('path', { d: `M 0 ${H} Q ${W / 2} ${H - 60} ${W} ${H} Z`, class: 'an-earth-limb' }));

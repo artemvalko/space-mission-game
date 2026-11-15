@@ -2,7 +2,8 @@
 // Easy: one bundled power pack (sum of its research parts). Normal: array + battery separately.
 
 import { mount, h } from '../dom.js';
-import { term } from '../tooltip.js';
+import { icon } from '../icons.js';
+import { term, infoTerm } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
 import { POWER_PACKS, bundleTotals } from '../../data/bundles.js';
 import { getComponent, isCubeSat } from '../../data/components.js';
@@ -14,12 +15,12 @@ import { subQuestion, componentCards } from './common.js';
 function eclipseNote(res) {
   const { power, battery } = res;
   if (power.generation == null) return null;
-  // One visual line instead of a paragraph: ☀️ average power vs load · 🌑 shadow need vs usable battery.
+  // One visual line instead of a paragraph: sun = average power vs load · eclipse = shadow need vs usable battery.
   const okP = power.generation >= power.used;
   const okB = battery.needWh == null || (battery.usable != null && battery.needWh <= battery.usable);
   return h('div', { class: 'panel small', title: 'Average = array × time in sunlight × 0.8. The battery uses 60% of its charge in the shadow.' }, [
-    h('span', { class: okP ? 'ok-text' : 'error-text' }, `☀️ ${num(power.generation, 1)} W ${okP ? '≥' : '<'} ⚡ ${watts(power.used)}`), ' ', term('dutyCycle', 'ⓘ'),
-    battery.needWh != null && battery.usable != null ? ['  ·  ', h('span', { class: okB ? 'ok-text' : 'error-text' }, `🌑 ${num(battery.needWh, 1)} / ${wh(battery.usable)}`), ' ', term('eclipse', 'ⓘ')] : '',
+    h('span', { class: okP ? 'ok-text' : 'error-text' }, [icon('sun', 14), ` ${num(power.generation, 1)} W ${okP ? '≥' : '<'} `, icon('power', 14), ` ${watts(power.used)}`]), ' ', infoTerm('dutyCycle'),
+    battery.needWh != null && battery.usable != null ? ['  ·  ', h('span', { class: okB ? 'ok-text' : 'error-text' }, [icon('eclipse', 14), ` ${num(battery.needWh, 1)} / ${wh(battery.usable)}`]), ' ', infoTerm('eclipse')] : '',
   ]);
 }
 
@@ -41,7 +42,7 @@ function packCards(state, dispatch, before) {
       oneLiner: p.oneLiner,
       whatFor: 'Solar wings make electricity in sunlight; the battery keeps the satellite alive in Earth\'s shadow.',
       meters: [],
-      badges: own ? ['Research build ★'] : [],
+      badges: own ? ['Research build'] : [],
       details: [['Array (full sun)', watts(array.arrayW)], ['Battery', battery ? wh(battery.capacityWh) : 'none'],
         ['Mass (sum of parts)', kg(tot.mass)], ['Cost (sum of parts)', money(tot.cost)]],
       data: array,
@@ -56,7 +57,7 @@ function packCards(state, dispatch, before) {
 
 export function render(container, state, dispatch) {
   const before = computeResources(state);
-  const hint = h('p', { class: 'step-hint', title: 'Only 60% of the battery is used, to keep it healthy.' }, ['☀️ Wings work in sunlight. 🔋 Battery covers the ', term('eclipse', 'shadow'), '.']);
+  const hint = h('p', { class: 'step-hint', title: 'Only 60% of the battery is used, to keep it healthy.' }, [icon('sun', 14), ' Wings work in sunlight. ', icon('battery', 14), ' Battery covers the ', term('eclipse', 'shadow'), '.']);
   if (state.difficulty === 'easy') {
     mount(container, hint, eclipseNote(before), packCards(state, dispatch, before));
     return;
@@ -65,14 +66,14 @@ export function render(container, state, dispatch) {
     hint, eclipseNote(before),
     subQuestion('Solar array + EPS', 'power'),
     componentCards(state, dispatch, 'power', [
-      { label: 'Power', symbol: '⚡', value: (c) => c.arrayW },
-      { label: 'Mass', symbol: '●', value: (c) => c.mass },
-      { label: 'Cost', symbol: '$', value: (c) => c.cost },
+      { label: 'Power', icon: 'power', value: (c) => c.arrayW },
+      { label: 'Mass', icon: 'weight', value: (c) => c.mass },
+      { label: 'Cost', icon: 'money', value: (c) => c.cost },
     ], before, { max: 4 }),
     subQuestion('Battery', 'battery'),
     componentCards(state, dispatch, 'battery', [
-      { label: 'Storage', symbol: '🔋', value: (c) => c.capacityWh },
-      { label: 'Mass', symbol: '●', value: (c) => c.mass },
+      { label: 'Storage', icon: 'battery', value: (c) => c.capacityWh },
+      { label: 'Mass', icon: 'weight', value: (c) => c.mass },
     ], before, { max: 4 }),
   );
 }

@@ -3,6 +3,7 @@
 // matches, image gallery, compare with the previous attempt, print / share.
 
 import { LOST_JUNK, LOST_TUG } from '../../engine/scoring.js';
+import { icon } from '../icons.js';
 import { mount, h, s } from '../dom.js';
 import { getScenario } from '../../data/scenarios.js';
 import { getComponent } from '../../data/components.js';
@@ -46,10 +47,10 @@ function header(state, score, d) {
 function breakdown(score) {
   return h('section', { class: 'panel' }, [
     h('div', { class: 'score-bars' }, score.parts.map((p) => h('div', { class: 'score-bar', title: `${p.why}${p.bonus ? '' : ` (weight ${Math.round(p.weight * 100)}%)`}` }, [
-      h('div', { class: 'score-bar-head' }, [h('span', {}, p.bonus ? `♻️ Sustainability (best for your orbit: ${p.best}/40)` : p.label), h('strong', {}, `${p.points}/${p.max}`)]),
+      h('div', { class: 'score-bar-head' }, [h('span', {}, p.bonus ? `Sustainability (best for your orbit: ${p.best}/40)` : p.label), h('strong', { class: 'num' }, `${p.points}/${p.max}`)]),
       h('div', { class: 'gauge-bar' }, h('div', { class: ['gauge-fill', p.score >= 0.8 ? 'fill-ok' : p.score >= 0.5 ? 'fill-tight' : 'fill-bad'], style: { width: `${p.score * 100}%` } })),
-      p.retire === 'failed' && h('p', { class: 'small retire-failed' }, `🛰️ ${LOST_JUNK}`),
-      p.retire === 'tug' && h('p', { class: 'small muted' }, `🧲 ${LOST_TUG}`),
+      p.retire === 'failed' && h('p', { class: 'small retire-failed' }, [icon('satellite', 14), ` ${LOST_JUNK}`]),
+      p.retire === 'tug' && h('p', { class: 'small muted' }, [icon('magnet', 14), ` ${LOST_TUG}`]),
     ]))),
   ]);
 }
@@ -57,30 +58,30 @@ function breakdown(score) {
 function wellHurt(score) {
   const list = (items, cls) => (items.length ? h('ul', { class: `insights ${cls}` }, items.map((t) => h('li', {}, t))) : h('p', { class: 'muted' }, 'Nothing to report.'));
   return h('div', { class: 'results-grid' }, [
-    h('section', { class: 'panel' }, [h('h2', {}, '✅ Went well'), list(score.insights.good, 'good')]),
-    h('section', { class: 'panel' }, [h('h2', {}, '⚠️ Hurt'), list(score.insights.bad, 'bad')]),
+    h('section', { class: 'panel' }, [h('h2', {}, [icon('check', 18), ' Went well']), list(score.insights.good, 'good')]),
+    h('section', { class: 'panel' }, [h('h2', {}, [icon('warning', 18), ' Hurt']), list(score.insights.bad, 'bad')]),
   ]);
 }
 
 function objectivesPanel(score, state) {
   return h('div', { class: 'results-grid' }, [
     h('section', { class: 'panel' }, [
-      h('h2', {}, ['🎯 KPIs', h('span', { class: 'simulated-tag', title: 'Simulated mission output — not real data' }, 'simulated')]),
+      h('h2', {}, ['KPIs', h('span', { class: 'simulated-tag', title: 'Simulated mission output — not real data' }, 'simulated')]),
       h('ul', { class: 'checklist' }, score.objectives.map((o) => h('li', { class: o.met ? 'ok' : 'bad' }, [
-        h('strong', {}, `${o.met ? '✓' : '✗'} ${o.icon} ${o.label}${o.kpi ? ' (KPI)' : ''}`), h('div', { class: 'muted small' }, o.why),
+        h('strong', {}, [icon(o.met ? 'check' : 'cross', 14), ' ', icon(o.icon, 14), ` ${o.label}${o.kpi ? ' (KPI)' : ''}`]), h('div', { class: 'muted small' }, o.why),
       ]))),
       state.scenarioId === 'mission_navigation_meo' && (() => {
         const c = constellationStatus(1);
-        return h('div', { class: 'small' }, [h('strong', {}, `${score.stats.satelliteSuccess ? '✓' : '✗'} satellite_success`), ' — your one satellite doing its own job. ',
-          h('strong', {}, '✗ constellation_success'), ` — ${c.why} That is what the full constellation adds.`]);
+        return h('div', { class: 'small' }, [h('strong', {}, [icon(score.stats.satelliteSuccess ? 'check' : 'cross', 14), ' satellite_success']), ' — your one satellite doing its own job. ',
+          h('strong', {}, [icon('cross', 14), ' constellation_success']), ` — ${c.why} That is what the full constellation adds.`]);
       })(),
     ]),
     h('section', { class: 'panel' }, [
-      h('h2', {}, state.mode === 'team' ? '👥 Personal goals' : '🎩 Role goals'),
+      h('h2', {}, state.mode === 'team' ? 'Personal goals' : 'Role goals'),
       h('ul', { class: 'checklist' }, score.personalGoals.map((g) => h('li', { class: g.met ? 'ok' : 'bad' }, [
-        h('strong', {}, `${g.met ? '✓' : '✗'} ${g.icon} ${g.name}`), h('div', { class: 'small' }, g.text), h('div', { class: 'muted small' }, g.reason),
+        h('strong', {}, [icon(g.met ? 'check' : 'cross', 14), ' ', icon(g.icon, 14), ` ${g.name}`]), h('div', { class: 'small' }, g.text), h('div', { class: 'muted small' }, g.reason),
       ]))),
-      state.mode === 'team' && h('p', { class: 'small muted' }, score.votes.unanimous ? '🗳️ Unanimous Go — teamwork bonus!' : `🗳️ ${score.votes.go} of ${score.votes.voters} voted Go.${Object.entries(state.voteReasons).map(([r, id]) => ` ${ROLES.find((x) => x.id === r)?.name}: "${getNoGoReason(id)?.text}".`).join('')}`),
+      state.mode === 'team' && h('p', { class: 'small muted' }, score.votes.unanimous ? 'Unanimous Go — teamwork bonus!' : `${score.votes.go} of ${score.votes.voters} voted Go.${Object.entries(state.voteReasons).map(([r, id]) => ` ${ROLES.find((x) => x.id === r)?.name}: "${getNoGoReason(id)?.text}".`).join('')}`),
     ]),
   ]);
 }
@@ -89,9 +90,9 @@ function badgesPanel(state, score, sim) {
   const badges = earnedBadges(state, score, sim);
   const fresh = new Set(newBadges());
   return h('section', { class: 'panel' }, [
-    h('h2', {}, `🏅 Badges ${badges.filter((b) => b.earned).length}/${badges.length}`),
+    h('h2', {}, `Badges ${badges.filter((b) => b.earned).length}/${badges.length}`),
     h('div', { class: 'badge-grid' }, badges.map((b) => h('div', { class: ['badge-card', b.earned ? 'earned' : 'locked', fresh.has(b.id) && 'new'], title: b.text }, [
-      h('div', { class: 'badge-icon', 'aria-hidden': 'true' }, b.icon),
+      h('div', { class: 'badge-icon', 'aria-hidden': 'true' }, icon(b.icon, 24)),
       h('div', { class: 'badge-name' }, [b.name, fresh.has(b.id) && h('span', { class: 'badge-new' }, ' NEW!')]),
       h('div', { class: 'small muted' }, b.earned ? b.why : b.text),
     ]))),
@@ -102,7 +103,7 @@ function eventsPanel(sim, state) {
   const log = eventLog(sim);
   const name = (id) => getComponent(id)?.plainName ?? getInstrument(id)?.plainName;
   return h('section', { class: 'panel' }, [
-    h('h2', {}, ['📜 Log', h('span', { class: 'simulated-tag', title: 'Simulated events — not real statistics' }, 'simulated')]),
+    h('h2', {}, ['Log', h('span', { class: 'simulated-tag', title: 'Simulated events — not real statistics' }, 'simulated')]),
     log.length === 0
       ? h('p', { class: 'muted' }, sim.reachedOrbit ? 'A quiet mission — no events.' : 'The mission ended before anything happened in space.')
       : h('ol', { class: 'event-log' }, log.map((e) => h('li', {}, [
@@ -127,7 +128,7 @@ function realMissions(state) {
     ['Budget', `${money(res.budget.used)} of ${money(sel.scenario.budgetM)}`],
   ];
   return h('section', { class: 'panel' }, [
-    h('h2', {}, '🛰️ Vs the real thing'),
+    h('h2', {}, 'Vs the real thing'),
     matches.length === 0 ? h('p', { class: 'muted' }, 'No real analog for this mission.') : h('div', { class: 'card-grid' }, [
       h('div', { class: 'card real-mission' }, [
         h('div', { class: 'card-title' }, ['Your design ', dataBadge('model')]),
@@ -154,10 +155,10 @@ function lessonCard(state) {
   const extra = sc.id === 'mission_weather_mw' ? checkClaim(state, 'hourly_cyclone_revisit') : null;
   // One highlighted line; the explanation (and the constellation animation) opens on click.
   return h('details', { class: 'panel lesson-card fold', onToggle: (e) => { if (box && e.target.open && !box.firstChild) constellationFix(box, {}); } }, [
-    h('summary', { class: 'lesson-line' }, `💡 ${claim.title}`),
+    h('summary', { class: 'lesson-line' }, claim.title),
     h('p', {}, claim.text),
-    h('p', { class: 'small' }, [h('strong', {}, `✗ "${claim.id === 'global_3d_fix' ? 'One satellite gives everyone a 3D position' : claim.id === 'global_24_7' ? 'One satellite gives 24/7 worldwide service' : 'One short mission proves a climate trend'}" — `), check.why]),
-    extra && h('p', { class: 'small' }, [h('strong', {}, '✗ "Every tropical storm, every hour" — '), extra.why]),
+    h('p', { class: 'small' }, [h('strong', {}, `"${claim.id === 'global_3d_fix' ? 'One satellite gives everyone a 3D position' : claim.id === 'global_24_7' ? 'One satellite gives 24/7 worldwide service' : 'One short mission proves a climate trend'}" — `), check.why]),
+    extra && h('p', { class: 'small' }, [h('strong', {}, '"Every tropical storm, every hour" — '), extra.why]),
     box,
   ]);
 }
@@ -180,7 +181,7 @@ function realDataCard(state, sim) {
   }
   items.push(h('li', {}, [h('strong', {}, 'NASA EONET — real natural events (storms, fires…). '), sourceLinks(['S25'])]));
   return h('section', { class: 'panel' }, [
-    h('h2', {}, ['🌍 NASA data', h('span', { class: 'real-tag', title: 'Real data — not from your satellite' }, 'real')]),
+    h('h2', {}, ['NASA data', h('span', { class: 'real-tag', title: 'Real data — not from your satellite' }, 'real')]),
     h('ul', { class: 'small' }, items),
   ]);
 }
@@ -190,7 +191,7 @@ function alternativesCard(state) {
   const alts = alternativeArchitectures(state);
   if (!alts.length) return null;
   return h('section', { class: 'panel' }, [
-    h('h2', {}, '🧭 Other correct designs'),
+    h('h2', {}, 'Other correct designs'),
     h('p', { class: 'muted small' }, 'Different, also-correct ways to approach this goal — for information. Not scored.'),
     h('div', { class: 'card-grid' }, alts.map((m) => h('div', { class: 'card real-mission' }, [
       h('div', { class: 'card-title' }, [m.name, ' ', dataBadge('fact')]),
@@ -206,7 +207,7 @@ function alternativesCard(state) {
 function compare(state) {
   const cur = attemptRecord(state, Number.MAX_SAFE_INTEGER);
   const prev = previousAttempt(cur);
-  if (!prev) return h('section', { class: 'panel' }, [h('h2', {}, '🔁 Compare'), h('p', { class: 'muted' }, 'This is your first finished attempt at this mission. Play it again to compare!')]);
+  if (!prev) return h('section', { class: 'panel' }, [h('h2', {}, 'Compare'), h('p', { class: 'muted' }, 'This is your first finished attempt at this mission. Play it again to compare!')]);
   // [label, previous, now, format, deltaFormat, lowerIsBetter]
   const n = (v) => num(v);
   const p = (v) => (v == null ? '—' : pct(v));
@@ -223,7 +224,7 @@ function compare(state) {
     ['Mission KPIs met', prev.summary.kpiShare ?? 0, cur.summary.kpiShare, p, dp, false],
   ];
   return h('section', { class: 'panel' }, [
-    h('h2', {}, '🔁 Compare'),
+    h('h2', {}, 'Compare'),
     h('p', { class: 'muted small' }, `Previous: grade ${prev.grade} (${new Date(prev.at).toLocaleString()}) → now: grade ${cur.grade}.`),
     h('table', { class: 'summary-table compare' }, [
       h('thead', {}, h('tr', {}, [h('th', {}, ''), h('th', {}, 'Previous'), h('th', {}, 'Now'), h('th', {}, 'Change')])),
@@ -246,7 +247,7 @@ function heritageStrip(state) {
   ].filter(([, it]) => it?.heritage);
   if (!picks.length) return null;
   return h('div', { class: 'variant-row', 'aria-label': 'Your choices vs real missions' }, [
-    h('span', { class: 'muted' }, '🛰 Like the real thing:'),
+    h('span', { class: 'muted' }, 'Like the real thing:'),
     ...picks.map(([what, it]) => h('span', { class: 'pill', title: `${it.plainName}: ${it.heritage} (real mission)` }, `${what} = ${it.heritage}`)),
   ]);
 }
@@ -257,10 +258,10 @@ function otherBuilds(state) {
   const v = sel.variant;
   if (!v?.builds?.length) return null;
   return h('section', { class: 'panel' }, [
-    h('h2', {}, `🔀 Other valid builds (${v.builds.length})`),
+    h('h2', {}, `Other valid builds (${v.builds.length})`),
     h('p', { class: 'muted small' }, `Different real ways to reach "${v.label}" — each one passes every hard gate, with different mass, power, cost and coverage.`),
     h('ul', { class: 'small' }, v.builds.map((b) => h('li', {}, b.label))),
-    sel.scenario.variants.length > 1 && h('p', { class: 'muted small' }, `Other goals for this mission: ${sel.scenario.variants.filter((x) => x.id !== v.id).map((x) => `${x.icon} ${x.label}`).join(' · ')}.`),
+    sel.scenario.variants.length > 1 && h('p', { class: 'muted small' }, `Other goals for this mission: ${sel.scenario.variants.filter((x) => x.id !== v.id).map((x) => x.label).join(' · ')}.`),
   ]);
 }
 
@@ -278,8 +279,8 @@ function fold(el) {
 
 /** Top 3 insights (problems first) in one list. */
 function topInsights(score) {
-  const items = [...score.insights.bad.map((t) => ['⚠️', t]), ...score.insights.good.map((t) => ['✅', t])].slice(0, 3);
-  return items.length ? h('ul', { class: 'insights' }, items.map(([i, t]) => h('li', {}, `${i} ${t}`))) : null;
+  const items = [...score.insights.bad.map((t) => ['warning', t, 'bad']), ...score.insights.good.map((t) => ['check', t, 'good'])].slice(0, 3);
+  return items.length ? h('ul', { class: 'insights insights-icons' }, items.map(([i, t, c]) => h('li', { class: `ins-${c}` }, [icon(i, 14), h('span', {}, t)]))) : null;
 }
 
 function actions(state, dispatch) {
@@ -289,10 +290,10 @@ function actions(state, dispatch) {
     rerender();
   };
   return h('div', { class: 'results-actions no-print' }, [
-    h('button', { class: 'btn', type: 'button', key: 'print', title: 'Print / Save as PDF', onClick: () => { document.querySelectorAll('.screen-results details').forEach((x) => { x.open = true; }); window.print(); } }, '🖨️ Print'),
-    h('button', { class: 'btn', type: 'button', key: 'share', title: 'Share design', onClick: share }, '🔗 Share'),
-    h('button', { class: 'btn', type: 'button', key: 'improve', title: 'Improve this design', onClick: () => dispatch(goToScreen('finalCheck')) }, '🛠️ Improve'),
-    h('button', { class: 'btn btn-primary', type: 'button', key: 'new', onClick: () => { shareUrl = null; dispatch(newMission()); } }, '🚀 New mission'),
+    h('button', { class: 'btn', type: 'button', key: 'print', title: 'Print / Save as PDF', onClick: () => { document.querySelectorAll('.screen-results details').forEach((x) => { x.open = true; }); window.print(); } }, [icon('print', 14), ' Print']),
+    h('button', { class: 'btn', type: 'button', key: 'share', title: 'Share design', onClick: share }, [icon('link', 14), ' Share']),
+    h('button', { class: 'btn', type: 'button', key: 'improve', title: 'Improve this design', onClick: () => dispatch(goToScreen('finalCheck')) }, [icon('wrench', 14), ' Improve']),
+    h('button', { class: 'btn btn-primary', type: 'button', key: 'new', onClick: () => { shareUrl = null; dispatch(newMission()); } }, 'New mission'),
     shareUrl && h('div', { class: 'share-box' }, [
       h('label', { class: 'small muted', for: 'share-url' }, 'Link copied:'),
       h('input', { class: 'input', id: 'share-url', readonly: true, value: shareUrl, onFocus: (e) => e.target.select() }),
@@ -311,19 +312,19 @@ export function render(container, state, dispatch) {
   mount(container,
     h('div', { class: 'print-only print-title' }, `Mission report — ${getScenario(state.scenarioId).name} — ${teamNameOf(state)} — ${new Date().toLocaleDateString()}`),
     header(state, score, d),
-    score.noGo && h('p', { class: 'step-hint', title: 'It was only simulated to show what physics would do. Real missions never launch with a failed hard gate.' }, '⛔ NO-GO design: recorded as a failed mission.'),
+    score.noGo && h('p', { class: 'step-hint', title: 'It was only simulated to show what physics would do. Real missions never launch with a failed hard gate.' }, 'NO-GO design: recorded as a failed mission.'),
     breakdown(score),
     topInsights(score),
-    (score.tips[0] ?? (!score.success && d.tip)) && h('p', { class: 'step-hint' }, ['💡 ', score.tips[0] ?? d.tip]),
+    (score.tips[0] ?? (!score.success && d.tip)) && h('p', { class: 'step-hint' }, [icon('bulb', 14), ' ', score.tips[0] ?? d.tip]),
     heritageStrip(state),
-    score.stats.budgetUncertain && h('p', { class: 'small muted', title: score.stats.unknownPrices.join(', ') }, `💰 ${score.stats.unknownPrices.length} price${score.stats.unknownPrices.length > 1 ? 's' : ''} not public: real engineers would request a quote (RFQ).`),
+    score.stats.budgetUncertain && h('p', { class: 'small muted', title: score.stats.unknownPrices.join(', ') }, `${score.stats.unknownPrices.length} price${score.stats.unknownPrices.length > 1 ? 's' : ''} not public: real engineers would request a quote (RFQ).`),
     lessonCard(state),
     // Everything else is one click away.
     fold(otherBuilds(state)),
     fold(objectivesPanel(score, state)),
     fold(badgesPanel(state, score, sim)),
     fold(wellHurt(score)),
-    score.tips.length > 1 && fold(h('section', { class: 'panel tips' }, [h('h2', {}, '💡 More tips'), h('ol', {}, score.tips.map((t) => h('li', {}, t)))])),
+    score.tips.length > 1 && fold(h('section', { class: 'panel tips' }, [h('h2', {}, 'More tips'), h('ol', {}, score.tips.map((t) => h('li', {}, t)))])),
     fold(eventsPanel(sim, state)),
     fold(renderGallery(state)),
     fold(realMissions(state)),

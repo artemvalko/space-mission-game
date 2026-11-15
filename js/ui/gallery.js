@@ -10,7 +10,7 @@ export const clearGallery = () => { images = []; };
 
 export function renderGallery() {
   return h('section', { class: 'panel' }, [
-    h('h2', {}, '🖼️ Pictures'),
+    h('h2', {}, 'Pictures'),
     images.length
       ? h('div', { class: 'gallery' }, images.map((img) => h('figure', {}, [img.node.cloneNode(true), h('figcaption', { class: 'small muted' }, img.label)])))
       : h('p', { class: 'muted' }, 'No pictures this time.'),

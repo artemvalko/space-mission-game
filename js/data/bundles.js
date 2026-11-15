@@ -11,11 +11,11 @@ export const INCLUDED_IN_REFERENCE = ['power', 'battery', 'comms', 'downlink', '
 
 // Power packs = solar array + EPS + battery. 'solar_only' is the "power_only_peak" trap (§7.3).
 export const POWER_PACKS = [
-  { id: 'pack_6u_60', formFactor: 'cubesat', icon: '🔋', plainName: '6U power pack · 60 Wh', parts: { power: 'eps_solar_6u', battery: 'battery_6u_60wh' }, missions: [M_COMMS], oneLiner: 'Wings + 60 Wh battery.', about: 'Fold-out wings + 60 Wh battery (communications build).' },
-  { id: 'pack_6u_80', formFactor: 'cubesat', icon: '🔋', plainName: '6U power pack · 80 Wh', parts: { power: 'eps_solar_6u', battery: 'battery_6u_80wh' }, missions: [M_WX], oneLiner: 'Wings + 80 Wh battery.', about: 'Fold-out wings + 80 Wh battery (weather build).' },
-  { id: 'pack_6u_solar_only', formFactor: 'cubesat', icon: '☀️', plainName: 'Solar wings only (no battery)', parts: { power: 'eps_solar_6u', battery: 'none' }, missions: [], trap: true, oneLiner: 'Lighter… and in shadow?', about: 'Lighter and cheaper… but what happens in Earth\'s shadow?' },
-  { id: 'pack_gnss', formFactor: 'large', icon: '🔋', plainName: 'Galileo-class power', parts: { power: 'pwr_gnss_solar', battery: 'bat_gnss_2500wh' }, missions: [M_NAV], oneLiner: '1.6 kW wings + 2.5 kWh.', about: '1.6–1.9 kW class wings + redundant 2.5 kWh battery.' },
-  { id: 'pack_gnss_solar_only', formFactor: 'large', icon: '☀️', plainName: 'Big wings only (no battery)', parts: { power: 'pwr_gnss_solar', battery: 'none' }, missions: [], trap: true, oneLiner: 'Saves 35 kg… and in shadow?', about: 'Saves 35 kg… but nothing keeps the clocks running in the shadow.' },
+  { id: 'pack_6u_60', formFactor: 'cubesat', icon: 'battery', plainName: '6U power pack · 60 Wh', parts: { power: 'eps_solar_6u', battery: 'battery_6u_60wh' }, missions: [M_COMMS], oneLiner: 'Wings + 60 Wh battery.', about: 'Fold-out wings + 60 Wh battery (communications build).' },
+  { id: 'pack_6u_80', formFactor: 'cubesat', icon: 'battery', plainName: '6U power pack · 80 Wh', parts: { power: 'eps_solar_6u', battery: 'battery_6u_80wh' }, missions: [M_WX], oneLiner: 'Wings + 80 Wh battery.', about: 'Fold-out wings + 80 Wh battery (weather build).' },
+  { id: 'pack_6u_solar_only', formFactor: 'cubesat', icon: 'sun', plainName: 'Solar wings only (no battery)', parts: { power: 'eps_solar_6u', battery: 'none' }, missions: [], trap: true, oneLiner: 'Lighter… and in shadow?', about: 'Lighter and cheaper… but what happens in Earth\'s shadow?' },
+  { id: 'pack_gnss', formFactor: 'large', icon: 'battery', plainName: 'Galileo-class power', parts: { power: 'pwr_gnss_solar', battery: 'bat_gnss_2500wh' }, missions: [M_NAV], oneLiner: '1.6 kW wings + 2.5 kWh.', about: '1.6–1.9 kW class wings + redundant 2.5 kWh battery.' },
+  { id: 'pack_gnss_solar_only', formFactor: 'large', icon: 'sun', plainName: 'Big wings only (no battery)', parts: { power: 'pwr_gnss_solar', battery: 'none' }, missions: [], trap: true, oneLiner: 'Saves 35 kg… and in shadow?', about: 'Saves 35 kg… but nothing keeps the clocks running in the shadow.' },
 ];
 export const getPowerPack = (id) => POWER_PACKS.find((p) => p.id === id) ?? null;
 

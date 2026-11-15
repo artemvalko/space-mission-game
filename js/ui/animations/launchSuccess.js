@@ -1,12 +1,12 @@
 // Scene 2 — Launch success: stage separation, fairing opens, the player's actual satellite drifts
-// out and unfolds its panels/antenna, "✓ In orbit!" burst.
+// out and unfolds its panels/antenna, "In orbit!" burst.
 
 import { s } from '../dom.js';
 import { renderSatellite } from '../satellite.js';
 import { sound } from '../sound.js';
 import { play, W, H, seg, ease, stars, flame, setT, lerp } from './core.js';
 
-export function launchSuccess(container, { state, caption = '✓ In orbit!', hold = true } = {}) {
+export function launchSuccess(container, { state, caption = 'In orbit!', hold = true } = {}) {
   return play(container, {
     scene: 'launch-success', label: 'Satellite separates and unfolds in orbit', duration: 4600, caption, hold,
     setup({ svg }) {
@@ -24,7 +24,7 @@ export function launchSuccess(container, { state, caption = '✓ In orbit!', hol
       unfold.forEach((g) => g.classList.add('an-unfold'));
       const vehicle = s('g', {}, [lower, upper, satG, fairL, fairR]);
       const burst = s('circle', { cx: 0, cy: 0, r: 0, class: 'an-burst' });
-      const label = s('text', { x: 0, y: 0, class: 'an-big-label', 'text-anchor': 'middle', opacity: 0 }, '✓ In orbit!');
+      const label = s('text', { x: 0, y: 0, class: 'an-big-label', 'text-anchor': 'middle', opacity: 0 }, 'In orbit!');
       svg.append(vehicle, burst, label);
       let last = 0;
       let chimed = false;

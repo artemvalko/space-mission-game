@@ -1,6 +1,7 @@
 // Step 7 — Orbit: visual picker — a small SVG per orbit + one plain line.
 
 import { mount, h, s } from '../dom.js';
+import { icon } from '../icons.js';
 import { term } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
 import { ORBITS, PLAYABLE_ORBITS } from '../../data/orbits.js';
@@ -16,7 +17,7 @@ let trackShown = null; // view-only: which orbit the map shows
 
 function trackPanel(orbitId, groundId) {
   const box = h('div', { class: 'map-box' });
-  const panel = h('div', { class: 'panel map-panel' }, [h('div', { class: 'iv-head', title: 'Illustration — point at an orbit to see where it flies over Earth.' }, [h('strong', { class: 'map-title' }, '🗺️')]), box]);
+  const panel = h('div', { class: 'panel map-panel' }, [h('div', { class: 'iv-head', title: 'Illustration — point at an orbit to see where it flies over Earth.' }, [icon('map', 16), ' ', h('strong', { class: 'map-title' }, 'Map')]), box]);
   showTrack(box, orbitId, groundId);
   return panel;
 }
@@ -25,7 +26,7 @@ function showTrack(box, orbitId, groundId) {
   if (!orbitId) return;
   trackShown = orbitId;
   const t = box.parentElement?.querySelector('.map-title');
-  if (t) t.textContent = `🗺️ ${ORBITS.find((o) => o.id === orbitId)?.plainName}`;
+  if (t) t.textContent = `${ORBITS.find((o) => o.id === orbitId)?.plainName}`;
   groundTrack(box, { orbitId, groundId });
 }
 const label = (x, y, text, anchor = 'middle') => s('text', { x, y, class: 'svg-label', 'text-anchor': anchor }, text);
@@ -76,10 +77,10 @@ export function render(container, state, dispatch) {
       icon: o.icon,
       title: o.plainName,
       realTerm: `${o.name} · ${o.altitudeText}`,
-      oneLiner: allowed ? o.oneLiner : '✗ Wrong for this mission.',
+      oneLiner: allowed ? o.oneLiner : 'Wrong for this mission.',
       whatFor: o.description,
       art: orbitDiagram(o),
-      badges: bestFor(o) ? ['Recommended ★'] : allowed ? ['Also works'] : ['Wrong for this mission'],
+      badges: bestFor(o) ? ['Recommended'] : allowed ? ['Also works'] : ['Wrong for this mission'],
       details: [['Altitude', o.altitudeText], ['Inclination', o.inclinationText],
         ['In sunlight', o.sunlitFraction != null ? `${pct(o.sunlitFraction)} of the time` : 'no single value in our data'],
         ['Shadow (eclipse)', o.eclipseMinutes != null ? `${o.eclipseMinutes} min (6U power model)` : 'changes with the season']],
@@ -97,13 +98,13 @@ export function render(container, state, dispatch) {
   };
   const info = ORBITS.filter((o) => o.infoOnly && scenario?.id === 'mission_navigation_meo');
   mount(container,
-    h('p', { class: 'step-hint', title: 'The orbit decides coverage, sunlight, shadow and which rocket can get you there. Diagrams are at true relative scale.' }, ['📏 True scale: ', term('leo', 'LEO'), ' hugs Earth, ', term('meo', 'MEO'), ' is far.']),
+    h('p', { class: 'step-hint', title: 'The orbit decides coverage, sunlight, shadow and which rocket can get you there. Diagrams are at true relative scale.' }, [icon('ruler', 14), ' True scale: ', term('leo', 'LEO'), ' hugs Earth, ', term('meo', 'MEO'), ' is far.']),
     trackPanel(shownId, state.design.groundId),
     h('div', { class: 'choices' }, sorted.filter((o) => okOrbit(o)).map(card)),
-    sorted.some((o) => !okOrbit(o)) && h('details', { class: 'fold' }, [h('summary', {}, `✗ Wrong for this mission (${sorted.filter((o) => !okOrbit(o)).length})`), h('div', { class: 'choices' }, sorted.filter((o) => !okOrbit(o)).map(card))]),
+    sorted.some((o) => !okOrbit(o)) && h('details', { class: 'fold' }, [h('summary', {}, `Wrong for this mission (${sorted.filter((o) => !okOrbit(o)).length})`), h('div', { class: 'choices' }, sorted.filter((o) => !okOrbit(o)).map(card))]),
     compareToggle('orbit', sorted.filter((o) => okOrbit(o)), scenario?.id, ['Orbit', 'Altitude', 'Tilt', 'Price', 'Trade-off']),
     info.length > 0 && h('details', { class: 'group fold' }, [
-      h('summary', { class: 'group-title' }, 'ℹ️ Also correct: GPS orbit'),
+      h('summary', { class: 'group-title' }, 'Also correct: GPS orbit'),
       h('div', { class: 'choices' }, info.map((o) => choiceCard({
         key: `orbit-info-${o.id}`, icon: o.icon, title: o.plainName, realTerm: `${o.name} · ${o.altitudeText}`, oneLiner: o.oneLiner,
         art: orbitDiagram(o), badges: ['Info only'], data: o, selected: false, disabled: true, disabledReason: o.oneLiner, why: o.description, onSelect: () => {},

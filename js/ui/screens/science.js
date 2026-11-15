@@ -4,6 +4,7 @@
 // player can see the NO-GO they cause.
 
 import { mount, h } from '../dom.js';
+import { icon } from '../icons.js';
 import { term } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
 import { INSTRUMENTS, PAYLOAD_PLAIN, ROLE_INFO, getInstrument } from '../../data/instruments.js';
@@ -23,7 +24,7 @@ let playedId = null;
 function previewPanel() {
   const box = h('div', { class: 'iv-box' });
   const panel = h('div', { class: 'panel iv-panel' }, [
-    h('div', { class: 'iv-head', title: 'Illustration — point at a card to look.' }, [h('strong', {}, '👁️')]),
+    h('div', { class: 'iv-head', title: 'Illustration — point at a card to look.' }, [icon('eye', 16), ' ', h('strong', {}, '')]),
     box,
   ]);
   showPreview(box, previewId);
@@ -33,7 +34,7 @@ function previewPanel() {
 function showPreview(box, id) {
   if (!id) return;
   const head = box.parentElement?.querySelector('.iv-head strong');
-  if (head) head.textContent = `👁️ ${getInstrument(id).plainName}`;
+  if (head) head.textContent = getInstrument(id).plainName;
   if (id === playedId) {
     const canvas = drawView(document.createElement('canvas'), id);
     canvas.className = 'iv-canvas';
@@ -65,9 +66,9 @@ export function render(container, state, dispatch) {
       icon: ins.icon,
       title: ins.plainName,
       realTerm: ins.name,
-      oneLiner: whyNot ? `✗ ${cap(whyNot)}` : ins.oneLiner,
+      oneLiner: whyNot ? `${cap(whyNot)}` : ins.oneLiner,
       whatFor: ins.why,
-      badges: [...(ins.missions.includes(scenario?.id) && ['payload_iot_sdr', 'ant_iot_deploy', 'payload_mw_radiometer', 'radiometer_calibration', 'clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'].includes(ins.id) ? ['Research build ★'] : []), ...(ins.category !== 'service_payload' ? [PAYLOAD_PLAIN[ins.category].plainName] : [])],
+      badges: [...(ins.missions.includes(scenario?.id) && ['payload_iot_sdr', 'ant_iot_deploy', 'payload_mw_radiometer', 'radiometer_calibration', 'clock_phm_rubidium_4', 'nav_signal_rf', 'antenna_lband_nav'].includes(ins.id) ? ['Research build'] : []), ...(ins.category !== 'service_payload' ? [PAYLOAD_PLAIN[ins.category].plainName] : [])],
       details: [['Mass', ins.mass != null ? kg(ins.mass) : ins.massClassOf ? '≈ research SDR class (estimate)' : 'not public (?)'], ['Price', ins.cost == null ? 'not public (?)' : money(ins.cost)],
         ...(ins.powerW ? [['Power', `${ins.powerW} W`]] : []), ...(ins.dataKbps ? [['Data rate', `${ins.dataKbps} kbps`]] : []),
         ...(ins.volumeU ? [['Volume', `about ${ins.volumeU}U`]] : [])],
@@ -75,7 +76,7 @@ export function render(container, state, dispatch) {
       selected,
       disabled: (!fits || ins.cancelled || (ins.leoOnly && scenario?.size === 'large')) && !selected,
       warn: !!whyNot && selected,
-      disabledReason: ins.cancelled ? '✗ Cancelled: never flew.' : ins.leoOnly ? '✗ LEO demo only — not MEO.' : '✗ Wrong size for your frame.',
+      disabledReason: ins.cancelled ? 'Cancelled: never flew.' : ins.leoOnly ? 'LEO demo only — not MEO.' : 'Wrong size for your frame.',
       delta: `${selected ? 'If removed' : 'If added'}: ${previewDelta(state, action, before)}`,
       whyTitle: whyNot ? `Why not the ${ins.plainName.toLowerCase()}?` : ins.plainName,
       why: whyNot ? `${cap(whyNot)} ${ins.formFactor !== 'any' && !fits ? `It is built for a ${ins.formFactor === 'large' ? '~700 kg satellite' : 'CubeSat'}. ` : ''}Fix: use the payload this mission needs. ${whyInstrument(ins, null)}` : whyInstrument(ins, scenario),
@@ -99,23 +100,23 @@ export function render(container, state, dispatch) {
   const partOnly = reference ? INSTRUMENTS.filter((i) => !payloadWhyNot(scenario, i) && !own.includes(i) && !i.leoOnly) : [];
   const groups = ['service_payload', 'timing', 'calibration'].map((cat) => [cat, own.filter((i) => i.category === cat)]).filter(([, list]) => list.length);
   const includedCard = reference && h('div', { class: 'choice selected', key: 'ins-included' }, [
-    h('div', { class: 'choice-head' }, [h('span', { class: 'choice-icon', 'aria-hidden': 'true' }, '📦'), h('div', { class: 'choice-titles' }, h('div', { class: 'choice-title' }, `Included in ${structure.plainName.replace(' (real)', '')}`))]),
+    h('div', { class: 'choice-head' }, [h('span', { class: 'choice-icon', 'aria-hidden': 'true' }, icon('box', 20)), h('div', { class: 'choice-titles' }, h('div', { class: 'choice-title' }, `Included in ${structure.plainName.replace(' (real)', '')}`))]),
     h('p', { class: 'choice-one' }, reference.payloadRoles.map((r) => ROLE_INFO[r]?.plainName).join(' + ')),
   ]);
   if (!previewId || !INSTRUMENTS.some((i) => i.id === previewId)) previewId = state.design.instrumentIds[0] ?? own[0]?.id ?? null;
 
   mount(container,
     previewId && previewPanel(),
-    h('p', { class: 'step-hint', title: 'Controlling the satellite (TT&C) is a different radio — you choose it on the Radio step.' }, ['🎯 ', term('payload', 'Payload'), ' = the job. Control radio comes later.']),
+    h('p', { class: 'step-hint', title: 'Controlling the satellite (TT&C) is a different radio — you choose it on the Radio step.' }, [term('payload', 'Payload'), ' = the job. Control radio comes later.']),
     includedCard && h('div', { class: 'choices' }, includedCard),
     ...groups.map(([cat, list]) => h('div', { class: 'group' }, [
-      h('h2', { class: 'group-title', title: PAYLOAD_PLAIN[cat].whatFor }, `${PAYLOAD_PLAIN[cat].icon} ${PAYLOAD_PLAIN[cat].plainName}`),
+      h('h2', { class: 'group-title', title: PAYLOAD_PLAIN[cat].whatFor }, [icon(PAYLOAD_PLAIN[cat].icon, 16), ` ${PAYLOAD_PLAIN[cat].plainName}`]),
       h('div', { class: 'choices' }, list.map(card)),
     ])),
-    partOnly.length > 0 && h('details', { class: 'group fold' }, [h('summary', { class: 'group-title', title: 'These need a part-by-part frame, not a complete real satellite.' }, `🔧 Part-by-part payloads (${partOnly.length})`), h('div', { class: 'choices' }, partOnly.map(card))]),
+    partOnly.length > 0 && h('details', { class: 'group fold' }, [h('summary', { class: 'group-title', title: 'These need a part-by-part frame, not a complete real satellite.' }, `Part-by-part payloads (${partOnly.length})`), h('div', { class: 'choices' }, partOnly.map(card))]),
     compareToggle('payload', [...own], scenario?.id),
     others.length > 0 && h('details', { class: 'group', open: others.some((i) => chosen.has(i.id)) }, [
-      h('summary', { class: 'group-title' }, `✗ Not useful here (${others.length})`),
+      h('summary', { class: 'group-title' }, `Not useful here (${others.length})`),
       h('div', { class: 'choices' }, others.map(card)),
     ]),
   );

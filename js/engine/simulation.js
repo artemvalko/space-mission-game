@@ -73,7 +73,7 @@ export function eventContext(sel, res) {
 export function eventChoices(ev, ctx) {
   return ev.choices.filter((ch) => !ch.requires || ctx[ch.requires]).map((ch) => {
     let explanation = ch.explanation;
-    if (ch.unsafeIfLowBattery && ctx.lowBattery) explanation += ' ⚠️ Your battery margin is under 20%: in a storm the battery cannot cover the extra load — safe mode is the only safe answer.';
+    if (ch.unsafeIfLowBattery && ctx.lowBattery) explanation += ' Warning: your battery margin is under 20%: in a storm the battery cannot cover the extra load — safe mode is the only safe answer.';
     else if (ch.damageHalvedBy && ctx[ch.damageHalvedBy]) explanation += ' Your radiation-hard computer halves the chance of damage (simulated).';
     return { ...ch, explanation };
   });

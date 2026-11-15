@@ -3,6 +3,7 @@
 // gauges animate smoothly (CSS transitions) and can shake once when they go over.
 
 import { h } from './dom.js';
+import { icon } from './icons.js';
 import { getComponent } from '../data/components.js';
 import { term } from './tooltip.js';
 import { renderSatellite } from './satellite.js';
@@ -16,10 +17,10 @@ import { kg, watts, money, gbDay, months, pct, num, wh } from '../utils/format.j
 
 const WORD = { ok: 'OK', caution: 'Tight', over: 'Over', blocked: 'Over', unknown: 'To do', uncertain: 'Uncertain' };
 const GAUGES = [
-  { key: 'budget', icon: '💰', label: 'Money' },
-  { key: 'mass', icon: '⚖️', label: 'Weight' },
-  { key: 'power', icon: '⚡', label: 'Power' },
-  { key: 'data', icon: '📡', label: 'Data' },
+  { key: 'budget', icon: 'money', label: 'Money' },
+  { key: 'mass', icon: 'weight', label: 'Weight' },
+  { key: 'power', icon: 'power', label: 'Power' },
+  { key: 'data', icon: 'antenna', label: 'Data' },
 ];
 
 let els = null;
@@ -34,11 +35,11 @@ function build(container, dispatch) {
   const gaugeList = h('div', { class: 'gauges' }, GAUGES.map((g) => {
     const fill = h('div', { class: 'gauge-fill' });
     const word = h('span', { class: 'gauge-word' });
-    const text = h('div', { class: 'gauge-text' });
+    const text = h('span', { class: 'gauge-text' });
     const row = h('div', { class: 'gauge', 'data-gauge': g.key }, [
-      h('div', { class: 'gauge-head' }, [h('span', { class: 'gauge-label' }, [h('span', { 'aria-hidden': 'true' }, g.icon), ` ${g.label}`]), word]),
+      h('div', { class: 'gauge-head' }, [h('span', { class: 'gauge-label' }, [icon(g.icon, 14), ` ${g.label}`]), text]),
       h('div', { class: 'gauge-bar' }, fill),
-      text,
+      h('div', { class: 'gauge-foot' }, word),
     ]);
     gauges[g.key] = { row, fill, word, text };
     return row;
@@ -47,7 +48,7 @@ function build(container, dispatch) {
   const changeLine = h('p', { class: 'advisor-change small' });
   const advisorFix = h('button', { class: 'btn btn-small', type: 'button', key: 'advisor-fix' });
   const advisor = h('div', { class: 'advisor', role: 'status', 'aria-live': 'polite' }, [
-    h('div', { class: 'advisor-avatar', 'aria-hidden': 'true' }, '🧑‍🚀'),
+    h('div', { class: 'advisor-avatar monogram', 'aria-hidden': 'true' }, ['FD', h('span', { class: 'monogram-dot' })]),
     h('div', { class: 'advisor-body', title: 'Flight Director' }, [advisorText, changeLine, advisorFix]),
   ]);
   const detailsList = h('dl', { class: 'details-list' });
@@ -60,20 +61,20 @@ function build(container, dispatch) {
 
 function gaugeView(res) {
   switch (res.key) {
-    case 'budget': return res.available == null ? '' : `${money(res.used)} / ${money(res.available)}${res.uncertain ? ` · ${res.unknownItems.length} 💰?` : ''}`;
+    case 'budget': return res.available == null ? '' : `${money(res.used)} / ${money(res.available)}${res.uncertain ? ` · ${res.unknownItems.length} price ?` : ''}`;
     case 'mass':
-      if (res.status === 'blocked') return '✗ orbit unreachable';
+      if (res.status === 'blocked') return 'orbit unreachable';
       if (res.cannotVerify?.length) return `? ${res.cannotVerify[0]} mass not public`;
       if (res.reference) return `${num(res.used, 1)} kg real total${res.available ? ` / ${kg(res.available)}` : ''}`;
       return res.available == null ? kg(res.used) : `${num(res.used, 1)} / ${kg(res.available)}`;
     case 'power':
-      if (res.reference) return '✓ real satellite (flew)';
+      if (res.reference) return 'real satellite (flew)';
       if (res.available == null) return res.used ? `${watts(res.used)} needed` : '—';
       return `${watts(res.used)} / ${num(res.available, 1)} W`;
     case 'data':
-      if (res.status === 'blocked') return '✗ wrong ground';
-      if (res.kind === 'packets' || res.kind === 'nav') return res.status === 'unknown' ? '—' : res.chainOk ? '✓ chain' : '✗ chain';
-      if (res.rateUnknown && res.chainOk) return '✓ chain (rate not public)';
+      if (res.status === 'blocked') return 'wrong ground';
+      if (res.kind === 'packets' || res.kind === 'nav') return res.status === 'unknown' ? '—' : res.chainOk ? 'chain' : 'chain broken';
+      if (res.rateUnknown && res.chainOk) return 'chain (rate not public)';
       if (res.available == null) return res.used ? `${num(res.used, 1)} GB/day` : '—';
       return `${num(res.used, 1)} / ${num(res.available, 2)} GB/day`;
     default: return '';
@@ -142,11 +143,11 @@ export function renderSidebar(container, state, dispatch) {
     h('dd', { class: status ? `st-${status}` : null }, value),
   ];
   els.detailsList.replaceChildren(...[
-    ...row('📅 Planning window', res.time.range ? `${res.time.range[0]}–${res.time.range[1]} months` : 'none given', null),
-    ...row('⏳ Mission plan', `${months(res.lifetime.plannedMonths)}${res.lifetime.required ? ` (need ≥${months(res.lifetime.required * 12)})` : ''}`, null),
-    ...row('🎯 Mission payload', pct(res.science.payloadShare ?? 0), !state.design.instrumentIds.length ? null : res.science.ok ? 'ok' : 'over', 'payload'),
-    ...row('🔋 Battery in shadow', res.battery.usable == null ? '—' : res.battery.needWh == null ? `${wh(res.battery.usable)} usable` : `${num(res.battery.needWh, 2)} of ${wh(res.battery.usable)} usable`, res.battery.status === 'unknown' ? null : res.battery.status, 'eclipse'),
-    ...row('🚀 Launch', res.launch.reaches == null ? '—' : res.launch.reaches ? 'reaches your orbit' : 'cannot reach your orbit', res.launch.reaches == null ? null : res.launch.reaches ? 'ok' : 'over'),
+    ...row('Planning window', res.time.range ? `${res.time.range[0]}–${res.time.range[1]} months` : 'none given', null),
+    ...row('Mission plan', `${months(res.lifetime.plannedMonths)}${res.lifetime.required ? ` (need ≥${months(res.lifetime.required * 12)})` : ''}`, null),
+    ...row('Mission payload', pct(res.science.payloadShare ?? 0), !state.design.instrumentIds.length ? null : res.science.ok ? 'ok' : 'over', 'payload'),
+    ...row('Battery in shadow', res.battery.usable == null ? '—' : res.battery.needWh == null ? `${wh(res.battery.usable)} usable` : `${num(res.battery.needWh, 2)} of ${wh(res.battery.usable)} usable`, res.battery.status === 'unknown' ? null : res.battery.status, 'eclipse'),
+    ...row('Launch', res.launch.reaches == null ? '—' : res.launch.reaches ? 'reaches your orbit' : 'cannot reach your orbit', res.launch.reaches == null ? null : res.launch.reaches ? 'ok' : 'over'),
   ]);
 }
 

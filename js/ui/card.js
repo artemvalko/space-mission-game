@@ -9,34 +9,46 @@ import { computeResources } from '../engine/resources.js';
 import { formatDelta } from '../engine/explain.js';
 import { sound } from './sound.js';
 import { getSource, DATA_KIND } from '../data/sources.js';
+import { COST_TYPE } from '../data/launchers.js';
+import { icon } from './icons.js';
+
+/** Data-honesty tags: tiny mono uppercase labels with a hairline border (no emoji). */
+export const KIND_TAG = { fact: 'FACT', catalog: 'CATALOG', model: 'ESTIMATE', reported: 'REPORTED', rfq: 'PRICE ?' };
 
 /**
- * Data-honesty badge: ✔ Real fact · 🏷 Catalog price · ≈ Estimate (or ✉️ RFQ).
- * Icon-only by default (label in the tooltip); `full: true` also prints the label (Details, panels).
+ * Data-honesty badge: FACT · CATALOG · ESTIMATE · REPORTED (or PRICE ? for RFQ).
+ * The tag is the face; the explanation lives in the tooltip. `full: true` also prints the long label.
  */
 export function dataBadge(kind, { full = false } = {}) {
   const k = kind === 'rfq'
-    ? { icon: '✉️', label: 'Price on request (RFQ)', cls: 'rfq', text: 'No public price — a real mission asks the operator for a quote.' }
+    ? { label: 'Price on request (RFQ)', cls: 'rfq', text: 'No public price — a real mission asks the operator for a quote.' }
     : DATA_KIND[kind];
   if (!k) return null;
-  return h('span', { class: `data-badge data-${k.cls}${full ? '' : ' icon-only'}`, title: `${k.label}: ${k.text}`, 'aria-label': k.label }, full ? `${k.icon} ${k.label}` : k.icon);
+  const tag = KIND_TAG[kind] ?? k.label.toUpperCase();
+  return h('span', { class: `data-badge data-${k.cls}`, title: `${k.label}: ${k.text}`, 'aria-label': k.label }, full && k.label.toUpperCase() !== tag ? [tag, h('span', { class: 'data-badge-long' }, ` ${k.label}`)] : tag);
 }
 
-// Card badges are icons on the card face; the words live in the tooltip.
+// Card badges: a small icon or tag on the card face; the words live in the tooltip.
 const BADGE_ICON = {
-  'Research build ★': '★', 'Needed for your goal ★': '★', 'Recommended ★': '★', Recommended: '☆', 'Fine for this mission': '✓',
-  'Also works': '✓', 'Other mission': '✗', 'Wrong for this mission': '✗', "Can't reach": '✗', 'Too small': '✗', 'Info only': 'ℹ️',
-  Timing: '⏱️', Calibration: '🎚️', Overkill: '⚠️',
+  'Research build': 'star', 'Needed for your goal': 'star', 'Recommended': 'star', 'Fine for this mission': 'check',
+  'Also works': 'check', 'Other mission': 'cross', 'Wrong for this mission': 'cross', "Can't reach": 'cross', 'Too small': 'cross', 'Info only': 'info',
+  Timing: 'clock', Calibration: 'sliders', Overkill: 'warning',
 };
-const KEEP_FACE = { '💰 ?': 'Price not public — never guessed (budget becomes uncertain)', '⚖️ ?': 'Mass not public — the mass gate cannot verify it', '⚖️ ≈': 'Mass estimated from the research model of the same class' };
+// Unknown price / mass: a hairline mono tag "[$ icon] ?" (the words are in the tooltip — keeps the word budget).
+const TAG_FACE = {
+  'PRICE ?': ['money', '?', 'Price not public — never guessed (budget becomes uncertain)'],
+  'MASS ?': ['weight', '?', 'Mass not public — the mass gate cannot verify it'],
+  'MASS ≈': ['weight', '≈', 'Mass estimated from the research model of the same class'],
+};
 function badgeFace(b) {
-  if (KEEP_FACE[b]) return { face: b, title: KEEP_FACE[b] };
-  if (b.startsWith('🛰 ')) return { face: b, title: `Flew on / used by ${b.slice(2)} (real mission)` };
-  if (BADGE_ICON[b]) return { face: BADGE_ICON[b], title: b };
-  const m = /^(\S+)\s+(.+)$/u.exec(b);
-  if (m && !/[A-Za-z0-9]/.test(m[1])) return { face: m[1], title: m[2] }; // "🏷 Published price" → 🏷
+  if (TAG_FACE[b]) { const [name, mark, title] = TAG_FACE[b]; return { face: [icon(name, 12), mark], title, tag: true }; }
+  if (b.startsWith('FLEW ')) return { face: icon('satellite', 16), title: `Flew on / used by ${b.slice(5)} (real mission)` };
+  if (BADGE_ICON[b]) return { face: icon(BADGE_ICON[b], 14), title: b };
+  const cost = Object.values(COST_TYPE).find((c) => c.label === b);
+  if (cost) return { face: COST_TAG[b], title: `${cost.label}: ${cost.text}`, tag: true };
   return { face: b, title: b };
 }
+const COST_TAG = { 'Published price': 'CATALOG', Estimate: 'ESTIMATE', 'Reported price': 'REPORTED', 'Price on request (RFQ)': 'PRICE ?' };
 
 /** "Source: S04 · S05 · research §4.3" with links that open in a new tab. */
 export function sourceLinks(codes = [], ref = null) {
@@ -63,7 +75,7 @@ export function previewDelta(state, action, before = computeResources(state)) {
 
 /**
  * Relative levels 1–3 for a list of values (log scale for wide ranges like mass/cost).
- * Equal values → 2. Use for "Weight ●●○" style meters.
+ * Equal values → 2. Use for the 3-segment meters.
  */
 export function levels(values, { log = true } = {}) {
   const f = (v) => (log ? Math.log10(Math.max(v, 0) + 1) : v);
@@ -73,19 +85,18 @@ export function levels(values, { log = true } = {}) {
   return xs.map((x) => (max - min < 1e-9 ? 2 : 1 + Math.round((2 * (x - min)) / (max - min))));
 }
 
-/** One meter: label + 3 symbols (filled up to level). */
-export function meter({ label, symbol = '●', level, text }) {
-  // Icon meter: the label lives in the tooltip / aria-label, the face is only symbols.
-  return h('div', { class: 'meter', title: text ?? `${label}: ${level}/3`, 'aria-label': `${label}: ${level} of 3` }, [
-    h('span', { class: 'meter-dots', 'aria-hidden': 'true' },
-      [1, 2, 3].map((n) => h('span', { class: n <= level ? 'on' : 'off' }, symbol))),
+/** One meter: a tiny icon label + 3 thin segments (the words live in the tooltip / aria-label). */
+export function meter({ label, icon: name, level, text }) {
+  return h('div', { class: 'meter', title: text ?? `${label}: ${level}/3`, role: 'img', 'aria-label': `${label}: ${level} of 3` }, [
+    name ? icon(name, 13) : h('span', { class: 'meter-label' }, label),
+    h('span', { class: 'meter-seg', 'aria-hidden': 'true' }, [1, 2, 3].map((n) => h('span', { class: n <= level ? 'on' : 'off' }))),
   ]);
 }
 
 /**
  * @param {object} o
  * @param {string} o.key           unique key (focus restore + tests)
- * @param {string} o.icon
+ * @param {string} o.icon          icon id (js/ui/icons.js)
  * @param {string} o.title         plain name
  * @param {string} [o.realTerm]    small grey subtitle (real engineering name)
  * @param {string} [o.glossary]    glossary id for the real term
@@ -107,9 +118,9 @@ export function meter({ label, symbol = '●', level, text }) {
 export function dataMarks(d) {
   if (!d) return [];
   const out = [];
-  if (('cost' in d && d.cost === null) || ('priceM' in d && d.priceM === null)) out.push('💰 ?');
-  if ('mass' in d && d.mass === null && !d.reference && d.formFactor !== 'any' && !d.leoOnly && !d.cancelled) out.push(d.massClassOf ? '⚖️ ≈' : '⚖️ ?');
-  if (d.heritage) out.push(`🛰 ${d.heritage}`);
+  if (('cost' in d && d.cost === null) || ('priceM' in d && d.priceM === null)) out.push('PRICE ?');
+  if ('mass' in d && d.mass === null && !d.reference && d.formFactor !== 'any' && !d.leoOnly && !d.cancelled) out.push(d.massClassOf ? 'MASS ≈' : 'MASS ?');
+  if (d.heritage) out.push(`FLEW ${d.heritage}`);
   return out;
 }
 
@@ -130,22 +141,22 @@ export function choiceCard(o) {
   }, [
     o.art && h('div', { class: 'choice-art' }, o.art),
     h('div', { class: 'choice-head' }, [
-      h('span', { class: 'choice-icon', 'aria-hidden': 'true' }, o.icon),
+      o.icon && h('span', { class: 'choice-icon', 'aria-hidden': 'true' }, typeof o.icon === 'string' ? icon(o.icon, 20) : o.icon),
       h('div', { class: 'choice-titles' }, [
         h('div', { class: 'choice-title', title: o.realTerm ?? null }, o.title),
       ]),
-      o.selected && h('span', { class: 'choice-check', 'aria-hidden': 'true' }, '✓'),
+      o.selected && h('span', { class: 'choice-check', 'aria-hidden': 'true' }, icon('check', 14)),
     ]),
     (o.badges?.length ?? 0) > 0 && h('div', { class: 'badges' }, o.badges.map((b) => {
-      const { face, title } = badgeFace(b);
-      return h('span', { class: `badge badge-${b.replace(/[^a-z-]/gi, '').toLowerCase()}`, title, 'aria-label': title }, face);
+      const { face, title, tag } = badgeFace(b);
+      return h('span', { class: ['badge', tag && 'badge-tag', `badge-${b.replace(/[^a-z-]/gi, '').toLowerCase()}`], title, 'aria-label': title }, face);
     })),
     (o.disabled && o.disabledReason ? o.disabledReason : o.oneLiner) && h('p', { class: 'choice-one' }, o.disabled && o.disabledReason ? o.disabledReason : o.oneLiner),
     meters.length > 0 && h('div', { class: 'meters' }, meters.map(meter)),
     o.extra,
     h('div', { class: 'choice-foot' }, [
       o.details?.length || o.data || o.realTerm || o.whatFor ? h('details', { class: 'choice-details' }, [
-        h('summary', {}, ['Details ', o.data && dataBadge(o.data.dataKind)]),
+        h('summary', {}, 'Details'),
         o.realTerm && h('p', { class: 'choice-real' }, ['Real term: ', o.glossary ? term(o.glossary, o.realTerm) : o.realTerm]),
         o.whatFor && h('p', { class: 'choice-whatfor' }, [h('strong', {}, 'What is it for? '), o.whatFor]),
         o.details?.length && h('dl', {}, o.details.map(([k, v]) => h('div', {}, [h('dt', {}, k), h('dd', {}, v)]))),

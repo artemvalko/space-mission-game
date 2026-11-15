@@ -69,6 +69,7 @@
   <link rel="modulepreload" href="js/ui/dom.js">
   <link rel="modulepreload" href="js/ui/gallery.js">
   <link rel="modulepreload" href="js/ui/goalStrip.js">
+  <link rel="modulepreload" href="js/ui/icons.js">
   <link rel="modulepreload" href="js/ui/router.js">
   <link rel="modulepreload" href="js/ui/satellite.js">
   <link rel="modulepreload" href="js/ui/screens/brains.js">
@@ -100,7 +101,7 @@
   <div class="anim-debug">
     <header>
       <h1>Animation scenes</h1>
-      <p class="muted">Every scene from <code>js/ui/animations/</code>, played with real sample designs and simulations. Each has Skip ▶▶; with <em>prefers-reduced-motion</em> you see the final frame + caption.</p>
+      <p class="muted">Every scene from <code>js/ui/animations/</code>, played with real sample designs and simulations. Each has Skip; with <em>prefers-reduced-motion</em> you see the final frame + caption.</p>
     </header>
     <div id="groups"></div>
     <div id="stage"></div>
@@ -162,7 +163,7 @@
     const GROUPS = {
       'Launch': {
         '1 Countdown & liftoff': () => S.countdown(stage, { launcher: launcherOf(comms), caption: 'Liftoff!', hold: true }),
-        '2 Launch success': () => S.launchSuccess(stage, { state: nav, caption: '✓ In orbit! The Falcon 9 delivered your 700 kg satellite to MEO.' }),
+        '2 Launch success': () => S.launchSuccess(stage, { state: nav, caption: 'In orbit! The Falcon 9 delivered your 700 kg satellite to MEO.' }),
         '4a Too heavy (NO-GO simulated)': () => S.tooHeavy(stage, { launcher: launcherOf(heavy), reason: 'too_heavy', caption: describeOutcome(heavy, heavySim).caption }),
         '4b Wrong orbit: GTO is not MEO (NO-GO simulated)': () => S.tooHeavy(stage, { launcher: launcherOf(gto), reason: 'wrong_orbit', caption: describeOutcome(gto, gtoSim).caption }),
       },
@@ -194,10 +195,10 @@
           await S.balanceScale(stage, { massKg: 12.08, capacityKg: 12, fromAngle: -9, rocketName: '6U dispenser' });
         },
         'P1 Go/No-Go console': () => S.goConsole(stage, { roles: [
-          { icon: '★', name: 'Mission Director', who: 'Ada', vote: 'go' }, { icon: '⚙', name: 'Systems Engineer', who: 'Ben', vote: 'go' },
-          { icon: '✦', name: 'Lead Scientist', who: 'Cy', vote: 'nogo', reason: 'The mission payload is not right' }, { icon: '↗', name: 'Flight Dynamics', who: 'Dee', vote: 'go' }], caption: 'Not everyone agreed — the majority said GO.' }),
+          { icon: 'star', name: 'Mission Director', who: 'Ada', vote: 'go' }, { icon: 'gear', name: 'Systems Engineer', who: 'Ben', vote: 'go' },
+          { icon: 'flask', name: 'Lead Scientist', who: 'Cy', vote: 'nogo', reason: 'The mission payload is not right' }, { icon: 'rocket', name: 'Flight Dynamics', who: 'Dee', vote: 'go' }], caption: 'Not everyone agreed — the majority said GO.' }),
         'P1 NO-GO console (launch scrubbed)': () => S.goConsole(stage, { roles: [
-          { icon: '★', name: 'Mission Director', who: 'Ada', vote: 'nogo', reason: 'Hard gate failed' }, { icon: '⚙', name: 'Systems Engineer', who: 'Ben', vote: 'nogo', reason: 'Hard gate failed' }], caption: '⛔ NO-GO. Launch scrubbed: no frequency licence or disposal plan.' }),
+          { icon: 'star', name: 'Mission Director', who: 'Ada', vote: 'nogo', reason: 'Hard gate failed' }, { icon: 'gear', name: 'Systems Engineer', who: 'Ben', vote: 'nogo', reason: 'Hard gate failed' }], caption: 'NO-GO. Launch scrubbed: no frequency licence or disposal plan.' }),
         'P1 Factory-to-pad montage': () => S.montage(stage, { state: comms, devMonths: 18 }),
       },
       'Maps & end of life': {

@@ -6,6 +6,7 @@
 // root is re-mounted every render, so running animations keep going.
 
 import { mount, h } from '../dom.js';
+import { icon, initials } from '../icons.js';
 import { getSelection } from '../../engine/resources.js';
 import { describeOutcome, effectsSummary } from '../../engine/outcome.js';
 import { teamNameOf } from '../../engine/attempt.js';
@@ -31,8 +32,8 @@ import { votingRoles } from '../../engine/roleGoals.js';
 
 const ctl = { root: null, stage: null, modal: null, reactions: null, key: null, token: null, running: false, state: null, dispatch: null };
 
-// Team reaction avatars (Phase 4 P2 #10): one face per player, reacting at key moments.
-const MOODS = { idle: '🙂', nervous: '😬', cheer: '🙌', party: '🥳', facepalm: '🤦', shock: '😱', meh: '😐', wow: '🤩' };
+// Team reactions (Phase 4 P2 #10): one monogram per player with a small state dot, reacting at key moments.
+const MOODS = { idle: 'idle', nervous: 'tight', cheer: 'ok', party: 'ok', facepalm: 'over', shock: 'over', meh: 'idle', wow: 'ok' };
 function react(mood) {
   const state = ctl.state;
   if (!ctl.reactions || !state) return;
@@ -40,7 +41,7 @@ function react(mood) {
   ctl.reactions.replaceChildren(...people.map((p, i) => {
     // Small variety: alternate cheer/party so a team doesn't look identical.
     const m = mood === 'cheer' && i % 2 ? 'party' : mood;
-    return h('div', { class: 'react', title: `${p.name}: ${m}` }, [h('span', { class: 'react-face', 'aria-hidden': 'true' }, MOODS[m] ?? MOODS.idle), state.mode === 'team' && h('span', { class: 'react-name' }, p.name)]);
+    return h('div', { class: 'react', title: `${p.name}: ${m}` }, [h('span', { class: `react-face monogram mood-${MOODS[m] ?? 'idle'}`, 'aria-hidden': 'true' }, [initials(p.name || 'You'), h('span', { class: 'monogram-dot' })]), state.mode === 'team' && h('span', { class: 'react-name' }, p.name)]);
   }));
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, reducedMotion() ? 0 : ms));
@@ -69,9 +70,9 @@ function askChoice(ev, pending) {
       h('div', { class: 'event-when' }, pending.month === 0 ? 'Before launch' : `Month ${pending.month}`),
       h('h2', {}, [ev.title, h('span', { class: 'simulated-tag' }, 'simulated event')]),
       h('p', { class: 'event-desc' }, describe(ev, pending)),
-      ev.realStory?.[state.scenarioId] && h('p', { class: 'small muted' }, ['📖 ', ev.realStory[state.scenarioId]]),
-      ev.realPhenomenon && h('p', { class: 'small muted' }, ['🌍 ', ev.realPhenomenon, ev.id === 'solar_flare' ? [' ', h('a', { href: 'https://api.nasa.gov/', target: '_blank', rel: 'noopener noreferrer' }, 'NASA DONKI')] : '']),
-      flight && h('p', { class: 'owner-badge' }, `👤 ${flight.name} (${role.name}) decides — others can advise.`),
+      ev.realStory?.[state.scenarioId] && h('p', { class: 'small muted' }, [icon('book', 14), ' ', ev.realStory[state.scenarioId]]),
+      ev.realPhenomenon && h('p', { class: 'small muted' }, [icon('globe', 14), ' ', ev.realPhenomenon, ev.id === 'solar_flare' ? [' ', h('a', { href: 'https://api.nasa.gov/', target: '_blank', rel: 'noopener noreferrer' }, 'NASA DONKI')] : '']),
+      flight && h('p', { class: 'owner-badge' }, [h('span', { class: 'monogram monogram-sm', 'aria-hidden': 'true' }, initials(flight.name)), ` ${flight.name} (${role.name}) decides — others can advise.`]),
       h('div', { class: 'event-choices' }, eventChoices(ev, ctxOf()).map((c, i) => h('button', {
         class: 'event-choice', type: 'button', 'data-choice': i,
         onClick: () => { ctl.modal.replaceChildren(); resolve(i); },
@@ -120,7 +121,7 @@ async function run(token) {
         vote: noGo ? 'nogo' : voters.length ? state.votes[r.id] ?? 'go' : 'go',
         reason: noGo ? 'Hard gate failed' : voters.length ? getNoGoReason(state.voteReasons[r.id])?.text : null,
       }));
-      const caption = noGo ? '⛔ NO-GO. 🧪 Simulating anyway…' : roles.every((r) => r.vote === 'go') ? 'All GO!' : 'GO by majority.';
+      const caption = noGo ? 'NO-GO. Simulating anyway…' : roles.every((r) => r.vote === 'go') ? 'All GO!' : 'GO by majority.';
       await goConsole(ctl.stage, { roles, caption });
       if (!alive()) return;
       if (sim().outcome === 'scrubbed') {
@@ -137,7 +138,7 @@ async function run(token) {
     if (sim().pending?.month === 0) {
       // Pre-launch event: no orbit view yet — play it over a launch-pad backdrop of its own.
       const overlay = h('div', { class: 'anim-overlay' });
-      ctl.stage.replaceChildren(h('div', { class: 'anim-stage prelaunch-bg', 'data-scene': 'prelaunch' }, [h('div', { class: 'prelaunch-pad', 'aria-hidden': 'true' }, '🚀'), overlay]));
+      ctl.stage.replaceChildren(h('div', { class: 'anim-stage prelaunch-bg', 'data-scene': 'prelaunch' }, [h('div', { class: 'prelaunch-pad', 'aria-hidden': 'true' }, icon('rocket', 56)), overlay]));
       await eventFlow(overlay, alive);
       if (!alive()) return;
     }
@@ -156,8 +157,8 @@ async function run(token) {
     react('cheer');
     await launchSuccess(ctl.stage, {
       state: ctl.state,
-      caption: `✓ In orbit! The ${sel.launcher.plainName} delivered your ${kg(first.summary.massKg)} satellite to ${sel.orbit.plainName}.${noGo ? ' (Simulation of a NO-GO design.)' : ''}`,
-      hold: [{ label: 'Start the mission ▶', value: 'go' }],
+      caption: `In orbit! The ${sel.launcher.plainName} delivered your ${kg(first.summary.massKg)} satellite to ${sel.orbit.plainName}.${noGo ? ' (Simulation of a NO-GO design.)' : ''}`,
+      hold: [{ label: 'Start the mission', value: 'go' }],
     });
     if (!alive()) return;
     react('idle');

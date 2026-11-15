@@ -3,6 +3,7 @@
 // choice is on Launch prep. Normal only; Easy uses the standard kit. Navigation: fixed inside the platform.
 
 import { mount, h } from '../dom.js';
+import { icon } from '../icons.js';
 import { setKit } from '../../state/actions.js';
 import { getScenario } from '../../data/scenarios.js';
 import { KITS, FIXED_BUS, bundleTotals } from '../../data/bundles.js';
@@ -12,8 +13,8 @@ import { subQuestion, componentCards } from './common.js';
 import { getComponent } from '../../data/components.js';
 
 const MASS_COST = [
-  { label: 'Mass', symbol: '●', value: (c) => c.mass },
-  { label: 'Cost', symbol: '$', value: (c) => c.cost },
+  { label: 'Mass', icon: 'weight', value: (c) => c.mass },
+  { label: 'Cost', icon: 'money', value: (c) => c.cost },
 ];
 
 export function render(container, state, dispatch) {
@@ -27,12 +28,12 @@ export function render(container, state, dispatch) {
   mount(container,
     h('div', { class: 'step-hint' }, [
       h('button', { class: 'btn btn-small', type: 'button', key: 'use-standard-kit', title: tot ? `The research build list for this mission: ${kg(tot.mass)}, ${money(tot.cost)} (the sum of its parts).` : null, onClick: () => dispatch(setKit('standard')) },
-        state.design.kit === 'standard' ? '✓ Standard kit' : 'Use standard kit'),
+        state.design.kit === 'standard' ? [icon('check', 14), ' Standard kit'] : 'Use standard kit'),
     ]),
     subQuestion('Computer', 'computer'),
     componentCards(state, dispatch, 'computer', MASS_COST, before),
     subQuestion('Pointing system', 'adcs'),
     componentCards(state, dispatch, 'adcs', MASS_COST, before),
-    fixed.length > 0 && h('p', { class: 'muted small', title: fixed.map((c) => `${c.plainName} (${c.name}): ${kg(c.mass)}`).join(' · ') }, `🔧 Thermal + cables + sensors included: +${num(fixedKg, 2)} kg`),
+    fixed.length > 0 && h('p', { class: 'muted small', title: fixed.map((c) => `${c.plainName} (${c.name}): ${kg(c.mass)}`).join(' · ') }, `Thermal + cables + sensors included: +${num(fixedKg, 2)} kg`),
   );
 }

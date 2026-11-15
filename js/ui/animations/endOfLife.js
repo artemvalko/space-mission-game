@@ -21,7 +21,7 @@ export function endOfLife(container, { orbitId = 'leo_550', disposal = true, cap
     scene: `end-${kind}`, label: 'End of the mission', duration: 4200, caption: caption ?? END_OF_LIFE_CAPTION[disposal ? kind : 'none'], hold, linger,
     setup({ svg }) {
       const glowId = newId('reentry');
-      svg.append(s('defs', {}, s('radialGradient', { id: glowId }, [s('stop', { offset: 0, 'stop-color': '#fff3c4' }), s('stop', { offset: 0.45, 'stop-color': '#ff9a3c' }), s('stop', { offset: 1, 'stop-color': '#ff4d1a', 'stop-opacity': 0 })])));
+      svg.append(s('defs', {}, s('radialGradient', { id: glowId }, [s('stop', { offset: 0, 'stop-color': '#ffffff' }), s('stop', { offset: 0.45, 'stop-color': '#ffc58a', 'stop-opacity': 0.55 }), s('stop', { offset: 1, 'stop-color': '#ff9a3c', 'stop-opacity': 0 })])));
       svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(100, 41));
       const sat = miniSat(1.6);
       const puff = s('g', {}, [0, 1, 2].map(() => s('circle', { r: 0, class: 'an-puff' })));
@@ -30,7 +30,7 @@ export function endOfLife(container, { orbitId = 'leo_550', disposal = true, cap
       if (kind === 'farewell') {
         const earth = s('circle', { cx: 110, cy: 330, r: 26, class: 'an-earth' });
         const waves = s('g', {}, [0, 1, 2, 3].map(() => s('path', { class: 'an-wave' })));
-        const bye = s('text', { x: 560, y: 120, class: 'an-big-label', 'text-anchor': 'middle', opacity: 0 }, '👋 Goodbye!');
+        const bye = s('text', { x: 560, y: 120, class: 'an-big-label', 'text-anchor': 'middle', opacity: 0 }, 'Goodbye!');
         svg.append(earth, waves, sat, bye);
         parts.push({ waves, bye });
       } else {

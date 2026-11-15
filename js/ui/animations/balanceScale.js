@@ -3,6 +3,7 @@
 // "Too heavy by X kg". ≤ 0.7 s, never blocks input.
 
 import { s } from '../dom.js';
+import { svgIcon } from '../icons.js';
 import { play, seg, ease, lerp, setT } from './core.js';
 import { kg } from '../../utils/format.js';
 
@@ -28,13 +29,13 @@ export function balanceScale(container, { massKg = 0, capacityKg = null, fromAng
         const g = s('g', {}, [
           s('line', { x1: -40, y1: 0, x2: 0, y2: -90, class: 'bs-string' }), s('line', { x1: 40, y1: 0, x2: 0, y2: -90, class: 'bs-string' }),
           s('path', { d: 'M -60 0 Q 0 34 60 0 Z', class: `bs-pan ${cls}` }),
-          s('text', { x: 0, y: -16, class: 'bs-label', 'text-anchor': 'middle' }, label),
+          typeof label === 'string' ? s('text', { x: 0, y: -16, class: 'bs-label', 'text-anchor': 'middle' }, label) : svgIcon(label.icon, -20, -58, 40, { class: 'bs-icon' }),
           s('text', { x: 0, y: 56, class: 'bs-sub', 'text-anchor': 'middle' }, sub),
         ]);
         return g;
       };
-      const left = pan('🛰️', kg(massKg), over ? 'over' : '');
-      const right = pan(capacityKg == null ? '?' : '🚀', capacityKg == null ? '' : `≤ ${kg(capacityKg)}`, '');
+      const left = pan({ icon: 'satellite' }, kg(massKg), over ? 'over' : '');
+      const right = pan(capacityKg == null ? '?' : { icon: 'rocket' }, capacityKg == null ? '' : `≤ ${kg(capacityKg)}`, '');
       const stand = s('g', {}, [s('polygon', { points: `${cx - 50},420 ${cx + 50},420 ${cx + 10},${cy} ${cx - 10},${cy}`, class: 'bs-stand' })]);
       const warn = s('text', { x: cx, y: 60, class: 'bs-warn', 'text-anchor': 'middle', opacity: 0 }, over ? `+${kg(massKg - capacityKg)} too heavy!` : '');
       const root = s('g', {}, [stand, left, right, beam, warn]);

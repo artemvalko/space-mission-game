@@ -13,7 +13,7 @@ export function discovery(container, { x = 500, y = 160, phase = 'intro', bonus 
     scene: intro ? 'discovery' : 'discovery-outcome', overlay: true, label: 'A huge storm in view', duration: intro ? 2000 : 1600, caption, linger: intro ? 0 : linger,
     setup({ svg }) {
       const stars = Array.from({ length: 14 }, (_, i) => ({ node: s('polygon', { points: STAR, class: 'an-sparkle' }), a: (i / 14) * Math.PI * 2, d: 40 + (i % 3) * 22 }));
-      const label = s('text', { x, y, class: 'an-bonus', 'text-anchor': 'middle', opacity: 0 }, intro ? '🌀 Huge storm in view!' : bonus);
+      const label = s('text', { x, y, class: 'an-bonus', 'text-anchor': 'middle', opacity: 0 }, intro ? 'Huge storm in view!' : bonus);
       svg.append(...stars.map((st) => st.node), label);
       return {
         frame(t, ms) {

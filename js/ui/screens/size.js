@@ -68,8 +68,8 @@ export function render(container, state, dispatch) {
       realTerm: c.name,
       oneLiner: c.oneLiner,
       whatFor: c.why,
-      badges: [...(scenario && !why && c.missions.includes(scenario.id) && !c.reference ? ['Research build ★'] : [])],
-      meters: [{ label: c.reference ? 'Real total mass' : 'Mass limit', symbol: '●', level: weight[i] }],
+      badges: [...(scenario && !why && c.missions.includes(scenario.id) && !c.reference ? ['Research build'] : [])],
+      meters: [{ label: c.reference ? 'Real total mass' : 'Mass limit', icon: 'weight', level: weight[i] }],
       details: c.reference
         ? [['Real total mass', c.reference.massText], ['What it includes', 'its own bus and payload — you still choose orbit, rocket, ground and launch prep'], ...(c.reference.fleet ? [['Constellation', `${c.reference.fleet} satellites planned`]] : []), ...(c.reference.designLifeYears ? [['Design life', `${c.reference.designLifeYears} years`]] : []), ['Price', 'not public (?)']]
         : [[isCubeSat(c) ? 'Mass limit (CubeSat spec)' : 'Launch mass target', c.maxMassKg ?? c.targetMassKg ? kg(c.maxMassKg ?? c.targetMassKg) : 'not public (?)'],
@@ -81,7 +81,7 @@ export function render(container, state, dispatch) {
       selected,
       disabled: !!why && !selected,
       warn: !!why && selected,
-      disabledReason: `✗ ${why}`,
+      disabledReason: `${why}`,
       delta: selected || why ? null : `If chosen: ${previewDelta(state, selectComponent('structure', c.id), before)}`,
       why: why ? sizeWhyLong(scenario, sc) : whyComponent(c, scenario?.id),
       whyTitle: why ? `Why not ${sc.plainName}?` : sc.plainName,
@@ -94,7 +94,7 @@ export function render(container, state, dispatch) {
 
   mount(container,
     h('p', { class: 'step-hint', title: 'CubeSats are built from 10 cm units; the dispenser sets a strict mass limit (CubeSat spec, S01). A reference build uses a real satellite\'s public total mass.' },
-      scenario?.size === 'large' ? '🛰 Pick a real navigation platform.' : '📦 Build part by part, or fly a real satellite (🛰).'),
+      scenario?.size === 'large' ? 'Pick a real navigation platform.' : 'Build part by part, or fly a real satellite.'),
     h('div', { class: 'choices' }, front.map(card)),
     more.length > 0 && h('details', { class: 'fold' }, [h('summary', {}, `＋${more.length} more sizes`), h('div', { class: 'choices' }, more.map(card))]),
     compareToggle('size', reps.filter((c, i) => front.includes(classes[i])), scenario?.id),

@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mission Control</title>
   <meta name="description" content="Design a real space mission. Stay on budget. Get the science.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='7' fill='%233fa9f5'/%3E%3Cellipse cx='16' cy='16' rx='14' ry='5' fill='none' stroke='%23e6edf7' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23000'/%3E%3Ccircle cx='16' cy='16' r='5' fill='none' stroke='%23ededed' stroke-width='1.6'/%3E%3Cpath d='M4.5 19.5A12 5 -20 0 1 27 10' fill='none' stroke='%23ededed' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='27' cy='10' r='1.8' fill='%23ededed'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#000000">
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/animations.css">
@@ -71,6 +72,7 @@
   <link rel="modulepreload" href="js/ui/dom.js">
   <link rel="modulepreload" href="js/ui/gallery.js">
   <link rel="modulepreload" href="js/ui/goalStrip.js">
+  <link rel="modulepreload" href="js/ui/icons.js">
   <link rel="modulepreload" href="js/ui/router.js">
   <link rel="modulepreload" href="js/ui/satellite.js">
   <link rel="modulepreload" href="js/ui/screens/brains.js">
@@ -101,9 +103,10 @@
 <body data-screen="start">
   <header class="topbar">
     <button class="brand" type="button" id="brand" aria-label="Back to the start screen">
-      <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true">
-        <circle cx="16" cy="16" r="7" fill="var(--accent)"/>
-        <ellipse cx="16" cy="16" rx="14" ry="5" fill="none" stroke="var(--text)" stroke-width="2" transform="rotate(-20 16 16)"/>
+      <svg class="brand-mark" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M3.2 15.2A9.5 3.8 -20 0 1 20.4 7.4"/>
+        <circle cx="20.4" cy="7.4" r="1.2" fill="currentColor" stroke="none"/>
       </svg>
       <span class="brand-name">Mission Control</span>
     </button>

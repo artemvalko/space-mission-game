@@ -207,7 +207,7 @@ function insights(sim, res, sel, st, objectives) {
 /** 2–3 concrete suggestions from the biggest losses. */
 function tips(parts, objectives, res, st, sim) {
   const out = [];
-  if (sim.noGo) out.push('Fix every ⛔ gate on the Final check first.');
+  if (sim.noGo) out.push('Fix every failed gate on the Final check first.');
   const byLoss = [...parts].filter((p) => !p.bonus).sort((a, b) => (b.max - b.points) - (a.max - a.points));
   for (const p of byLoss) {
     if (out.length >= 3 || p.points >= p.max * 0.9) continue;

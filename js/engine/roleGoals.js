@@ -22,7 +22,7 @@ const CHECKS = {
     const ready = range ? range[0] + (sim?.summary.delayMonths ?? 0) : null;
     const onTime = !range || ready <= range[1];
     const paperwork = sel.prep.licence && sel.prep.disposal;
-    return { met: inBudget && onTime && paperwork, reason: `${money(spent)} of ${money(scenario.budgetM)}${res.budget.launchUnknown ? ' (launch RFQ not counted)' : ''}${range ? `; ready at month ${ready} of ${range[1]}` : ''}; licence ${sel.prep.licence ? '✓' : '✗'}, disposal plan ${sel.prep.disposal ? '✓' : '✗'}.` };
+    return { met: inBudget && onTime && paperwork, reason: `${money(spent)} of ${money(scenario.budgetM)}${res.budget.launchUnknown ? ' (launch RFQ not counted)' : ''}${range ? `; ready at month ${ready} of ${range[1]}` : ''}; licence ${sel.prep.licence ? 'done' : 'missing'}, disposal plan ${sel.prep.disposal ? 'done' : 'missing'}.` };
   },
   // Engineer: mass / power / thermal margins.
   engineer_margins(ctx) {
@@ -33,7 +33,7 @@ const CHECKS = {
     const thermal = !!sel.components.thermal || sel.included.has('thermal');
     const met = massOk && powerMargin != null && powerMargin >= MARGIN_GOAL && thermal;
     const massText = res.mass.available == null ? 'unknown' : cube || !res.mass.limit ? pct(1 - res.mass.used / res.mass.available) : res.mass.used <= res.mass.limit ? 'within the 700 kg target' : 'over the target';
-    return { met, reason: `Mass margin ${massText}, power margin ${powerMargin == null ? 'unknown' : pct(powerMargin)} (need 10%), thermal control ${thermal ? '✓' : '✗'}.` };
+    return { met, reason: `Mass margin ${massText}, power margin ${powerMargin == null ? 'unknown' : pct(powerMargin)} (need 10%), thermal control ${thermal ? 'yes' : 'no'}.` };
   },
   // Scientist: mission performance KPIs.
   scientist_science(ctx) {
@@ -53,7 +53,7 @@ const CHECKS = {
     const issues = validateDesign(state, res);
     const launchOk = !!sel.launcher && !issues.some((i) => i.severity === 'error' && ['launcher_trajectory_compatible', 'launch_adapter_compatible'].includes(i.gate));
     const linkOk = res.data.status === 'ok';
-    return { met: recommended && launchOk && linkOk, reason: `Orbit ${recommended ? 'recommended ✓' : 'not the recommended one ✗'}; rocket ${launchOk ? 'reaches it ✓' : 'does not fit ✗'}; link ${linkOk ? 'works ✓' : 'broken or not chosen ✗'}.` };
+    return { met: recommended && launchOk && linkOk, reason: `Orbit ${recommended ? 'recommended' : 'not the recommended one'}; rocket ${launchOk ? 'reaches it' : 'does not fit'}; link ${linkOk ? 'works' : 'broken or not chosen'}.` };
   },
 };
 

@@ -1,7 +1,9 @@
-// Start screen: title, one-line pitch, Play solo / Play as a team / How to play, Easy–Normal.
+// Start screen: eyebrow + display headline, Play solo / Play as a team / How to play, Easy–Normal,
+// one line-art orbit centrepiece in a soft glow, text-only data credits; leaderboard + badges below the fold.
 // Team names and roles are set here only.
 
 import { mount, h, s } from '../dom.js';
+import { icon, initials } from '../icons.js';
 import { mulberry32 } from '../../utils/random.js';
 import { nextFrame } from '../animations/core.js';
 import { rerender } from '../view.js';
@@ -14,10 +16,10 @@ import {
 } from '../../state/actions.js';
 
 const SLIDES = [
-  { icon: '🎯', title: 'Pick a real mission', text: 'Connect remote sensors, measure weather under the clouds, or launch a navigation satellite. Every number comes from real sources or is clearly marked as an estimate.' },
-  { icon: '🛠️', title: 'Answer one question per step', text: 'Size, mission payload, power, radios, bus, orbit, rocket and launch prep. Four gauges show money, mass, power and data. Green is good, red is over.' },
-  { icon: '🚦', title: 'GO or NO-GO', text: 'Physics first: a design that breaks a hard gate is NO-GO. The Flight Director shows what is broken, which card fixes it, and other correct designs.' },
-  { icon: '🚀', title: 'Launch and fly', text: 'Simulated events happen in space — your decisions matter. Then compare your design with the real mission that inspired it.' },
+  { icon: 'target', title: 'Pick a real mission', text: 'Connect remote sensors, measure weather under the clouds, or launch a navigation satellite. Every number comes from real sources or is clearly marked as an estimate.' },
+  { icon: 'wrench', title: 'Answer one question per step', text: 'Size, mission payload, power, radios, bus, orbit, rocket and launch prep. Four gauges show money, mass, power and data. Green is good, red is over.' },
+  { icon: 'flag', title: 'GO or NO-GO', text: 'Physics first: a design that breaks a hard gate is NO-GO. The Flight Director shows what is broken, which card fixes it, and other correct designs.' },
+  { icon: 'rocket', title: 'Launch and fly', text: 'Simulated events happen in space — your decisions matter. Then compare your design with the real mission that inspired it.' },
 ];
 
 let slide = -1; // view-only: -1 = closed
@@ -29,7 +31,7 @@ function howToPlay() {
   const close = () => { slide = -1; rerender(); };
   return h('div', { class: 'modal-backdrop', onClick: (e) => { if (e.target === e.currentTarget) close(); } },
     h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'How to play' }, [
-      h('div', { class: 'modal-icon', 'aria-hidden': 'true' }, s.icon),
+      h('div', { class: 'modal-icon', 'aria-hidden': 'true' }, icon(s.icon, 28)),
       h('h2', {}, `${slide + 1}. ${s.title}`),
       h('p', { class: 'modal-text' }, s.text),
       h('div', { class: 'slide-dots' }, SLIDES.map((_, i) => h('span', { class: i === slide ? 'on' : '' }))),
@@ -52,78 +54,75 @@ function teamPanel(state, dispatch) {
         onChange: (e) => dispatch(renamePlayer(i, e.target.value)),
       }),
       h('select', { class: 'input', 'aria-label': `Player ${i + 1} role`, key: `player-role-${i}`, onChange: (e) => dispatch(assignRole(i, e.target.value)) },
-        ROLES.map((r) => h('option', { value: r.id, selected: r.id === p.roleId }, `${r.icon} ${r.name}`))),
+        ROLES.map((r) => h('option', { value: r.id, selected: r.id === p.roleId }, r.name))),
       state.players.length > 2
-        ? h('button', { class: 'btn btn-ghost', type: 'button', key: `player-remove-${i}`, 'aria-label': `Remove ${p.name}`, onClick: () => dispatch(removePlayer(i)) }, '✕')
+        ? h('button', { class: 'btn btn-ghost', type: 'button', key: `player-remove-${i}`, 'aria-label': `Remove ${p.name}`, onClick: () => dispatch(removePlayer(i)) }, icon('cross', 16))
         : h('span'),
     ]))),
     state.players.length < MAX_PLAYERS && h('button', { class: 'btn btn-ghost', type: 'button', key: 'add-player', onClick: () => dispatch(addPlayer('')) }, '+ Add player'),
-    h('ul', { class: 'role-hints' }, ROLES.map((r) => h('li', {}, [h('strong', {}, `${r.icon} ${r.name}: `), r.description]))),
+    h('ul', { class: 'role-hints' }, ROLES.map((r) => h('li', {}, [h('span', { class: 'monogram monogram-sm', 'aria-hidden': 'true' }, initials(r.name)), ' ', h('strong', {}, `${r.name}: `), r.description]))),
     h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'start-team', onClick: () => dispatch(goToScreen('pickMission')) }, 'Start mission →'),
   ]);
 }
 
-// ── Animated backdrop (Phase 4 P3 #13): parallax stars, rotating Earth, satellite orbiting the title.
+// ── Centrepiece: a thin-line planet limb, three orbit ellipses and one satellite dot in a soft glow.
 const reduce = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-function starLayer(n, seed, size, cls) {
-  const rng = mulberry32(seed);
-  return s('svg', { class: `sky-layer ${cls}`, viewBox: '0 0 1200 600', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': 'true' },
-    Array.from({ length: n }, () => s('circle', { cx: rng() * 1200, cy: rng() * 600, r: size * (0.5 + rng()), opacity: 0.3 + rng() * 0.7 })));
-}
-
-function heroBackdrop() {
-  const earth = s('svg', { class: 'hero-earth', viewBox: '0 0 200 200', 'aria-hidden': 'true' }, [
+function centrepiece() {
+  const ORBITS = [
+    { rx: 250, ry: 62, rot: -14 },
+    { rx: 200, ry: 92, rot: 22 },
+    { rx: 290, ry: 40, rot: -2 },
+  ];
+  const dot = s('circle', { r: 3.2, class: 'hv-sat' });
+  const halo = s('circle', { r: 9, class: 'hv-sat-halo' });
+  const svg = s('svg', { class: 'hero-visual', viewBox: '-320 -260 640 520', role: 'img', 'aria-label': 'A planet with three orbits and a satellite' }, [
     s('defs', {}, [
-      s('clipPath', { id: 'earthClip' }, s('circle', { cx: 100, cy: 100, r: 96 })),
-      s('radialGradient', { id: 'earthShade', cx: '35%', cy: '35%' }, [s('stop', { offset: 0, 'stop-color': '#fff', 'stop-opacity': 0.25 }), s('stop', { offset: 0.6, 'stop-color': '#000', 'stop-opacity': 0 }), s('stop', { offset: 1, 'stop-color': '#000', 'stop-opacity': 0.55 })]),
+      s('radialGradient', { id: 'hvGlow' }, [s('stop', { offset: 0, 'stop-color': '#fff', 'stop-opacity': 0.16 }), s('stop', { offset: 0.45, 'stop-color': '#fff', 'stop-opacity': 0.05 }), s('stop', { offset: 1, 'stop-color': '#fff', 'stop-opacity': 0 })]),
+      s('clipPath', { id: 'hvBack' }, s('rect', { x: -320, y: -260, width: 640, height: 260 })),
     ]),
-    s('circle', { cx: 100, cy: 100, r: 96, class: 'he-ocean' }),
-    s('g', { 'clip-path': 'url(#earthClip)' }, s('g', { class: 'he-land' }, [0, 200].map((ox) => s('g', { transform: `translate(${ox} 0)` }, [
-      s('path', { d: 'M20 60 q30 -25 60 -5 q10 25 -15 40 q-30 10 -45 -35z' }), s('path', { d: 'M60 120 q20 -10 30 15 q-5 30 -25 40 q-15 -20 -5 -55z' }),
-      s('path', { d: 'M120 50 q35 -15 60 10 q-5 30 -35 25 q-25 0 -25 -35z' }), s('path', { d: 'M140 120 q25 5 30 25 q-20 15 -35 0z' }),
-    ])))),
-    s('circle', { cx: 100, cy: 100, r: 96, fill: 'url(#earthShade)' }),
-    s('circle', { cx: 100, cy: 100, r: 99, class: 'he-atmo' }),
+    s('circle', { r: 250, fill: 'url(#hvGlow)' }),
+    ...ORBITS.map((o) => s('ellipse', { rx: o.rx, ry: o.ry, transform: `rotate(${o.rot})`, class: 'hv-orbit', 'clip-path': 'url(#hvBack)' })),
+    s('circle', { r: 112, class: 'hv-planet' }),
+    ...[-60, -20, 20, 60].map((y) => s('ellipse', { cy: y, rx: Math.sqrt(112 * 112 - y * y), ry: 6 + Math.abs(y) / 30, class: 'hv-lat' })),
+    s('ellipse', { rx: 44, ry: 112, class: 'hv-lat' }),
+    ...ORBITS.map((o) => s('path', { d: `M ${-o.rx} 0 A ${o.rx} ${o.ry} 0 0 0 ${o.rx} 0`, transform: `rotate(${o.rot})`, class: 'hv-orbit hv-orbit-front' })),
+    halo, dot,
   ]);
-  const orbitSvg = s('svg', { class: 'hero-orbit', viewBox: '0 0 800 220', 'aria-hidden': 'true' });
-  const ring = s('ellipse', { cx: 400, cy: 110, rx: 360, ry: 70, class: 'ho-ring' });
-  const sat = s('g', { class: 'ho-sat' }, [
-    s('rect', { x: -16, y: -4, width: 10, height: 8, class: 'an-minisat-panel' }), s('rect', { x: 6, y: -4, width: 10, height: 8, class: 'an-minisat-panel' }),
-    s('rect', { x: -6, y: -6, width: 12, height: 12, rx: 2, class: 'an-minisat-body' }),
-  ]);
-  orbitSvg.append(ring, sat);
+  const o = ORBITS[0];
+  const c = Math.cos((o.rot * Math.PI) / 180); const sn = Math.sin((o.rot * Math.PI) / 180);
   const place = (a) => {
-    const x = 400 + Math.cos(a) * 360; const y = 110 + Math.sin(a) * 70;
-    sat.setAttribute('transform', `translate(${x} ${y}) scale(${0.8 + 0.3 * Math.sin(a)})`);
-    sat.style.opacity = Math.sin(a) < -0.2 ? 0.45 : 1; // "behind" the title
+    const x0 = Math.cos(a) * o.rx; const y0 = Math.sin(a) * o.ry;
+    const x = x0 * c - y0 * sn; const y = x0 * sn + y0 * c;
+    for (const el of [dot, halo]) { el.setAttribute('cx', x.toFixed(1)); el.setAttribute('cy', y.toFixed(1)); }
+    const behind = Math.sin(a) < 0 && Math.hypot(x, y) < 112;
+    dot.style.opacity = halo.style.opacity = behind ? 0 : 1;
   };
-  place(0.6);
+  place(0.5);
   if (!reduce()) {
     const t0 = performance.now();
-    const loop = (ts) => { if (!orbitSvg.isConnected && ts - t0 > 1000) return; place(0.6 + (ts - t0) / 2600); nextFrame(loop); };
+    const loop = (ts) => { if (!svg.isConnected && ts - t0 > 1000) return; place(0.5 + (ts - t0) / 9000); nextFrame(loop); };
     nextFrame(loop);
   }
-  return { sky: h('div', { class: 'hero-sky', 'aria-hidden': 'true' }, [starLayer(140, 3, 0.8, 'far'), starLayer(70, 9, 1.3, 'mid'), starLayer(30, 21, 2, 'near')]), earth, orbitSvg };
+  return svg;
 }
 
-function onParallax(e) {
-  if (reduce()) return;
-  const hero = e.currentTarget;
-  const r = hero.getBoundingClientRect();
-  hero.style.setProperty('--mx', (((e.clientX - r.left) / r.width) - 0.5).toFixed(3));
-  hero.style.setProperty('--my', (((e.clientY - r.top) / r.height) - 0.5).toFixed(3));
+/** Sparse, dim, static dot field (replaces the busy starfield). */
+function dotField() {
+  const rng = mulberry32(7);
+  return s('svg', { class: 'dot-field', viewBox: '0 0 1200 700', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': 'true' },
+    Array.from({ length: 70 }, () => s('circle', { cx: (rng() * 1200).toFixed(0), cy: (rng() * 700).toFixed(0), r: (0.5 + rng() * 0.7).toFixed(2), opacity: (0.12 + rng() * 0.3).toFixed(2) })));
 }
 
 function board() {
   const rows = leaderboard(boardScenario, 10);
   return h('section', { class: 'leaderboard' }, [
-    h('h2', {}, '🏆 Top 10'),
+    h('h2', {}, 'Top 10'),
     h('div', { class: 'board-tabs', role: 'tablist' }, SCENARIOS.map((sc) => h('button', {
       class: ['mini', sc.id === boardScenario && 'active'], type: 'button', role: 'tab', 'aria-selected': sc.id === boardScenario ? 'true' : 'false', key: `board-${sc.id}`,
       onClick: () => { boardScenario = sc.id; rerender(); },
       title: sc.name, 'aria-label': sc.name,
-    }, sc.icon))),
+    }, icon(sc.icon, 16)))),
     rows.length === 0
       ? h('p', { class: 'muted' }, 'No scores yet.')
       : h('table', { class: 'summary-table board' }, [
@@ -134,28 +133,37 @@ function board() {
 }
 
 export function render(container, state, dispatch) {
-  const backdrop = heroBackdrop();
-  mount(container, 
-    h('div', { class: 'hero', onPointermove: onParallax }, [
-      backdrop.sky,
-      backdrop.earth,
-      h('div', { class: 'hero-title-wrap' }, [backdrop.orbitSvg, h('h1', { class: 'hero-title' }, 'Mission Control')]),
-      h('p', { class: 'hero-tagline', title: 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.' }, 'Real missions. Real data. GO or NO-GO?'),
-      h('div', { class: 'hero-buttons' }, [
-        h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'play-solo', onClick: () => { dispatch(setMode('solo')); dispatch(goToScreen('pickMission')); } }, '▶ Play solo'),
-        h('button', { class: ['btn', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', title: 'Play as a team (2–4 on one screen)', onClick: () => dispatch(setMode('team')) }, '👥 Team'),
-        h('button', { class: 'btn btn-ghost btn-big', type: 'button', key: 'how-to', onClick: () => { slide = 0; rerender(); } }, '❓ How?'),
+  const have = unlockedBadges();
+  mount(container,
+    h('div', { class: 'hero' }, [
+      dotField(),
+      h('div', { class: 'hero-copy' }, [
+        h('p', { class: 'eyebrow' }, 'NASA Space Apps · Mission design game'),
+        h('h1', { class: 'hero-title' }, ['Design a real', h('br'), 'space mission.']),
+        h('p', { class: 'hero-tagline', title: 'Three real satellite missions. Real data only. Physics decides GO or NO-GO.' }, 'Real missions. Real data. GO or NO-GO?'),
+        h('div', { class: 'hero-buttons' }, [
+          h('button', { class: 'btn btn-primary btn-big', type: 'button', key: 'play-solo', onClick: () => { dispatch(setMode('solo')); dispatch(goToScreen('pickMission')); } }, 'Play solo'),
+          h('button', { class: ['btn', 'btn-big', state.mode === 'team' && 'btn-active'], type: 'button', key: 'play-team', title: 'Play as a team (2–4 on one screen)', onClick: () => dispatch(setMode('team')) }, 'Play as a team'),
+          h('button', { class: 'text-link', type: 'button', key: 'how-to', onClick: () => { slide = 0; rerender(); } }, ['How to play ', icon('arrowRight', 14)]),
+        ]),
+        h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Difficulty' }, ['easy', 'normal'].map((d) =>
+          h('label', { class: ['seg', state.difficulty === d && 'active'], title: d === 'easy' ? 'Fewer choices: power pack + the standard bus kit from the research build list.' : 'You choose every part yourself.' }, [
+            h('input', { type: 'radio', name: 'difficulty', value: d, checked: state.difficulty === d, key: `difficulty-${d}`, onChange: () => dispatch(setDifficulty(d)) }),
+            h('span', {}, d === 'easy' ? 'Easy' : 'Normal'),
+          ]))),
       ]),
-      h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': 'Difficulty' }, ['easy', 'normal'].map((d) =>
-        h('label', { class: ['seg', state.difficulty === d && 'active'], title: d === 'easy' ? 'Fewer choices: power pack + the standard bus kit from the research build list.' : 'You choose every part yourself.' }, [
-          h('input', { type: 'radio', name: 'difficulty', value: d, checked: state.difficulty === d, key: `difficulty-${d}`, onChange: () => dispatch(setDifficulty(d)) }),
-          h('span', {}, d === 'easy' ? '🙂 Easy' : '🧠 Normal'),
-        ]))),
-
+      h('div', { class: 'hero-visual-wrap' }, centrepiece()),
+      h('ul', { class: 'hero-points' }, ['Real hardware data', 'Real launch prices', 'Real trade-offs'].map((x) => h('li', {}, x))),
     ]),
+    h('p', { class: 'hero-credits' }, 'Data: NASA · ESA · NOAA · SpaceX · Rocket Lab'),
     state.mode === 'team' && teamPanel(state, dispatch),
-    board(),
-    (() => { const have = unlockedBadges(); return h('section', { class: 'leaderboard' }, [h('h2', {}, `🏅 ${BADGES.filter((b) => have.has(b.id)).length}/${BADGES.length}`), h('div', { class: 'mini-icons' }, BADGES.map((b) => h('span', { class: have.has(b.id) ? 'earned' : 'locked', title: `${b.name}: ${b.text}`, 'aria-label': b.name }, b.icon)))]); })(),
+    h('div', { class: 'below-fold' }, [
+      board(),
+      h('section', { class: 'leaderboard badge-shelf' }, [
+        h('h2', {}, `Badges ${BADGES.filter((b) => have.has(b.id)).length}/${BADGES.length}`),
+        h('ul', { class: 'badge-list' }, BADGES.map((b) => h('li', { class: have.has(b.id) ? 'earned' : 'locked', title: `${b.name}: ${b.text}`, 'aria-label': `${b.name}${have.has(b.id) ? '' : ' (locked)'}` }, [icon(b.icon, 16), h('span', { 'aria-hidden': 'true' }, have.has(b.id) ? icon('check', 12) : icon('lock', 12))]))),
+      ]),
+    ]),
     howToPlay(),
   );
 }

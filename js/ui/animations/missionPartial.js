@@ -10,7 +10,7 @@ export function missionPartial(container, { name, team, orbitId, missed = [], gr
     setup({ svg }) {
       svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(90, 13));
       const patch = missionPatch({ name, team, orbitId, r: 105, cracked: true });
-      const lines = missed.slice(0, 5).map((m, i) => s('text', { x: 430, y: 150 + i * 38, class: 'an-missed', opacity: 0 }, `✗ ${m}`));
+      const lines = missed.slice(0, 5).map((m, i) => s('text', { x: 430, y: 150 + i * 38, class: 'an-missed', opacity: 0 }, `${m}`));
       const head = s('text', { x: 430, y: 110, class: 'an-small-head', opacity: 0 }, 'What was missed:');
       const stamp = s('text', { x: 250, y: 330, class: 'an-stamp-text an-stamp-dim', 'text-anchor': 'middle', opacity: 0 }, grade);
       svg.append(patch, head, ...lines, stamp);

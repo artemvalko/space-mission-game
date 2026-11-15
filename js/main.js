@@ -17,6 +17,7 @@ import { h, mount } from './ui/dom.js';
 import { isMuted, setMuted } from './ui/sound.js';
 import { SOURCES, DATA_KIND, DATA_LIMITATIONS } from './data/sources.js';
 import { dataBadge } from './ui/card.js';
+import { icon } from './ui/icons.js';
 
 const store = createStore(reducer, createInitialState());
 const { dispatch } = store;
@@ -42,7 +43,7 @@ function sourcesPanel() {
   const close = () => { sourcesOpen = false; render(); };
   return h('div', { class: 'modal-backdrop', onClick: (e) => { if (e.target === e.currentTarget) close(); } },
     h('div', { class: 'modal sources-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Sources and data honesty' }, [
-      h('h2', {}, '📚 Sources & data honesty'),
+      h('h2', {}, 'Sources & data honesty'),
       h('p', {}, 'Every number in this game comes from our research document. Each card says what kind of number it is:'),
       h('ul', {}, Object.keys(DATA_KIND).map((k) => h('li', {}, [dataBadge(k), ' ', DATA_KIND[k].text]))
         .concat(h('li', {}, [dataBadge('rfq'), ' No public price exists — the game never invents one.']))),
@@ -73,10 +74,10 @@ function render(state = store.getState()) {
   if (!NO_SIDEBAR.has(state.screen)) renderSidebar(els.sidebar, state, dispatch);
   els.actions.replaceChildren();
   mount(els.actions,
-    state.mode === 'team' && h('span', { class: 'pill', title: state.players.map((p) => p.name).join(', ') }, `👥 ${state.players.length}`),
-    h('span', { class: 'pill', title: state.difficulty === 'easy' ? 'Easy' : 'Normal' }, state.difficulty === 'easy' ? '🙂' : '🧠'),
-    h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'sources', title: 'Sources & data honesty', onClick: () => { sourcesOpen = true; render(); } }, '📚 Sources'),
-    h('button', { class: 'btn btn-ghost btn-small', type: 'button', key: 'mute', 'aria-pressed': isMuted() ? 'true' : 'false', 'aria-label': isMuted() ? 'Sound off — turn on' : 'Sound on — mute', onClick: () => { setMuted(!isMuted()); render(); } }, isMuted() ? '🔇' : '🔊'),
+    state.mode === 'team' && h('span', { class: 'pill', title: state.players.map((p) => p.name).join(', ') }, [icon('team', 14), ` ${state.players.length}`]),
+    h('span', { class: 'pill pill-mode', title: state.difficulty === 'easy' ? 'Easy' : 'Normal', role: 'img', 'aria-label': state.difficulty === 'easy' ? 'Easy mode' : 'Normal mode' }, icon(state.difficulty === 'easy' ? 'feather' : 'sliders', 14)),
+    h('button', { class: 'top-link', type: 'button', key: 'sources', title: 'Sources & data honesty', onClick: () => { sourcesOpen = true; render(); } }, 'Sources'),
+    h('button', { class: 'top-link', type: 'button', key: 'mute', 'aria-pressed': isMuted() ? 'true' : 'false', 'aria-label': isMuted() ? 'Sound off — turn on' : 'Sound on — mute', title: isMuted() ? 'Sound off' : 'Sound on', onClick: () => { setMuted(!isMuted()); render(); } }, icon(isMuted() ? 'mute' : 'sound', 16)),
   );
 
   document.getElementById('sources-host')?.remove();

@@ -23,19 +23,19 @@ export const PLANET_MAX = { debris: 15, atmosphere: 15, ground: 10 };
 
 export const DISPOSAL_STRATEGIES = [
   {
-    id: 'disp_burn_up', icon: '🔥', plainName: 'Let it burn up', name: 'Uncontrolled reentry (natural decay / drag sail / turn broadside)',
+    id: 'disp_burn_up', icon: 'flame', plainName: 'Let it burn up', name: 'Uncontrolled reentry (natural decay / drag sail / turn broadside)',
     oneLiner: 'No junk left, but oxide in the air.',
     why: 'The air slowly drags a low satellite down and it burns up. No debris stays — but burning releases aluminium-oxide particles high in the atmosphere (D01, D02).',
     subOptions: 'eol', dataKind: 'fact', sources: ['D01', 'D02', 'D04', 'O55', 'S22'], ref: 'DISPOSAL.md',
   },
   {
-    id: 'disp_controlled_ocean', icon: '🌊', plainName: 'Controlled fall into the ocean', name: 'Controlled reentry over the South Pacific (Point Nemo)',
+    id: 'disp_controlled_ocean', icon: 'wave', plainName: 'Controlled fall into the ocean', name: 'Controlled reentry over the South Pacific (Point Nemo)',
     oneLiner: 'Safest for people; needs thrusters and fuel.',
     why: 'A deorbit burn aims the reentry at the uninhabited South Pacific near Point Nemo (D06). The parts that burn still release oxide; surviving parts sink. It needs more propellant and higher-thrust engines (D05).',
     dataKind: 'fact', sources: ['D04', 'D05', 'D06'], ref: 'DISPOSAL.md',
   },
   {
-    id: 'disp_leave_in_orbit', icon: '🛰️', plainName: 'Leave it in orbit', name: 'Stay in space (MEO/GEO: move to a disposal orbit)',
+    id: 'disp_leave_in_orbit', icon: 'satellite', plainName: 'Leave it in orbit', name: 'Stay in space (MEO/GEO: move to a disposal orbit)',
     oneLiner: 'Clean air, but one more piece of junk.',
     why: 'Nothing burns, nothing falls — but the satellite stays in space as one more object to track. In MEO it uses its own thrusters to move out of the working orbit.',
     dataKind: 'fact', sources: ['S22', 'O55'], ref: 'DISPOSAL.md',
@@ -44,7 +44,7 @@ export const DISPOSAL_STRATEGIES = [
 
 // Optional add-on (D07): a docking plate lets a future tug capture and remove the satellite.
 export const DOCKING_PLATE = {
-  id: 'addon_docking_plate', icon: '🧲', plainName: 'Docking plate', brand: 'Astroscale', name: 'Astroscale docking plate for future capture (ELSA-M)',
+  id: 'addon_docking_plate', icon: 'magnet', plainName: 'Docking plate', brand: 'Astroscale', name: 'Astroscale docking plate for future capture (ELSA-M)',
   oneLiner: 'A tug can remove it.', why: 'A plate a servicing spacecraft can grab and pull down (ELSA-M demo planned 2026).',
   mass: null, cost: null, dataKind: 'fact', sources: ['D07'], ref: 'DISPOSAL.md',
 };
@@ -54,7 +54,7 @@ export const DRAG_SAILS = [
   { id: 'adeo_small', name: 'ADEO small', massKg: 0.45, stowedCm: [9.8, 9.8, 3.6], satKg: [1, 20], maxUnits: 6, dataKind: 'fact', sources: ['D09'] },
   { id: 'adeo', name: 'ADEO', massKg: 0.8, stowedCm: [9.5, 9.5, 7.2], satKg: [5, 50], dataKind: 'fact', sources: ['D09'] },
 ];
-// Effect: manufacturer claim (📰 reported) — used only qualitatively, never turned into years.
+// Effect: manufacturer claim (reported) — used only qualitatively, never turned into years.
 export const SAIL_EFFECT = { text: 'Deorbits much faster: meets the 5-year rule.', claim: 'about 6 to 10 times quicker than without a sail (manufacturer claim)', dataKind: 'reported', sources: ['D10'] };
 export const SAIL_HERITAGE = 'ADEO-N2 (3.6 m² sail) deployed in Dec 2022 on ION-SCV003 — flight proven, TRL 9 (D09).';
 /** The ADEO size for a satellite of this mass (kg, without the sail), or null if none fits. */

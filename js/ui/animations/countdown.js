@@ -9,7 +9,7 @@ export function countdown(container, { launcher, caption = null, hold = false } 
   return play(container, {
     scene: 'countdown', label: 'Countdown and liftoff', duration: 5200, caption, hold,
     setup({ svg }) {
-      const bg = sky('#3b82c4', '#a7d3f2');
+      const bg = sky('#121212', '#262626');
       const st = stars(90, 11);
       st.setAttribute('opacity', 0);
       const world = s('g', {}, [
@@ -45,7 +45,7 @@ export function countdown(container, { launcher, caption = null, hold = false } 
           if (t > 0.3 && t < 0.75 && dt > 0) for (let i = 0; i < 2; i++) sm.spawn(W / 2 + (Math.random() - 0.5) * 20, 382, 1 + seg(t, 0.38, 0.6) * 2);
           sm.update(dt);
           const p = seg(t, 0.5, 1);
-          bg.set(mixColor('#3b82c4', '#02040a', p), mixColor('#a7d3f2', '#0a1020', p));
+          bg.set(mixColor('#121212', '#000000', p), mixColor('#262626', '#050505', p));
           st.setAttribute('opacity', ease.inOut(p));
         },
       };

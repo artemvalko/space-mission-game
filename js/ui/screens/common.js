@@ -1,7 +1,8 @@
 // Helpers shared by the design-step screens.
 
 import { h } from '../dom.js';
-import { term } from '../tooltip.js';
+import { icon } from '../icons.js';
+import { term, infoTerm } from '../tooltip.js';
 import { choiceCard, levels, previewDelta } from '../card.js';
 import { CATEGORY_PLAIN, NONE, getComponent, componentsByCategory, costFor } from '../../data/components.js';
 import { getScenario } from '../../data/scenarios.js';
@@ -13,10 +14,10 @@ import { rerender } from '../view.js';
 /** Sub-question heading inside a step ("Control radio", "Ground segment"…), with the real term + what it is for. */
 export function subQuestion(title, category, extra) {
   const info = category ? CATEGORY_PLAIN[category] : null;
-  // Title only; the real term + "what is it for" sit behind the ⓘ glossary popover and the tooltip.
+  // Title only; the real term + "what is it for" sit behind the info-icon glossary popover and the tooltip.
   return h('div', { class: 'subq' }, [
-    h('h2', { title: info ? `${info.realTerm}: ${info.whatFor}` : null }, [info ? h('span', { 'aria-hidden': 'true' }, `${info.icon} `) : null, title,
-      info ? [' ', term(info.glossary, 'ⓘ')] : null]),
+    h('h2', { title: info ? `${info.realTerm}: ${info.whatFor}` : null }, [info ? icon(info.icon, 18) : null, info ? ' ' : null, title,
+      info ? [' ', infoTerm(info.glossary)] : null]),
     extra,
   ]);
 }
@@ -68,7 +69,7 @@ export function compareToggle(key, items, sid, headers = ['Option', 'Mass', 'Pow
   const open = compareOpen.has(key);
   return h('div', { class: 'compare-box' }, [
     h('button', { class: ['btn', 'btn-small', open && 'btn-active'], type: 'button', key: `compare-${key}`, 'aria-pressed': open ? 'true' : 'false',
-      title: 'Show the options side by side', onClick: () => { if (open) compareOpen.delete(key); else compareOpen.add(key); rerender(); } }, '⚖️ Compare'),
+      title: 'Show the options side by side', onClick: () => { if (open) compareOpen.delete(key); else compareOpen.add(key); rerender(); } }, [icon('layers', 14), ' Compare']),
     open && h('table', { class: 'compare-real compare-table' }, [
       h('thead', {}, h('tr', {}, headers.map((t) => h('th', {}, t)))),
       h('tbody', {}, items.map((o) => h('tr', {}, compareRow(o, sid).map((v) => h('td', {}, v))))),
@@ -77,7 +78,7 @@ export function compareToggle(key, items, sid, headers = ['Option', 'Mass', 'Pow
 }
 
 /**
- * Standard cards for a bus category. `meterDefs`: [{ label, symbol, value(c), log? }] (max 3).
+ * Standard cards for a bus category. `meterDefs`: [{ label, icon, value(c), log? }] (max 3).
  * Shows up to `max` options up front (chosen + research part first); the rest fold under "+N more".
  * Impossible options stay visible but greyed with a one-line reason.
  * Categories with a "none" option (CATEGORY_PLAIN[cat].noneText) also get a "leave it out" card (folded).
@@ -99,14 +100,14 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
       realTerm: c.name,
       oneLiner: c.oneLiner,
       whatFor: c.why,
-      badges: own ? [c.status === 'recommended' ? 'Recommended' : 'Research build ★'] : [],
-      meters: meterDefs.map((m, k) => ({ label: m.label, symbol: m.symbol, level: meterLevels[k][i] })),
+      badges: own ? [c.status === 'recommended' ? 'Recommended' : 'Research build'] : [],
+      meters: meterDefs.map((m, k) => ({ label: m.label, icon: m.icon, level: meterLevels[k][i] })),
       details: partDetails(c, sid),
       data: c,
       selected,
       disabled: !!whyNot && !selected,
       warn: !!whyNot && selected,
-      disabledReason: `✗ ${whyNot}`,
+      disabledReason: `${whyNot}`,
       delta: selected || whyNot ? null : `If chosen: ${previewDelta(state, selectComponent(category, c.id), before)}`,
       why: `${whyNot ? `${whyNot} ` : ''}${whyComponent(c, sid)}`,
       onSelect: () => dispatch(selectComponent(category, c.id)),
@@ -126,9 +127,9 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
     const needed = scenario?.requiredBus.includes(category);
     (selected ? cards : extra).push(choiceCard({
       key: `comp-none-${category}`,
-      icon: '🚫',
+      icon: 'ban',
       title: info.noneText,
-      oneLiner: selected ? `${needed ? '⚠️ ' : ''}${cap(info.noneWhy)}` : null,
+      oneLiner: selected ? cap(info.noneWhy) : null,
       badges: needed ? [] : ['Fine for this mission'],
       selected,
       warn: selected && needed,
@@ -140,7 +141,7 @@ export function componentCards(state, dispatch, category, meterDefs, before, { m
   }
   return h('div', {}, [
     h('div', { class: 'choices' }, cards),
-    extra.length > 0 && h('details', { class: 'fold' }, [h('summary', { title: `${extra.length} more real options (and leaving it out)` }, `＋${extra.length}`), h('div', { class: 'choices' }, extra)]),
+    extra.length > 0 && h('details', { class: 'fold' }, [h('summary', { title: `${extra.length} more real options (and leaving it out)` }, `+${extra.length}`), h('div', { class: 'choices' }, extra)]),
     compare && compareToggle(`cat-${category}`, options, sid),
   ]);
 }

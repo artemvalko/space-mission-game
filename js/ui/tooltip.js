@@ -2,6 +2,7 @@
 // Popover visibility is view-only state, so it is not kept in the game store.
 
 import { h } from './dom.js';
+import { icon } from './icons.js';
 import { getTerm } from '../data/glossary.js';
 
 let popover = null;
@@ -55,8 +56,11 @@ export function term(termId, label) {
   const t = getTerm(termId);
   if (!t) return label ?? termId;
   const el = h('button', {
-    class: 'term', type: 'button',
+    class: ['term', label instanceof Node && 'term-icon'], type: 'button', 'aria-label': label instanceof Node ? `What is ${t.term}?` : null, title: label instanceof Node ? t.term : null,
     onClick: (e) => { e.stopPropagation(); showPopover(el, t.term, t.text); },
   }, label ?? t.term);
   return el;
 }
+
+/** Small info-icon glossary button (info icon). */
+export const infoTerm = (termId) => term(termId, icon('info', 14));

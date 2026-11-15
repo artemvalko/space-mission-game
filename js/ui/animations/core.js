@@ -1,11 +1,12 @@
 // Animation core: every scene is `(container, params) → Promise` built on play().
 // - SVG + CSS + requestAnimationFrame only.
-// - Every scene has a "Skip ▶▶" button that jumps to the final frame.
+// - Every scene has a "Skip" button that jumps to the final frame.
 // - prefers-reduced-motion: show the final frame + caption immediately.
 // - A scene ends with ONE caption (what happened and why). `hold` adds buttons and waits for a
 //   click (resolves with the button's value); `linger` keeps the caption up for N ms.
 
 import { h, s } from '../dom.js';
+import { icon } from '../icons.js';
 import { mulberry32 } from '../../utils/random.js';
 
 export const W = 800;
@@ -64,7 +65,7 @@ export function makeStage(container, { label = 'Animation', scene = '', overlay 
   const html = h('div', { class: 'anim-html' });
   const caption = h('div', { class: 'anim-caption', 'aria-live': 'polite' });
   const actions = h('div', { class: 'anim-actions' });
-  const skip = h('button', { class: 'anim-skip', type: 'button', 'data-anim-skip': '' }, 'Skip ▶▶');
+  const skip = h('button', { class: 'anim-skip', type: 'button', 'data-anim-skip': '' }, ['Skip ', icon('skip', 12)]);
   const root = h('div', { class: ['anim-stage', overlay && 'anim-overlay-stage'], 'data-scene': scene }, [svg, html, caption, actions, skip]);
   container.replaceChildren(root);
   return { root, svg, html, caption, actions, skip };
@@ -101,7 +102,7 @@ export function play(container, o) {
       stage.skip.remove();
       const text = typeof o.caption === 'function' ? o.caption() : o.caption;
       if (text) { stage.caption.textContent = text; stage.caption.classList.add('show'); }
-      const buttons = o.hold === true ? [{ label: 'Continue ▶', value: 'continue', primary: true }] : o.hold;
+      const buttons = o.hold === true ? [{ label: 'Continue', value: 'continue', primary: true }] : o.hold;
       if (buttons?.length) {
         buttons.forEach((b, i) => {
           const btn = h('button', {

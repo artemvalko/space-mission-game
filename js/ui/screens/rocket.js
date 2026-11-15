@@ -3,7 +3,8 @@
 // balance scale (mass vs what can be carried to THAT orbit).
 
 import { mount, h, s } from '../dom.js';
-import { term } from '../tooltip.js';
+import { icon } from '../icons.js';
+import { term, infoTerm } from '../tooltip.js';
 import { choiceCard, previewDelta, sourceLinks } from '../card.js';
 import { LAUNCHERS, DEPLOYERS, ROCKET_PARTS, ROCKET_FAMILY, COST_TYPE, getLauncher, launchPrice } from '../../data/launchers.js';
 import { getOrbit } from '../../data/orbits.js';
@@ -68,11 +69,11 @@ function insidePanel(l) {
   if (!l) return null;
   const fam = ROCKET_FAMILY[l.family];
   return h('details', { class: 'panel', key: 'inside-rocket' }, [
-    h('summary', {}, h('strong', {}, `🔧 Inside ${fam.name}`)),
+    h('summary', {}, h('strong', {}, `Inside ${fam.name}`)),
     h('p', { class: 'small muted' }, [fam.facts, ' ', sourceLinks(fam.sources)]),
     fam.noParts ? null : h('table', { class: 'rocket-parts' }, [
       h('thead', {}, h('tr', {}, [h('th', {}, 'Part'), h('th', {}, fam.name)])),
-      h('tbody', {}, ROCKET_PARTS.map((p) => h('tr', {}, [h('td', {}, `${p.icon} ${p.plainName}`), h('td', {}, p[l.family])]))),
+      h('tbody', {}, ROCKET_PARTS.map((p) => h('tr', {}, [h('td', {}, [icon(p.icon, 14), ` ${p.plainName}`]), h('td', {}, p[l.family])]))),
     ]),
     h('p', { class: 'small muted' }, 'These parts come with the certified rocket — you cannot buy one engine or mix parts between rockets, and they have no public per-part prices. The budget uses the launch contract price. The rocket\'s own fuel is never added to your satellite\'s mass.'),
   ]);
@@ -97,11 +98,11 @@ export function render(container, state, dispatch) {
         title: l.plainName,
         realTerm: l.name,
         art: rocketArt(l, { wobble: selected && (tooSmall || cannotReach) }),
-        oneLiner: cannotReach ? (l.deliversTo ? '✗ Stops at GTO.' : "✗ Can't reach your orbit.")
-          : tooSmall ? `✗ Only ${kg(capacity)} there.` : l.oneLiner,
+        oneLiner: cannotReach ? (l.deliversTo ? 'Stops at GTO.' : "Can't reach your orbit.")
+          : tooSmall ? `Only ${kg(capacity)} there.` : l.oneLiner,
         whatFor: `${l.description} ${l.headline}`,
         warn: cannotReach || tooSmall,
-        badges: [`${ct.icon} ${ct.label}`, ...(cannotReach ? ["Can't reach"] : tooSmall ? ['Too small'] : overkill ? ['Overkill'] : [])],
+        badges: [ct.label, ...(cannotReach ? ["Can't reach"] : tooSmall ? ['Too small'] : overkill ? ['Overkill'] : [])],
         details: [['Price', priceText(l, mass)], ...(l.pairNote ? [['Pairs', l.pairNote]] : []), ...Object.entries(l.capacityKg).map(([oid, c]) => [`To ${getOrbit(oid)?.plainName ?? oid}`, c == null ? 'reaches; no single published number' : `${kg(c)} (headline)`]),
           ...(l.gtoCapacityKg ? [['To GTO', `${kg(l.gtoCapacityKg)} (headline)`]] : [])],
         data: l,
@@ -118,18 +119,18 @@ export function render(container, state, dispatch) {
 
   mount(container,
     h('div', { class: 'weigh-in' }, [
-      h('span', { class: 'weigh-icon', 'aria-hidden': 'true' }, '⚖️'),
+      h('span', { class: 'weigh-icon', 'aria-hidden': 'true' }, icon('weight', 22)),
       h('div', {}, [
         h('div', { class: 'weigh-big', title: `${kg(mass)}: ${before.mass.reserveFraction ? 'parts + 15% design reserve.' : 'launch mass incl. the satellite\'s own propellant.'} The mass must fit at THAT orbit.` }, `→ ${orbit ? orbit.plainName.split(' (')[0] : '?'}`),
       ]),
     ]),
     scaleBox(state, before),
     h('div', { class: 'choices' }, frontL.map(launcherCard)),
-    moreL.length > 0 && h('details', { class: 'fold' }, [h('summary', {}, `✗ Can't reach your orbit (${moreL.length})`), h('div', { class: 'choices' }, moreL.map(launcherCard))]),
+    moreL.length > 0 && h('details', { class: 'fold' }, [h('summary', {}, `Can't reach your orbit (${moreL.length})`), h('div', { class: 'choices' }, moreL.map(launcherCard))]),
     pairsToggle(state, dispatch),
     compareToggle('rocket', frontL, scenario?.id, ['Rocket', 'Mass', 'To your orbit', 'Price', 'Trade-off']),
     insidePanel(getLauncher(state.design.launcherId)),
-    h('div', { class: 'subq' }, h('h2', { title: 'Holds the satellite during launch and releases it in orbit.' }, ['🔩 Adapter ', term('deployer', 'ⓘ')])),
+    h('div', { class: 'subq' }, h('h2', { title: 'Holds the satellite during launch and releases it in orbit.' }, [icon('wrench', 18), ' Adapter ', infoTerm('deployer')])),
     h('div', { class: 'choices' }, DEPLOYERS.map((d) => {
       const selected = state.design.deployerId === d.id;
       const wrongSize = structure && d.formFactor !== structure.formFactor;
@@ -143,7 +144,7 @@ export function render(container, state, dispatch) {
         oneLiner: d.oneLiner,
         whatFor: d.description,
         disabled: (wrongSize || wrongRocket) && !selected,
-        disabledReason: wrongSize ? '✗ Wrong size for your frame.' : '✗ Not used by this rocket.',
+        disabledReason: wrongSize ? 'Wrong size for your frame.' : 'Not used by this rocket.',
         warn: wrongSize || wrongRocket,
         details: [['Model cost', d.cost ? money(d.cost) : d.costNote], ...(d.formFactor === 'cubesat' && structure?.maxMassKg ? [['Mass limit for your frame', kg(structure.maxMassKg)]] : [])],
         data: d,
@@ -162,7 +163,7 @@ function pairsToggle(state, dispatch) {
   if (!l?.pairs || getComponent(state.design.components.structure)?.id !== 'str_gnss_meo') return null;
   const n = state.design.satsPerLaunch === 2 ? 2 : 1;
   return h('div', { class: 'variant-row', title: l.pairNote }, [
-    h('span', { class: 'muted' }, '🛰 Per launch: '),
+    h('span', { class: 'muted' }, 'Per launch: '),
     ...[1, 2].map((k) => h('button', { class: ['mini', n === k && 'active'], type: 'button', key: `pairs-${k}`, 'aria-pressed': n === k ? 'true' : 'false', onClick: () => dispatch(setSatsPerLaunch(k)) }, `${k} sat${k > 1 ? 's' : ''}`)),
   ]);
 }

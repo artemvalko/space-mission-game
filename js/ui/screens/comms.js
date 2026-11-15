@@ -2,7 +2,8 @@
 // "Controlling the satellite" and "doing the mission" are different radios (research §7.1).
 
 import { mount, h } from '../dom.js';
-import { term } from '../tooltip.js';
+import { icon } from '../icons.js';
+import { term, infoTerm } from '../tooltip.js';
 import { choiceCard, previewDelta } from '../card.js';
 import { GROUND_STATIONS, GROUND_WHY_NOT, groundServes } from '../../data/groundStations.js';
 import { getScenario } from '../../data/scenarios.js';
@@ -34,9 +35,9 @@ export function render(container, state, dispatch) {
         oneLiner: g.oneLiner,
         whatFor: g.description,
         disabled: wrong && !selected,
-        disabledReason: '✗ Not built for this mission.',
+        disabledReason: 'Not built for this mission.',
         warn: wrong,
-        badges: g.missions.includes(scenario?.id) ? ['Research build ★'] : [],
+        badges: g.missions.includes(scenario?.id) ? ['Research build'] : [],
         details: [['Model cost', money(g.cost)], ...(g.contactHoursPerDay ? [['Contact (example)', `${g.contactHoursPerDay} h/day`]] : [])],
         data: g,
         selected,
@@ -47,27 +48,27 @@ export function render(container, state, dispatch) {
   };
   mount(container,
     h('p', { class: 'step-hint', title: scenario?.data.kind === 'nav' ? 'For navigation, the L-band payload (Payload step) broadcasts the signal.' : 'The control radio commands the satellite; the mission radio sends its data down.' },
-      ['📻 ', term('ttc', 'Control'), ' ≠ 📶 mission radio.']),
+      [term('ttc', 'Control'), ' ≠ mission radio.']),
     !fixedRadios && subQuestion('Control radio', 'comms'),
     !fixedRadios && componentCards(state, dispatch, 'comms', [
-      { label: 'Mass', symbol: '●', value: (c) => c.mass },
-      { label: 'Cost', symbol: '$', value: (c) => c.cost },
+      { label: 'Mass', icon: 'weight', value: (c) => c.mass },
+      { label: 'Cost', icon: 'money', value: (c) => c.cost },
     ], before, { max: 2, compare: false }),
     needsDownlink && !fixedRadios && subQuestion('Mission downlink', 'downlink'),
     needsDownlink && !fixedRadios && componentCards(state, dispatch, 'downlink', [
-      { label: 'Speed', symbol: '📶', value: (c) => c.rateMbps },
-      { label: 'Mass', symbol: '●', value: (c) => c.mass },
+      { label: 'Speed', icon: 'signal', value: (c) => c.rateMbps },
+      { label: 'Mass', icon: 'weight', value: (c) => c.mass },
     ], before, { max: 2, compare: false }),
-    fixedRadios && h('p', { class: 'muted small' }, scenario?.size === 'large' ? '📻 Radios are part of the navigation platform.' : '📻 Radios are part of the real satellite.'),
+    fixedRadios && h('p', { class: 'muted small' }, scenario?.size === 'large' ? 'Radios are part of the navigation platform.' : 'Radios are part of the real satellite.'),
     state.design.groundId && (() => {
       const box = h('div', { class: 'map-box' });
       groundTrack(box, { orbitId: state.design.orbitId ?? scenario?.recommendedOrbits[0] ?? 'leo_550', groundId: state.design.groundId, mode: 'stations' });
-      return h('details', { class: 'panel map-panel fold' }, [h('summary', {}, '🗺️ Map'), box]);
+      return h('details', { class: 'panel map-panel fold' }, [h('summary', {}, [icon('map', 16), ' Map']), box]);
     })(),
-    h('div', { class: 'subq' }, h('h2', { title: 'Receives, checks and controls — on Earth.' }, ['🌍 Ground segment ', term('groundSegment', 'ⓘ')])),
+    h('div', { class: 'subq' }, h('h2', { title: 'Receives, checks and controls — on Earth.' }, [icon('dish', 18), ' Ground segment ', infoTerm('groundSegment')])),
     h('div', { class: 'choices' }, GROUND_STATIONS.filter((g) => groundServes(g, scenario?.groundServes) || g.id === state.design.groundId).map(groundCard)),
     GROUND_STATIONS.some((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId) && h('details', { class: 'fold' }, [
-      h('summary', {}, `✗ Other missions (${GROUND_STATIONS.filter((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId).length})`),
+      h('summary', {}, `Other missions (${GROUND_STATIONS.filter((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId).length})`),
       h('div', { class: 'choices' }, GROUND_STATIONS.filter((g) => !groundServes(g, scenario?.groundServes) && g.id !== state.design.groundId).map(groundCard))]),
     compareToggle('comms', [...(fixedRadios ? [] : [...optionsFor(state, 'comms'), ...(needsDownlink ? optionsFor(state, 'downlink') : [])]), ...GROUND_STATIONS.filter((g) => groundServes(g, scenario?.groundServes))], scenario?.id),
   );

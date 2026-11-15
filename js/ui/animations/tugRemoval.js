@@ -15,7 +15,7 @@ export function tugRemoval(container, { caption, hold = false, linger = 1800 } =
       svg.append(s('path', { d: `M 0 ${H} Q ${W / 2} ${H - 70} ${W} ${H} Z`, class: 'an-earth-limb' }));
       const sat = miniSat(1.5);
       const tug = s('g', {}, [s('rect', { x: -14, y: -9, width: 28, height: 18, rx: 4, class: 'an-tug' }), s('rect', { x: 14, y: -3, width: 8, height: 6, class: 'an-minisat-panel' })]);
-      const click = s('text', { class: 'an-big-label', 'text-anchor': 'middle', opacity: 0 }, '🧲 click');
+      const click = s('text', { class: 'an-big-label', 'text-anchor': 'middle', opacity: 0 }, 'click');
       svg.append(sat, tug, click);
       let clicked = false;
       return {

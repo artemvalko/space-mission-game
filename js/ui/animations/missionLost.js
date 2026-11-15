@@ -1,12 +1,13 @@
 // Scene 16 — Mission lost: the satellite greys out and drifts away; main cause + "Try this next time" tip.
 
 import { s, h } from '../dom.js';
+import { svgIcon } from '../icons.js';
 import { renderSatellite } from '../satellite.js';
 import { sound } from '../sound.js';
 import { play, W, H, seg, ease, stars, setT, miniSat } from './core.js';
 
 export function missionLost(container, { state, cause = 'hardware', caption, tip, hold = true } = {}) {
-  const ICON = { power: '🔋', comms: '📡', hardware: '🔧', thermal: '🌡️', payload: '🎯' };
+  const ICON = { power: 'battery', comms: 'antenna', hardware: 'wrench', thermal: 'thermometer', payload: 'target' };
   return play(container, {
     scene: 'mission-lost', label: 'Mission lost', duration: 4200, caption, hold,
     setup({ svg, html }) {
@@ -14,7 +15,7 @@ export function missionLost(container, { state, cause = 'hardware', caption, tip
       const sat = state ? renderSatellite(state, { glow: false }) : miniSat(3);
       if (state) { sat.setAttribute('x', -120); sat.setAttribute('y', -90); sat.setAttribute('width', 240); sat.setAttribute('height', 180); }
       const g = s('g', {}, sat);
-      const icon = s('text', { x: W / 2, y: 80, class: 'an-cause', 'text-anchor': 'middle', opacity: 0 }, ICON[cause] ?? '⚠️');
+      const icon = svgIcon(ICON[cause] ?? 'warning', W / 2 - 24, 32, 48, { class: 'an-cause', opacity: 0 });
       svg.append(g, icon);
       if (tip) html.append(h('div', { class: 'anim-tip' }, [h('strong', {}, 'Try this next time: '), tip]));
       const tipEl = html.querySelector('.anim-tip');

@@ -2,6 +2,7 @@
 // Flight Director report, team votes and the big LAUNCH button.
 
 import { mount, h } from '../dom.js';
+import { icon, initials } from '../icons.js';
 import { renderSatellite } from '../satellite.js';
 import { ROLES, NO_GO_REASONS, getNoGoReason } from '../../data/roles.js';
 import { evaluateRoleGoals, voteStatus } from '../../engine/roleGoals.js';
@@ -15,7 +16,7 @@ import { castVote, runSimulation, goToScreen } from '../../state/actions.js';
 import { newSeed } from '../../utils/random.js';
 import { getStep } from '../steps.js';
 
-const SEV = { error: { icon: '⛔', cls: 'bad' }, warning: { icon: '⚠️', cls: 'bad' }, caution: { icon: '◐', cls: 'tight' }, todo: { icon: '○', cls: 'todo' } };
+const SEV = { error: { icon: 'ban', cls: 'bad' }, warning: { icon: 'warning', cls: 'bad' }, caution: { icon: 'info', cls: 'tight' }, todo: { icon: 'dot', cls: 'todo' } };
 
 /** One gate issue: short message + fix button; requirement / fix / alternative behind "Why?". */
 function gateIssue(i, dispatch) {
@@ -35,12 +36,12 @@ function gatesPanel(issues, dispatch) {
   const gates = gateStatus(issues);
   const passed = gates.filter((g) => g.status === 'pass');
   const row = (g) => h('li', { class: g.status }, [
-    h('strong', {}, `${g.status === 'pass' ? '✓' : g.status === 'fail' ? '⛔' : '○'} ${g.label}`),
+    h('strong', {}, [h('span', { class: `status-dot dot-${g.status}`, 'aria-hidden': 'true' }), g.label]),
     ...g.issues.map((i) => gateIssue(i, dispatch)),
   ]);
   return h('div', {}, [
     h('ul', { class: 'gate-list' }, gates.filter((g) => g.status !== 'pass').map(row)),
-    h('details', { class: 'fold' }, [h('summary', {}, `✓ ${passed.length} of ${gates.length} checks passed (show all)`), h('ul', { class: 'gate-list' }, gates.map(row))]),
+    h('details', { class: 'fold' }, [h('summary', {}, `${passed.length} of ${gates.length} checks passed (show all)`), h('ul', { class: 'gate-list' }, gates.map(row))]),
   ]);
 }
 
@@ -48,22 +49,22 @@ function report(issues, dispatch) {
   const shown = issues.filter((i) => ['warning', 'caution'].includes(i.severity) || (i.severity === 'error' && !i.gate));
   if (!shown.length) return null;
   return h('ul', { class: 'report' }, shown.map((i) => h('li', { class: `report-${SEV[i.severity].cls}` }, [
-    h('span', { class: 'report-icon', 'aria-hidden': 'true' }, SEV[i.severity].icon),
+    h('span', { class: 'report-icon', 'aria-hidden': 'true' }, icon(SEV[i.severity].icon, 16)),
     h('span', { class: 'report-text' }, i.message),
     i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `Fix: ${getStep(i.step).label} →`),
   ])));
 }
 
-/** One compact "🌍 Planet impact" row: the 3 retirement meters (DISPOSAL.md). */
+/** One compact "Planet impact" row: the 3 retirement meters (DISPOSAL.md). */
 function planetRow(p, dispatch) {
   const lv = (v, max) => Math.max(1, Math.min(3, Math.ceil((v / max) * 3)));
-  if (!p.strategyId) return h('div', { class: 'panel planet-row' }, ['🌍 Planet impact: ', h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen('launchPrep')) }, 'Prep →')]);
+  if (!p.strategyId) return h('div', { class: 'panel planet-row' }, [icon('globe', 16), ' Planet impact: ', h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen('launchPrep')) }, 'Prep →')]);
   const m = p.meters ?? { debris: 0, atmosphere: 0, ground: 0 };
   return h('div', { class: 'panel planet-row', title: p.explanation }, [
-    h('strong', {}, `🌍 ${p.score}/40`),
-    meter({ label: `Debris ${m.debris}/15`, symbol: '🛰', level: lv(m.debris, 15) }),
-    meter({ label: `Atmosphere ${m.atmosphere}/15${p.atmosphereKg ? ` · ≈ ${p.atmosphereKg.toFixed(1)} kg Al₂O₃ (${p.emissionBadge})` : ''}`, symbol: '☁️', level: lv(m.atmosphere, 15) }),
-    meter({ label: `Ground risk ${m.ground}/10`, symbol: '🧍', level: lv(m.ground, 10) }),
+    h('strong', { class: 'num' }, [icon('globe', 16), ` ${p.score}/40`]),
+    meter({ label: `Debris ${m.debris}/15`, icon: 'satellite', level: lv(m.debris, 15) }),
+    meter({ label: `Atmosphere ${m.atmosphere}/15${p.atmosphereKg ? ` · ≈ ${p.atmosphereKg.toFixed(1)} kg Al₂O₃ (${p.emissionBadge})` : ''}`, icon: 'cloud', level: lv(m.atmosphere, 15) }),
+    meter({ label: `Ground risk ${m.ground}/10`, icon: 'user', level: lv(m.ground, 10) }),
   ]);
 }
 
@@ -72,7 +73,7 @@ export function costTable(res, scenario) {
   const b = res.budget;
   const ratio = Math.min(1, b.used / scenario.budgetM);
   return h('details', { class: 'fold' }, [
-    h('summary', {}, [`💰 ${money(b.used)} of ${money(scenario.budgetM)}`, h('div', { class: ['budget-bar', b.used > scenario.budgetM && 'over'] }, h('div', { style: { width: `${ratio * 100}%` } }))]),
+    h('summary', {}, [icon('money', 16), h('span', { class: 'num' }, ` ${money(b.used)} of ${money(scenario.budgetM)}`), h('div', { class: ['budget-bar', b.used > scenario.budgetM && 'over'] }, h('div', { style: { width: `${ratio * 100}%` } }))]),
     h('table', { class: 'cost-table' }, [
     h('thead', {}, h('tr', {}, [h('th', {}, 'Budget line'), h('th', {}, ''), h('th', { class: 'num' }, '$M')])),
     h('tbody', {}, [
@@ -92,9 +93,9 @@ function roleGoals(state) {
   const goals = evaluateRoleGoals(state);
   const owner = (roleId) => state.players.filter((p) => p.roleId === roleId).map((p) => p.name).join(' & ');
   return h('details', { class: 'panel fold' }, [
-    h('summary', {}, `${state.mode === 'team' ? '🎯 Personal goals' : '🎩 Role goals'} ${goals.filter((g) => g.met).length}/${goals.length} ✓`),
+    h('summary', {}, `${state.mode === 'team' ? 'Personal goals' : 'Role goals'} ${goals.filter((g) => g.met).length}/${goals.length}`),
     h('ul', { class: 'checklist' }, goals.map((g) => h('li', { class: g.met ? 'ok' : 'bad' }, [
-      h('strong', {}, `${g.met ? '✓' : '✗'} ${g.icon} ${g.name}${state.mode === 'team' && owner(g.roleId) ? ` — ${owner(g.roleId)}` : ''}`),
+      h('strong', {}, [icon(g.met ? 'check' : 'cross', 14), ' ', icon(g.icon, 14), ` ${g.name}${state.mode === 'team' && owner(g.roleId) ? ` — ${owner(g.roleId)}` : ''}`]),
       h('div', { class: 'small' }, g.text),
       h('div', { class: 'muted small' }, g.reason),
     ]))),
@@ -106,14 +107,14 @@ function votes(state, dispatch) {
   const roles = ROLES.filter((r) => state.players.some((p) => p.roleId === r.id));
   const vs = voteStatus(state);
   return h('div', { class: 'panel' }, [
-    h('h2', {}, '🗳️ Team vote: Go or No-Go?'),
+    h('h2', {}, 'Team vote: Go or No-Go?'),
     h('p', { class: 'muted small' }, `Launch needs a majority: ${vs.needed} of ${vs.voters} Go. Now: ${vs.go} Go, ${vs.nogo} No-Go.${vs.unanimous ? ' Unanimous — teamwork bonus!' : ''}`),
     h('div', { class: 'votes' }, roles.map((r) => {
       const v = state.votes[r.id];
       const names = state.players.filter((p) => p.roleId === r.id).map((p) => p.name).join(' & ');
       const reason = getNoGoReason(state.voteReasons[r.id]);
       return h('div', { class: ['vote', v && `vote-${v}`] }, [
-        h('div', { class: 'vote-who' }, `${r.icon} ${names}`),
+        h('div', { class: 'vote-who' }, [h('span', { class: 'monogram monogram-sm', 'aria-hidden': 'true' }, initials(names)), ` ${names}`]),
         h('div', { class: 'vote-role muted small' }, r.name),
         h('div', { class: 'button-row' }, [
           h('button', { class: ['btn', 'btn-small', v === 'go' && 'btn-go'], type: 'button', key: `vote-go-${r.id}`, onClick: () => { pickingReasonFor = null; dispatch(castVote(r.id, 'go')); } }, 'Go'),
@@ -147,11 +148,11 @@ export function render(container, state, dispatch) {
           if (exploded) requestAnimationFrame(() => requestAnimationFrame(() => svg.classList.add('go')));
           return svg;
         })(),
-        h('button', { class: 'btn btn-small', type: 'button', key: 'explode', 'aria-pressed': exploded ? 'true' : 'false', onClick: () => { exploded = !exploded; rerender(); } }, exploded ? '🧩 Put it back together' : '💥 Exploded view'),
+        h('button', { class: 'btn btn-small', type: 'button', key: 'explode', 'aria-pressed': exploded ? 'true' : 'false', onClick: () => { exploded = !exploded; rerender(); } }, [icon(exploded ? 'cube' : 'expand', 14), exploded ? ' Put it back together' : ' Exploded view']),
 
       ]),
       h('div', { class: 'panel' }, [
-        h('h2', { title: 'Flight Readiness Review: hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.' }, go ? '✅ GO' : '⛔ NO-GO'),
+        h('h2', { title: 'Flight Readiness Review: hard gates are checked before any score. A failed gate is NO-GO — physics does not negotiate.' }, h('span', { class: ['go-word', go ? 'is-go' : 'is-nogo'] }, [h('span', { class: 'status-dot', 'aria-hidden': 'true' }), go ? 'GO' : 'NO-GO'])),
         gatesPanel(issues, dispatch),
         report(issues, dispatch),
       ]),
@@ -164,12 +165,12 @@ export function render(container, state, dispatch) {
       h('button', {
         class: 'btn btn-launch', type: 'button', disabled: !ready, key: 'launch',
         onClick: () => dispatch(runSimulation(newSeed())),
-      }, go ? '🚀 LAUNCH' : '⛔ NO-GO'),
+      }, go ? 'Launch' : 'NO-GO'),
       !ready && h('p', { class: 'muted' }, todos.length
         ? `First: ${[...new Set(todos.map((t) => getStep(t.step).label))].join(', ')}.`
-        : !go ? 'Fix the ⛔ gates first.' : `Need a majority Go: ${vs.go} of ${vs.needed}.`),
-      canSimulate && h('button', { class: 'btn btn-ghost', type: 'button', key: 'simulate-anyway', title: 'Plays out the first failed gate as an animation and records a failed mission — real missions never fly a NO-GO.', onClick: () => dispatch(runSimulation(newSeed(), true)) }, '🧪 What would happen?'),
-      ready && issues.some((i) => i.severity === 'warning') && h('p', { class: 'muted' }, '⚠️ Launchable, but an objective will fail.'),
+        : !go ? 'Fix the failed gates first.' : `Need a majority Go: ${vs.go} of ${vs.needed}.`),
+      canSimulate && h('button', { class: 'btn btn-ghost', type: 'button', key: 'simulate-anyway', title: 'Plays out the first failed gate as an animation and records a failed mission — real missions never fly a NO-GO.', onClick: () => dispatch(runSimulation(newSeed(), true)) }, 'What would happen?'),
+      ready && issues.some((i) => i.severity === 'warning') && h('p', { class: 'muted' }, 'Launchable, but an objective will fail.'),
     ]),
   );
 }

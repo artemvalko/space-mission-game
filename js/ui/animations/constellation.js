@@ -14,7 +14,7 @@ export function constellationFix(container, { caption, hold = false, linger = 0 
       svg.append(s('rect', { x: 0, y: 0, width: W, height: H, class: 'an-space' }), stars(80, 23));
       const earth = s('circle', { cx: W / 2, cy: H + 260, r: 420, class: 'an-earth' });
       const rx = W / 2; const ry = H - 150; // receiver on the ground
-      const receiver = s('g', {}, [s('circle', { cx: rx, cy: ry, r: 9, class: 'wm-sat' }), s('text', { x: rx, y: ry + 30, class: 'an-small-label', 'text-anchor': 'middle' }, '📱 receiver')]);
+      const receiver = s('g', {}, [s('circle', { cx: rx, cy: ry, r: 9, class: 'wm-sat' }), s('text', { x: rx, y: ry + 30, class: 'an-small-label', 'text-anchor': 'middle' }, 'receiver')]);
       const pos = [[W / 2 - 40, 70], [150, 120], [W - 150, 110], [W / 2 + 230, 40]];
       const sats = pos.map(([x, y]) => { const g = miniSat(1.4); setT(g, x, y); g.setAttribute('opacity', 0); return g; });
       const rings = pos.map(([x, y]) => s('circle', { cx: x, cy: y, r: Math.hypot(rx - x, ry - y), class: 'an-orbit', opacity: 0 }));
@@ -33,7 +33,7 @@ export function constellationFix(container, { caption, hold = false, linger = 0 
             rings[i].setAttribute('opacity', k * 0.8);
           }
           const phase1 = t < 0.45;
-          label.textContent = phase1 ? '1 satellite → ? no position' : t < 0.8 ? 'more satellites in view…' : '4 satellites → ✓ 3D fix';
+          label.textContent = phase1 ? '1 satellite → ? no position' : t < 0.8 ? 'more satellites in view…' : '4 satellites → 3D fix';
           label.setAttribute('opacity', 1);
           label.setAttribute('class', `an-big-label${phase1 ? ' an-warn' : ''}`);
           const f = ease.out(seg(t, 0.8, 1));

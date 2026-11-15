@@ -3,11 +3,11 @@
 import { pct } from '../utils/format.js';
 
 export const BADGES = [
-  { id: 'penny', icon: '🪙', name: 'Penny Pincher', text: 'Keep at least the research\'s planned project reserve.' },
-  { id: 'zero_data', icon: '📡', name: 'Every Bit Home', text: 'Meet every mission KPI.' },
-  { id: 'survivor', icon: '🛡️', name: 'Survivor', text: 'Handle 3 or more simulated events and finish the mission.' },
-  { id: 'featherweight', icon: '🪶', name: 'Featherweight', text: 'Keep a mass margin of 25% or more (CubeSat builds).' },
-  { id: 'perfect_team', icon: '🤝', name: 'Perfect Team', text: 'Every team member meets their personal goal.' },
+  { id: 'penny', icon: 'coin', name: 'Penny Pincher', text: 'Keep at least the research\'s planned project reserve.' },
+  { id: 'zero_data', icon: 'antenna', name: 'Every Bit Home', text: 'Meet every mission KPI.' },
+  { id: 'survivor', icon: 'shield', name: 'Survivor', text: 'Handle 3 or more simulated events and finish the mission.' },
+  { id: 'featherweight', icon: 'feather', name: 'Featherweight', text: 'Keep a mass margin of 25% or more (CubeSat builds).' },
+  { id: 'perfect_team', icon: 'team', name: 'Perfect Team', text: 'Every team member meets their personal goal.' },
 ];
 
 export function earnedBadges(state, score, sim) {

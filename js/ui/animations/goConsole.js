@@ -2,6 +2,7 @@
 // one by one with a beep; all green → "GO FOR LAUNCH".
 
 import { s } from '../dom.js';
+import { svgIcon } from '../icons.js';
 import { play, W, H, seg, ease } from './core.js';
 import { sound } from '../sound.js';
 
@@ -21,7 +22,7 @@ export function goConsole(container, { roles = [], caption, hold = false, linger
         const glow = s('circle', { cx: x, cy: 200, r: 54, class: 'gc-glow', opacity: 0 });
         const word = s('text', { x, y: 212, class: 'gc-word', 'text-anchor': 'middle', opacity: 0 }, r.vote === 'go' ? 'GO' : 'NO');
         svg.append(glow, lamp, word,
-          s('text', { x, y: 280, class: 'gc-role', 'text-anchor': 'middle' }, [s('title', {}, r.name), r.icon]),
+          s('g', { class: 'gc-role-icon' }, [s('title', {}, r.name), svgIcon(r.icon, x - 12, 262, 24)]),
           s('text', { x, y: 304, class: 'gc-who', 'text-anchor': 'middle' }, r.who ?? ''),
           r.reason ? s('text', { x, y: 328, class: 'gc-reason', 'text-anchor': 'middle' }, `“${r.reason}”`) : s('g'));
         return { lamp, glow, word, vote: r.vote, lit: false };

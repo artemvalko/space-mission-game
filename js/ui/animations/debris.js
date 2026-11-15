@@ -12,7 +12,7 @@ export function debris(container, { x = 500, y = 160, phase = 'intro', choiceInd
     scene: intro ? 'debris' : 'debris-outcome', overlay: true, label: 'Space debris', duration: intro ? 2400 : 2000, caption, linger: intro ? 0 : linger,
     setup({ svg }) {
       const rock = s('polygon', { points: '-9,-4 -3,-10 7,-7 10,2 3,9 -7,6', class: 'an-debris' });
-      const warn = s('text', { class: 'an-warn-label', 'text-anchor': 'middle' }, '⚠ DEBRIS');
+      const warn = s('text', { class: 'an-warn-label', 'text-anchor': 'middle' }, 'DEBRIS');
       const ghost = s('rect', { x: -7, y: -7, width: 14, height: 14, class: 'an-ghost-sat', opacity: 0 });
       const puffs = s('g', {}, [0, 1, 2, 3].map(() => s('circle', { r: 0, class: 'an-puff' })));
       const flash = s('circle', { cx: x, cy: y, r: 0, class: 'an-hit' });

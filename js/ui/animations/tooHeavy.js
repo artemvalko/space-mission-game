@@ -9,10 +9,10 @@ export function tooHeavy(container, { launcher, reason = 'too_heavy', caption, h
   return play(container, {
     scene: reason === 'wrong_orbit' ? 'wrong-orbit' : 'too-heavy', label: 'The satellite fails to reach orbit and falls back', duration: 5600, caption, hold,
     setup({ svg }) {
-      const bg = sky('#163a66', '#3d7bb5');
+      const bg = sky('#0d0d0d', '#1c1c1c');
       const glowId = newId('glow');
       const defs = s('defs', {}, s('radialGradient', { id: glowId }, [
-        s('stop', { offset: '0', 'stop-color': '#fff3c4' }), s('stop', { offset: '.4', 'stop-color': '#ff9a3c' }), s('stop', { offset: '1', 'stop-color': '#ff4d1a', 'stop-opacity': 0 }),
+        s('stop', { offset: '0', 'stop-color': '#ffffff' }), s('stop', { offset: '.4', 'stop-color': '#d9d9d9', 'stop-opacity': 0.55 }), s('stop', { offset: '1', 'stop-color': '#ffffff', 'stop-opacity': 0 }),
       ]));
       const st = stars(60, 4);
       st.setAttribute('opacity', 0.5);

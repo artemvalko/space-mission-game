@@ -12,7 +12,7 @@ export function solarFlare(container, { x = 500, y = 160, phase = 'intro', choic
     scene: intro ? 'solar-flare' : 'solar-flare-outcome', overlay: true, label: 'Solar flare', duration: intro ? 2600 : 1800, caption, linger: intro ? 0 : linger,
     setup({ svg }) {
       const id = newId('flare');
-      svg.append(s('defs', {}, s('radialGradient', { id }, [s('stop', { offset: 0, 'stop-color': '#fff1b8' }), s('stop', { offset: 0.5, 'stop-color': '#ff9a3c' }), s('stop', { offset: 1, 'stop-color': '#ff5b1a', 'stop-opacity': 0 })])));
+      svg.append(s('defs', {}, s('radialGradient', { id }, [s('stop', { offset: 0, 'stop-color': '#ffffff' }), s('stop', { offset: 0.5, 'stop-color': '#f2e6d6', 'stop-opacity': 0.5 }), s('stop', { offset: 1, 'stop-color': '#ffffff', 'stop-opacity': 0 })])));
       const sun = s('circle', { cx: 30, cy: 30, r: 60, fill: `url(#${id})` });
       const wave = s('circle', { cx: 30, cy: 30, r: 0, class: 'an-flare-wave' });
       const aurora = s('path', { d: `M ${x - 120} ${y + 70} Q ${x - 40} ${y + 30} ${x + 30} ${y + 72} T ${x + 160} ${y + 60}`, class: 'an-aurora', opacity: 0 });

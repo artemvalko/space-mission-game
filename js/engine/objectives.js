@@ -34,62 +34,62 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
   if (scenario.id === 'mission_comms_iot') {
     const chain = res.data.chainOk;
     const delivery = flew && chain ? avail : 0;
-    out.push(kpi('packet_delivery', '📨', 'Packets delivered ≥95%', delivery >= scenario.data.target,
+    out.push(kpi('packet_delivery', 'mail', 'Packets delivered ≥95%', delivery >= scenario.data.target,
       `Simulated: ${pct(delivery)} of accepted test packets delivered (target 95%).${chain ? '' : ' The store-and-forward chain is incomplete.'}`));
-    out.push(kpi('ground_contact', '📡', 'Ground contact (gateway passes)', flew && res.data.groundOk === true && (sel.included.has('downlink') || downlinkServes(sel.components.downlink, 'iot')),
+    out.push(kpi('ground_contact', 'antenna', 'Ground contact (gateway passes)', flew && res.data.groundOk === true && (sel.included.has('downlink') || downlinkServes(sel.components.downlink, 'iot')),
       res.data.groundOk ? 'Gateways collect the stored packets on each pass.' : 'No IoT gateway receives the packets.'));
-    out.push(kpi('latency', '⏱️', 'Latency reported honestly', flew && chain,
+    out.push(kpi('latency', 'clock', 'Latency reported honestly', flew && chain,
       'One LEO satellite: a message waits until the next gateway pass — minutes to hours, not instant.'));
-    out.push(kpi('power_margin', '⚡', 'Power margin kept', flew && (res.power.reference || (res.power.margin != null && res.power.margin > 0)) && res.battery.status !== 'over',
+    out.push(kpi('power_margin', 'power', 'Power margin kept', flew && (res.power.reference || (res.power.margin != null && res.power.margin > 0)) && res.battery.status !== 'over',
       res.power.reference ? 'The real satellite\'s power system flew and worked.' : res.power.margin != null ? `Average ${pct(res.power.margin)} spare; battery ${res.battery.status === 'over' ? 'too small' : 'OK in the 35-min shadow'}.` : 'Power not known.'));
-    out.push(kpi('safe_deorbit', '♻️', 'Safe retirement plan', sel.prep.disposal && res.planet.valid, res.planet.valid ? res.planet.explanation : res.planet.whyNot || 'No disposal plan.'));
+    out.push(kpi('safe_deorbit', 'recycle', 'Safe retirement plan', sel.prep.disposal && res.planet.valid, res.planet.valid ? res.planet.explanation : res.planet.whyNot || 'No disposal plan.'));
   } else if (scenario.id === 'mission_navigation_meo') {
     const thermalOk = inc('thermal');
     const clockName = sel.reference?.clocks ? getInstrument(sel.reference.clocks)?.plainName : sel.instruments.find((i) => i.role === 'atomic_clocks')?.plainName;
-    out.push(kpi('clock_reference', '⏱️', 'Clock reference OK', flew && roles.has('atomic_clocks') && thermalOk,
+    out.push(kpi('clock_reference', 'clock', 'Clock reference OK', flew && roles.has('atomic_clocks') && thermalOk,
       roles.has('atomic_clocks') ? `${clockName ?? 'Atomic clocks'}${thermalOk ? ', kept at a stable temperature' : ' — but no thermal control'}.` : 'No atomic clocks: no precise reference time.'));
-    out.push(kpi('ranging_signal', '〰️', 'Ranging signal OK', flew && roles.has('nav_signal') && roles.has('nav_antenna') && roles.has('atomic_clocks'),
+    out.push(kpi('ranging_signal', 'wave', 'Ranging signal OK', flew && roles.has('nav_signal') && roles.has('nav_antenna') && roles.has('atomic_clocks'),
       `Simulated signal availability ${pct(flew ? avail : 0)}.`));
     const lra = roles.has('lra');
-    out.push(kpi('orbit_known', '🧭', 'Orbit achieved and known', flew && allowed(sel.orbit) && res.data.groundOk === true,
+    out.push(kpi('orbit_known', 'compass', 'Orbit achieved and known', flew && allowed(sel.orbit) && res.data.groundOk === true,
       allowed(sel.orbit) ? `${sel.orbit.plainName} reached; monitoring stations track it${lra ? ' — and lasers measure it to under 1 cm (LRA)' : ''}.` : 'Not in a navigation MEO orbit.'));
-    out.push(kpi('nav_message', '🛰️', 'Navigation message uploaded', flew && res.data.chainOk,
+    out.push(kpi('nav_message', 'satellite', 'Navigation message uploaded', flew && res.data.chainOk,
       res.data.chainOk ? 'The ground uploads clock and orbit corrections; the satellite broadcasts them.' : `Chain incomplete: ${res.data.missing?.join(', ')}.`));
   } else {
     const { missing } = payloadNeeds(sel);
     const sensorOk = !missing.includes('atmo_sensor');
     const calOk = !missing.includes('calibration');
     const valid = flew && sensorOk && calOk ? avail : 0;
-    out.push(kpi('valid_samples', '🌦️', 'Valid observations ≥90%', valid >= scenario.data.validTarget,
+    out.push(kpi('valid_samples', 'cloud', 'Valid observations ≥90%', valid >= scenario.data.validTarget,
       `Simulated: ${pct(valid)} of planned observations valid (target 90%).`));
     const needsCal = payloadNeeds(sel).needed.includes('calibration');
-    out.push(kpi('calibration', '🎚️', 'Calibration OK', flew && calOk && inc('thermal'),
+    out.push(kpi('calibration', 'sliders', 'Calibration OK', flew && calOk && inc('thermal'),
       !needsCal ? (sel.reference ? 'Part of the flown instrument.' : 'This sensor needs no separate calibration module (radar / GNSS-RO).') : roles.has('calibration') ? 'On-board calibration + stable temperatures.' : 'No calibration: absolute temperatures cannot be trusted.'));
     const measured = res.data.deliveredFraction;
     const delivered = flew ? measured ?? (res.data.chainOk ? 1 : 0) : 0;
-    out.push(kpi('data_delivered', '📶', 'Data delivered ≥95%', delivered >= scenario.data.deliveredTarget,
+    out.push(kpi('data_delivered', 'signal', 'Data delivered ≥95%', delivered >= scenario.data.deliveredTarget,
       measured != null ? `The link can send ${pct(measured)} of the daily data (theoretical, before overheads).` : res.data.chainOk ? 'Not measured: a data rate or contact time is not public — the downlink chain is complete.' : 'No working downlink chain.'));
     const COVER = { sso_550_650: 'SSO: the whole Earth at the same local time.', leo_550_32deg: '32°: frequent tropical revisits, no poles.', iss_400_516: 'ISS orbit: no poles; decays sooner.', leo_550: 'LEO: covers the latitudes of its tilt.' };
-    out.push(kpi('coverage', '🌍', 'Coverage', flew && allowed(sel.orbit) && (sel.included.has('sensors') || !!sel.components.sensors || !!sel.components.computer?.providesGnss),
+    out.push(kpi('coverage', 'globe', 'Coverage', flew && allowed(sel.orbit) && (sel.included.has('sensors') || !!sel.components.sensors || !!sel.components.computer?.providesGnss),
       allowed(sel.orbit) ? `${COVER[sel.orbit.id] ?? ''} Samples are geolocated.` : 'Not an orbit this mission can use.'));
-    out.push(kpi('reference_comparison', '📊', 'Compared with NASA GPM', flew && res.data.groundOk === true && delivered > 0,
+    out.push(kpi('reference_comparison', 'chart', 'Compared with NASA GPM', flew && res.data.groundOk === true && delivered > 0,
       'The processing chain compares the (simulated) measurements with the real NASA GPM IMERG reference.'));
   }
 
   // Service period
   if (scenario.minMonths) {
-    out.push({ id: 'lifetime', icon: '⏳', label: `Works ≥${scenario.minMonths} months`, met: flew && s.monthsOperated >= scenario.minMonths,
+    out.push({ id: 'lifetime', icon: 'hourglass', label: `Works ≥${scenario.minMonths} months`, met: flew && s.monthsOperated >= scenario.minMonths,
       why: `Worked ${months(s.monthsOperated)}; the mission needs at least ${months(scenario.minMonths)}.` });
   }
   // Model budget
   const spent = res.budget.used + (s.extraCostM ?? 0);
-  out.push({ id: 'budget', icon: '💰', label: 'Inside the model budget', met: spent <= scenario.budgetM + 1e-9,
+  out.push({ id: 'budget', icon: 'money', label: 'Inside the model budget', met: spent <= scenario.budgetM + 1e-9,
     why: `Spent ${money(spent)} of ${money(scenario.budgetM)}${s.extraCostM ? ` (incl. ${money(s.extraCostM)} of reserve used in flight)` : ''}${res.budget.launchUnknown ? '; launch price on request (not counted)' : ''}.` });
   // Schedule window
   if (scenario.deadlineMonths) {
     const [lo, hi] = scenario.deadlineMonths;
     const ready = lo + (s.delayMonths ?? 0);
-    out.push({ id: 'deadline', icon: '📅', label: `Ready within ${lo}–${hi} months`, met: ready <= hi,
+    out.push({ id: 'deadline', icon: 'calendar', label: `Ready within ${lo}–${hi} months`, met: ready <= hi,
       why: `Planned ready at month ${lo}${s.delayMonths ? ` + ${s.delayMonths} months of delay` : ''}; window ends at month ${hi}.` });
   }
   return out;
