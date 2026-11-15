@@ -45,7 +45,7 @@ function header(state, score, d) {
 function breakdown(score) {
   return h('section', { class: 'panel' }, [
     h('div', { class: 'score-bars' }, score.parts.map((p) => h('div', { class: 'score-bar', title: `${p.why}${p.bonus ? '' : ` (weight ${Math.round(p.weight * 100)}%)`}` }, [
-      h('div', { class: 'score-bar-head' }, [h('span', {}, p.bonus ? '♻️ Disposal bonus' : p.label), h('strong', {}, `${p.points}/${p.max}`)]),
+      h('div', { class: 'score-bar-head' }, [h('span', {}, p.bonus ? `♻️ Sustainability (best for your orbit: ${p.best}/40)` : p.label), h('strong', {}, `${p.points}/${p.max}`)]),
       h('div', { class: 'gauge-bar' }, h('div', { class: ['gauge-fill', p.score >= 0.8 ? 'fill-ok' : p.score >= 0.5 ? 'fill-tight' : 'fill-bad'], style: { width: `${p.score * 100}%` } })),
     ]))),
   ]);

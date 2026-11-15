@@ -19,7 +19,7 @@ import { getEvent } from '../data/events.js';
 import { money, pct, kg, watts } from '../utils/format.js';
 
 export const WEIGHTS = { science: 0.35, objectives: 0.25, efficiency: 0.15, survivability: 0.15, teamwork: 0.10 };
-export const DISPOSAL_BONUS = 20;
+export const DISPOSAL_BONUS = 40; // Sustainability: debris 15 + atmosphere 15 + ground 10 (no option gets all 40)
 export const GRADES = [['S', 900], ['A', 800], ['B', 650], ['C', 500], ['D', 350], ['F', 0]];
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
@@ -97,9 +97,11 @@ export function scoreMission(state, sim) {
     ? clamp01(0.8 * (goalsMet / Math.max(1, personalGoals.length)) + (votes.unanimous ? 0.2 : 0))
     : 0;
 
-  // ── Responsible disposal bonus (needs the plan — and thrusters + fuel where the orbit requires them)
-  const needsProp = scenario.requiredBus.includes('propulsion');
-  const disposalOk = flew && !sim.noGo && sel.prep.disposal && (!needsProp || (sel.components.propulsion && sel.components.propellant));
+  // ── Sustainability (re-uses the old disposal bonus slot): the planet-impact meters of the chosen
+  //    retirement — debris 15, atmosphere 15, ground 10. No option scores 40: every choice is a compromise.
+  const planet = res.planet;
+  const disposalOk = flew && !sim.noGo && sel.prep.disposal && planet.valid;
+  const sustain = disposalOk ? planet.score : 0;
 
   const raw = { science: performance, objectives: objectivesScore, efficiency, survivability, teamwork };
   const WHY = {
@@ -114,12 +116,13 @@ export function scoreMission(state, sim) {
     id, label: LABEL[id], weight: weights[id], score: raw[id],
     max: Math.round(weights[id] * 1000), points: Math.round(raw[id] * weights[id] * 1000), why: WHY[id],
   })).filter((p) => p.weight > 0);
-  parts.push({ id: 'disposal', label: 'Responsible disposal (bonus)', weight: 0, score: disposalOk ? 1 : 0, max: DISPOSAL_BONUS, points: disposalOk ? DISPOSAL_BONUS : 0, bonus: true,
-    why: disposalOk ? 'A safe end-of-life plan (and the propulsion it needs) — no new space junk.' : 'No working disposal plan — the satellite could become space junk.' });
+  parts.push({ id: 'disposal', label: 'Sustainability', weight: 0, score: sustain / DISPOSAL_BONUS, max: DISPOSAL_BONUS, points: sustain, bonus: true, best: planet.best,
+    why: disposalOk ? `${planet.explanation} Debris ${planet.meters.debris}/15 · atmosphere ${planet.meters.atmosphere}/15 · ground ${planet.meters.ground}/10. Best possible for your orbit: ${planet.best}/40.`
+      : `No valid retirement plan. Best possible for your orbit: ${planet.best}/40.` });
   let total = Math.max(0, Math.min(1000, parts.reduce((a, p) => a + p.points, 0)));
   if (sim.noGo) total = Math.min(total, 340); // a NO-GO design is a failed mission
 
-  const stats = { spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives),
+  const stats = { planetScore: sustain, planetBest: planet.best, atmosphereKg: planet.atmosphereKg, retire: planet.strategyId, spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives),
     variantFit: fit.value, variantId: fit.variant?.id ?? null, budgetUncertain: !!res.budget.uncertain, unknownPrices: res.budget.unknownItems ?? [] };
   return {
     total,
@@ -154,6 +157,11 @@ function insights(sim, res, sel, st, objectives) {
   if (res.mass.available != null) {
     if (res.mass.used > res.mass.available) bad.push({ w: 1, text: `${kg(res.mass.used - res.mass.available)} over the mass limit.` });
     else good.push({ w: 0.25, text: `Mass ${kg(res.mass.used)} of ${kg(res.mass.available)}.` });
+  }
+  if (sim.reachedOrbit && !sim.noGo && res.planet.valid) {
+    const p = res.planet;
+    good.push({ w: 0.5, text: p.strategyId === 'disp_leave_in_orbit' ? 'Retired to a disposal orbit: clean air, but it stays in space.'
+      : `Your satellite burned up: no junk, ≈${p.atmosphereKg.toFixed(1)} kg aluminium oxide (science estimate).` });
   }
   if (sim.reachedOrbit) {
     const kp = objectives.filter((o) => o.kpi);
@@ -196,7 +204,7 @@ function tips(parts, objectives, res, st, sim) {
       out.push('Check role goals before voting Go.');
     }
   }
-  if (!parts.find((p) => p.id === 'disposal')?.points) out.push('Add a disposal plan: +20 points.');
+  if (!parts.find((p) => p.id === 'disposal')?.points) out.push('Choose a valid retirement plan: up to +40 points.');
   return [...new Set(out)].slice(0, 3);
 }
 

@@ -394,7 +394,7 @@
       check('grades: 905 success → S; 905 partial → A; 340 → F', gradeFor(905, 'success') === 'S' && gradeFor(905, 'partial') === 'A' && gradeFor(340, 'lost') === 'F');
       for (const sid of [C, N, W]) {
         const st = make(sid); const s = sim(st); const sc = scoreMission(st, s);
-        check(`${sid}: score 0–1000 = sum of parts; Mission performance part present; disposal bonus +${DISPOSAL_BONUS}`, sc.total <= 1000 && sc.total === Math.min(1000, sc.parts.reduce((a, p) => a + p.points, 0)) && sc.parts.some((p) => p.label === 'Mission performance') && sc.parts.find((p) => p.id === 'disposal').points === DISPOSAL_BONUS, `${sc.total} ${sc.grade}`);
+        check(`${sid}: score 0–1000 = sum of parts; Mission performance part present; Sustainability 1–39 of ${DISPOSAL_BONUS}, never all 40`, sc.total <= 1000 && sc.total === Math.min(1000, sc.parts.reduce((a, p) => a + p.points, 0)) && sc.parts.some((p) => p.label === 'Mission performance') && sc.parts.find((p) => p.id === 'disposal').points > 0 && sc.parts.find((p) => p.id === 'disposal').points < DISPOSAL_BONUS && sc.parts.find((p) => p.id === 'disposal').points <= sc.parts.find((p) => p.id === 'disposal').best, `${sc.total} ${sc.grade}; sustainability ${sc.parts.find((p) => p.id === 'disposal').points}/40`);
         check(`${sid}: correct build grades A or S`, ['S', 'A'].includes(sc.grade), sc.parts.map((p) => `${p.id} ${p.points}/${p.max}`).join(', '));
         const goals = evaluateRoleGoals(st);
         check(`${sid}: correct build meets all 4 role goals (live)`, goals.length === 4 && goals.every((g) => g.met), goals.map((g) => `${g.roleId}:${g.met} (${g.reason})`).join(' · '));
@@ -553,6 +553,10 @@
       const plate = computeResources(disp(make(N), 'disp_leave_in_orbit', { dockingPlate: true }));
       check('docking plate: debris score improves; its price makes the budget uncertain (never guessed)', plate.planet.debrisScore > computeResources(navLeave).planet.debrisScore && plate.budget.uncertain && plate.budget.unknownItems.some((n) => /Docking plate/.test(n)));
       check('older designs with only the "disposal plan" tick still work (default strategy per orbit)', computeResources(make(C)).planet.strategyId === 'disp_burn_up' && computeResources(make(N)).planet.strategyId === 'disp_leave_in_orbit' && go(make(C)) && go(make(N)));
+      const sc11 = scoreMission(disp(make(C), 'disp_burn_up'), sim(make(C)));
+      const sus = sc11.parts.find((p) => p.id === 'disposal');
+      check('Results: "Sustainability" (max 40) explains the compromise and the best possible for the orbit', sus.label === 'Sustainability' && sus.max === 40 && sus.points < 40 && /Best possible for your orbit: \d+\/40/.test(sus.why), sus.why);
+      check('Results insight: "Your satellite burned up: no junk, ≈1.0 kg aluminium oxide (science estimate)"', sc11.insights.good.some((t) => /burned up: no junk, ≈1\.0 kg aluminium oxide \(science estimate\)/.test(t)), sc11.insights.good.join(' | '));
       const r1 = reducer(make(C), A.selectDisposal('disp_burn_up'));
       check('choosing a strategy ticks the old prep.disposal flag', r1.design.prep.disposal === true && r1.design.disposalId === 'disp_burn_up');
     }

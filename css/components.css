@@ -443,3 +443,4 @@ details.fold > summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
 .variant-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
 .gauge-uncertain .gauge-fill { background: repeating-linear-gradient(45deg, var(--caution), var(--caution) 6px, rgba(245, 184, 63, .35) 6px, rgba(245, 184, 63, .35) 12px); }
 .advisor-change { margin: 2px 0 6px; color: var(--accent-2); }
+.planet-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }

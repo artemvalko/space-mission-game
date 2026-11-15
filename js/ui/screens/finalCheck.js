@@ -9,7 +9,7 @@ import { rerender } from '../view.js';
 import { computeResources } from '../../engine/resources.js';
 import { validateDesign, canLaunch, gateStatus } from '../../engine/validation.js';
 import { getScenario } from '../../data/scenarios.js';
-import { dataBadge } from '../card.js';
+import { dataBadge, meter } from '../card.js';
 import { money } from '../../utils/format.js';
 import { castVote, runSimulation, goToScreen } from '../../state/actions.js';
 import { newSeed } from '../../utils/random.js';
@@ -52,6 +52,19 @@ function report(issues, dispatch) {
     h('span', { class: 'report-text' }, i.message),
     i.step && h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen(i.step)) }, `Fix: ${getStep(i.step).label} →`),
   ])));
+}
+
+/** One compact "🌍 Planet impact" row: the 3 retirement meters (DISPOSAL.md). */
+function planetRow(p, dispatch) {
+  const lv = (v, max) => Math.max(1, Math.min(3, Math.ceil((v / max) * 3)));
+  if (!p.strategyId) return h('div', { class: 'panel planet-row' }, ['🌍 Planet impact: ', h('button', { class: 'btn btn-small', type: 'button', onClick: () => dispatch(goToScreen('launchPrep')) }, 'Prep →')]);
+  const m = p.meters ?? { debris: 0, atmosphere: 0, ground: 0 };
+  return h('div', { class: 'panel planet-row', title: p.explanation }, [
+    h('strong', {}, `🌍 ${p.score}/40`),
+    meter({ label: `Debris ${m.debris}/15`, symbol: '🛰', level: lv(m.debris, 15) }),
+    meter({ label: `Atmosphere ${m.atmosphere}/15${p.atmosphereKg ? ` · ≈ ${p.atmosphereKg.toFixed(1)} kg Al₂O₃ (${p.emissionBadge})` : ''}`, symbol: '☁️', level: lv(m.atmosphere, 15) }),
+    meter({ label: `Ground risk ${m.ground}/10`, symbol: '🧍', level: lv(m.ground, 10) }),
+  ]);
 }
 
 /** Full cost breakdown: hardware is only one line (research §3.5, §4.6, §5.5). Starts collapsed: total vs budget bar. */
@@ -144,6 +157,7 @@ export function render(container, state, dispatch) {
       ]),
     ]),
     scenario && h('div', { class: 'panel' }, costTable(res, scenario)),
+    scenario && planetRow(res.planet, dispatch),
     roleGoals(state),
     votes(state, dispatch),
     h('div', { class: 'launch-box' }, [

@@ -5,8 +5,10 @@ import { mount, h } from '../dom.js';
 import { term, whyButton } from '../tooltip.js';
 import { dataBadge, sourceLinks } from '../card.js';
 import { getScenario } from '../../data/scenarios.js';
-import { togglePrep } from '../../state/actions.js';
-import { money } from '../../utils/format.js';
+import { togglePrep, selectDisposal, toggleDockingPlate } from '../../state/actions.js';
+import { DISPOSAL_STRATEGIES, DOCKING_PLATE, DISPOSAL_WHY, PLANET_MAX, EMISSION_BADGE } from '../../data/disposal.js';
+import { choiceCard } from '../card.js';
+import { money, num } from '../../utils/format.js';
 import { getComponent, CATEGORY_PLAIN } from '../../data/components.js';
 import { computeResources } from '../../engine/resources.js';
 import { componentCards } from './common.js';
@@ -29,19 +31,57 @@ export const PREP_ITEMS = [
   },
 ];
 
+const level = (v, max) => Math.max(1, Math.min(3, Math.ceil((v / max) * 3)));
+
+/** "How will your satellite retire?" — 3 strategies with 🛰️ 🌫️ 🧍 meters (DISPOSAL.md). */
+function retireCards(state, dispatch, res) {
+  const planet = res.planet;
+  const chosen = state.design.disposalId ?? (state.design.prep?.disposal ? planet.strategyId : null);
+  return h('div', { class: 'choices' }, DISPOSAL_STRATEGIES.map((d) => {
+    const o = planet.options.find((x) => x.id === d.id);
+    const selected = chosen === d.id;
+    const line = d.id === 'disp_burn_up' && o.kg ? `No junk, but ≈${o.kg.toFixed(1)} kg oxide in the air.` : d.oneLiner;
+    return choiceCard({
+      key: `disp-${d.id}`,
+      icon: d.icon,
+      title: d.plainName,
+      realTerm: d.name,
+      oneLiner: line,
+      whatFor: d.why,
+      badges: o.kg ? ['≈ science estimate'] : [],
+      meters: [
+        { label: `Debris: ${o.debris}/${PLANET_MAX.debris} (more = less junk)`, symbol: '🛰', level: level(o.debris, PLANET_MAX.debris) },
+        { label: `Atmosphere: ${o.atmosphere}/${PLANET_MAX.atmosphere}${o.kg ? ` (≈ ${num(o.kg, 1)} kg Al₂O₃, ${EMISSION_BADGE})` : ''}`, symbol: '☁️', level: level(o.atmosphere, PLANET_MAX.atmosphere) },
+        { label: `Ground risk: ${o.ground}/${PLANET_MAX.ground}`, symbol: '🧍', level: level(o.ground, PLANET_MAX.ground) },
+      ],
+      details: [['Debris', `${o.debris} / ${PLANET_MAX.debris}`], ['Atmosphere', o.kg ? `≈ ${num(o.kg, 1)} kg aluminium oxide (${EMISSION_BADGE})` : 'nothing burns'],
+        ['Ground risk', { ok: 'safe (burns up fully or falls in the ocean)', 'needs-controlled': 'must pass the 1-in-10,000 rule (D04)', 'n.a.': 'nothing falls' }[o.groundRisk]],
+        ['Score', `${o.score} / 40 (no option gets 40)`]],
+      data: d,
+      selected,
+      disabled: !o.valid && !selected,
+      warn: !o.valid && selected,
+      disabledReason: `✗ ${o.reason}`,
+      why: `${d.why} ${o.reason ? `Here: ${o.reason}` : ''}`,
+      onSelect: () => dispatch(selectDisposal(d.id)),
+    });
+  }));
+}
+
 export function render(container, state, dispatch) {
   const scenario = getScenario(state.scenarioId);
   const prep = state.design.prep ?? {};
-  const needsProp = scenario?.requiredBus.includes('propulsion');
   const isCube = getComponent(state.design.components.structure)?.formFactor === 'cubesat';
+  const res = computeResources(state);
+  const planet = res.planet;
+  const burning = planet.strategyId === 'disp_burn_up' && planet.valid;
   mount(container,
     h('p', { class: 'step-hint', title: 'Real missions pass tests, licensing and a disposal plan before the Flight Readiness Review says GO.' }, ['Missing any = NO-GO. ', term('deorbit', 'ⓘ')]),
-    h('div', { class: 'prep-list' }, PREP_ITEMS.map((it) => {
+    h('div', { class: 'prep-list' }, PREP_ITEMS.filter((it) => it.id !== 'disposal').map((it) => {
       const done = !!prep[it.id];
       const cost = scenario && it.cost ? it.cost(scenario) : null;
       const more = () => [
         it.long, it.why,
-        it.id === 'disposal' && needsProp ? 'In MEO the air never pulls the satellite down: the plan needs the satellite\'s own thrusters and propellant.' : '',
         h('p', {}, [cost ? [`Budget line: ${cost[0]} ${money(cost[1])} `, dataBadge('model', { full: true }), ' · '] : '', sourceLinks(it.sources)]),
       ].filter(Boolean);
       // Item = icon + 2–4 words; the explanation is in the tooltip and the "?" popover.
@@ -51,8 +91,19 @@ export function render(container, state, dispatch) {
         whyButton(it.title, more),
       ]);
     })),
-    // The disposal plan becomes a real choice for CubeSats in LEO (options §1.9).
-    isCube && h('div', { class: 'subq' }, h('h2', { title: CATEGORY_PLAIN.eol.whatFor }, ['♻️ How will it end? ', term('deorbit', 'ⓘ')])),
-    isCube && componentCards(state, dispatch, 'eol', [{ label: 'Mass', symbol: '●', value: (c) => c.mass ?? 0 }], computeResources(state), { max: 3 }),
+    // Retirement: no choice is perfect — pick the best compromise (DISPOSAL.md).
+    h('div', { class: 'subq' }, h('h2', {}, ['♻️ How will it retire? ',
+      whyButton('Why does retirement matter?', () => [...DISPOSAL_WHY, h('p', {}, sourceLinks(['D01', 'D03', 'D04']))])])),
+    retireCards(state, dispatch, res),
+    planet.valid && planet.fleetKg != null && h('p', { class: 'small muted', title: 'Reentries in 2022 made ~17 t; full mega-constellations could make >360 t per year (D01, science estimate).' },
+      `🛰×${planet.fleet} If all ${planet.fleet} satellites burn up: ≈ ${num(planet.fleetKg, 1)} kg.`),
+    // Burn-up speed: the existing end-of-life methods are its sub-options (CubeSats in LEO).
+    isCube && burning && h('details', { class: 'fold', title: CATEGORY_PLAIN.eol.whatFor }, [
+      h('summary', {}, `🔥 How fast? ${getComponent(state.design.components.eol)?.plainName ?? 'choose'}`),
+      componentCards(state, dispatch, 'eol', [{ label: 'Mass', symbol: '●', value: (c) => c.mass ?? 0 }], res, { max: 3, compare: false })]),
+    h('label', { class: ['prep-item', state.design.dockingPlate && 'done'], key: 'docking-plate', title: `${DOCKING_PLATE.why} Mass and price not public (D07).` }, [
+      h('input', { type: 'checkbox', checked: !!state.design.dockingPlate, onChange: (e) => dispatch(toggleDockingPlate(e.target.checked)) }),
+      h('strong', {}, `${DOCKING_PLATE.icon} ${DOCKING_PLATE.plainName}`), h('span', { class: 'muted small' }, ' 💰 ?'),
+    ]),
   );
 }
