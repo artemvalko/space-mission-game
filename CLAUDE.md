@@ -14,9 +14,10 @@ Where they disagree on a catalog price, the store price is used and the others a
 - **Never invent a number.** Every mass, power, price, capacity, altitude, budget and date comes from
   the research. Each data item stores `dataKind` (`fact` | `catalog` | `model` | `reported`) and
   `sources: ['Sxx' | 'Oxx']` (codes in `js/data/sources.js`, S01–S34 + O01–O56 + D01–D12 end of life), plus `ref`.
-- UI badges: ✔ Real fact · 🏷 Catalog price · ≈ Estimate · 📰 Reported (press / third-party, never
-  official) · ✉️ Price on request (RFQ). Card faces show "💰 ?" / "⚖️ ?" for NOT PUBLIC values and
-  "⚖️ ≈" for a same-class research estimate (IoT radios borrow the research SDR mass).
+- UI tags (tiny mono uppercase, hairline border): FACT · CATALOG · ESTIMATE · REPORTED (press /
+  third-party, never official) · PRICE ? (RFQ). Card faces show a hairline tag "[$] ?" / "[weight] ?"
+  (internally `PRICE ?` / `MASS ?`) for NOT PUBLIC values and "[weight] ≈" (`MASS ≈`) for a same-class
+  research estimate (IoT radios borrow the research SDR mass).
 - **Unknown-value rule (options §5):** NOT PUBLIC = `null`, never 0 and never guessed.
   - Unknown price → budget **uncertain** (amber hatched gauge, "N items have no public price"); cost
     efficiency uses known items only; Results say "real engineers would request a quote (RFQ)".
@@ -34,7 +35,7 @@ Where they disagree on a catalog price, the store price is used and the others a
 - **No launch reliability numbers** and no random launch failure (§8.6). Events are labelled
   **simulated**; their rates are game settings, never shown. Real data (NASA GPM, DONKI, EONET) is a
   separate, labelled "real" card with static links — never mixed with simulated mission output.
-- Header button **📚 Sources & data honesty** lists every source and the §12.1 limitations.
+- Header link **Sources** (Sources & data honesty panel) lists every source and the §12.1 limitations.
 
 Solo, or hot-seat team of 2–4 (Director, Engineer, Scientist, Flight Dynamics). UI language: English.
 
@@ -73,29 +74,35 @@ python3 -m http.server        # then open http://localhost:8000
    only in `ui/` (and `main.js` subscribers).
 7. **Animations**: SVG + CSS + requestAnimationFrame (canvas allowed for instrument pictures), one
    module per scene in `js/ui/animations/`, signature `(container, params) → Promise`. Every scene
-   has **Skip ▶▶**, respects `prefers-reduced-motion` (final frame + caption), and is playable from
+   has **Skip**, respects `prefers-reduced-motion` (final frame + caption), and is playable from
    `animations.html`. Design-screen animations are ≤ 1 s and never block input.
 
 ## UI principles (Phase 1 redesign)
 1. **One question per screen**, plain English, 2–4 big choice cards.
-2. **Goal always visible**: "Mission Goal" strip with live checklist chips (todo / ✓ / ✗).
-3. **Cards show max 3 stats** as simple meters (●●○, $$○, ⚡⚡○) + ONE consequence sentence; exact
+2. **Goal always visible**: "Mission Goal" strip with live checklist chips (icon + status dot: hollow todo / green ok / red bad).
+3. **Cards show max 3 stats** as thin 3-segment meters with a tiny icon label (weight, money, power…) + ONE consequence sentence; exact
    numbers in a collapsed "Details". Plain name first, real term as a grey subtitle (+ glossary).
-4. **Four gauges** (💰 Money, ⚖️ Weight, ⚡ Power, 📡 Data) with OK / Tight / Over; everything else in
+4. **Four gauges** (Money, Weight, Power, Data: label + mono value + 3 px bar) with OK / TIGHT / OVER status words + dot; everything else in
    the "Details" drawer.
 5. **No errors for unchosen things**: unchosen = `todo` severity; a fresh mission shows zero red.
 6. **Advisor** ("Flight Director") shows ONE most important message + "Fix it" jump (`engine/advisor.js`).
 7. **Live satellite picture** (`ui/satellite.js`): new parts snap in with a glow; exploded view.
-8. Colour has meaning only: green OK, amber tight, red over; one accent (blue) for selection.
+8. **Visual style (VISUAL_REDESIGN.md)**: calm monochrome engineering tool — black canvas, hairline
+   borders (`rgba(255,255,255,.08/.16)`), tokens in `css/main.css`, numbers in a mono stack. Colour has
+   meaning only (ok `#3ecf8e`, tight `#f5a524`, over `#ff5c5c`, info `#7aa7ff`) as small dots or thin bars;
+   selection is white (1 px white border + soft inner glow). **No emoji anywhere in the UI**: icons come
+   from the hand-drawn set in `js/ui/icons.js` (`icon(name, size, label?)`, `svgIcon` inside SVGs); data
+   `icon` fields are icon ids. People are monogram circles (FD, initials) with a state dot, never faces.
+   Satellite, rockets, orbits, maps, patch and scenes are monochrome line art.
 9. **Word budgets (playtest: players don't read)** — visible by default: question ≤8 words (+ at most one
    hint line ≤12); card = title + ≤3 icon meters + one line ≤10 words (real term, "What is it for?",
    numbers, sources → Details; long text → `about` / Why?); advisor ≤15 words + Fix button; goal strip
    = icon chips; gate message ≤12 words + fix button, requirement/fix/alternative behind "Why?";
-   data badges icon-only (✔ 🏷 ≈ ✉️) with tooltips. Screens ≤ ~120 visible words (Results ~200).
+   data tags (FACT / CATALOG / ESTIMATE / REPORTED) with tooltips. Screens ≤ ~120 visible words (Results ~200).
    Progressive disclosure, never deletion: everything stays one click away (Details, Why?, folds,
    tooltips, Sources panel). Measure with `tools/word-count.sh tools/word-count.before.json`.
-10. **Real choices**: every step shows 2–4 real options up front (rest under "＋N"), impossible ones greyed
-   with a one-line reason, a "⚖️ Compare" table, heritage chips ("🛰 TROPICS"), and the Flight Director's
+10. **Real choices**: every step shows 2–4 real options up front (rest under "+N"), impossible ones greyed
+   with a one-line reason, a "Compare" table, heritage chips (satellite icon, tooltip "Flew on TROPICS"), and the Flight Director's
    one-line "Change:" note after each choice. Another mission's research card is a duplicate → hidden.
 
 ## The three missions (`js/data/scenarios.js`)
@@ -128,7 +135,7 @@ satellite ≠ 24/7 coverage; one GNSS satellite ≠ 3D positioning (needs ≥4 i
 | 6 | `brains` | **Bus systems**: computer + pointing (real choices); thermal + cables + sensors = one "included" line (Normal; Easy = research kit; navigation: fixed inside the platform, step hidden) | Engineer |
 | 7 | `orbit` | Orbit (true relative scale, ground track illustration, GEO as distractor, GPS info card) | Flight |
 | 8 | `rocket` | **Rocket & adapter**: price-type badges, dispenser/adapter, "What's inside this rocket?", balance scale | Flight |
-| 9 | `launchPrep` | Checklist: tests (vibration, TVAC, EMC), frequency licence/ITU + **How will it retire?** (3 strategy cards with 🛰️ ☁️ 🧍 meters; burn-up speed = natural decay / drag sail / broadside, folded; docking-plate add-on) | Director |
+| 9 | `launchPrep` | Checklist: tests (vibration, TVAC, EMC), frequency licence/ITU + **How will it retire?** (3 strategy cards with debris / atmosphere / ground meters; burn-up speed = natural decay / drag sail / broadside, folded; docking-plate add-on) | Director |
 | 10 | `finalCheck` | Flight Readiness Review: 11 hard gates, full cost table, role goals, votes, LAUNCH / NO-GO + "Simulate what would happen" | Director |
 | 11 | `operations` | Go/No-Go console → montage → countdown → orbit view with simulated events | Flight |
 | 12 | `results` | Grade, KPIs, lesson card (+ constellation animation), your design vs the real thing, alternatives, real NASA data, log, compare, share | Director |
@@ -155,6 +162,7 @@ failed mission (grade F).
 | `js/engine/matching.js` · `explain.js` | Real analog + alternative architectures · "Why?" texts + delta previews. |
 | `js/ui/router.js` · `steps.js` | Step list, question header, owner badge, Back/Next. |
 | `js/ui/sidebar.js` · `goalStrip.js` · `satellite.js` · `card.js` | Gauges/advisor/details · goal chips · live satellite SVG · choice cards + meters. |
+| `js/ui/icons.js` | Hand-drawn 24×24 line icon set: `icon(name, size, label?)` (HTML), `svgIcon(name, x, y, size)` (inside SVG), `initials(name)` for monograms. No emoji anywhere in the UI. |
 | `js/ui/screens/*.js` | One module per screen: `render(container, state, dispatch)` (use `mount()` not `append`). |
 | `js/ui/animations/*.js` | One module per scene (see below) + `core.js` (play, stage, helpers) + `index.js` registry. |
 | `js/ui/storage.js` · `gallery.js` · `sound.js` · `view.js` · `tooltip.js` · `dom.js` | localStorage (attempts, leaderboard, badges) · mission pictures · WebAudio · re-render hook · popovers · `h/s/mount`. |
@@ -210,7 +218,7 @@ wrong-size parts and payloads (→ todo). Selecting another mission starts a fre
 - No lifetime bonus from thrusters; the mission flies its planned months (`simMonths`).
 
 ## End of life / planet impact (data/disposal.js, resources.planet — DISPOSAL.md)
-- Strategies: `disp_burn_up` 🔥 (sub-options = `eol_*` parts), `disp_controlled_ocean` 🌊, `disp_leave_in_orbit` 🛰️
+- Strategies: `disp_burn_up` (sub-options = `eol_*` parts), `disp_controlled_ocean`, `disp_leave_in_orbit`
   (MEO: disposal orbit); add-on `addon_docking_plate` (D07, mass/price null → budget uncertain, not in mass check).
   `design.disposalId` / `design.dockingPlate`; `selectDisposal` also ticks `prep.disposal` (old designs default:
   burn-up in LEO, disposal orbit in MEO).
@@ -225,13 +233,13 @@ wrong-size parts and payloads (→ todo). Selecting another mission starts a fre
   end-of-mission "Extend or retire?" event. Multipliers only; chosen label/effects stored in the event log.
 - Drag sail = HPS ADEO (D09, vendor fact): auto-sized in `computeMass` via `disposal.js#dragSailFor` — ADEO small 0.45 kg
   (1–20 kg sats, ≤6U) or ADEO 0.8 kg (5–50 kg, 12U / references), added after the design reserve; none fits → NO-GO.
-  Price NOT PUBLIC → budget uncertain. Effect "6–10× quicker" is a 📰 manufacturer claim (D10), used only as
+  Price NOT PUBLIC → budget uncertain. Effect "6–10× quicker" is a REPORTED manufacturer claim (D10), used only as
   "Deorbits much faster: meets the 5-year rule" — no invented years.
 - Ion thruster `eol_nano_thruster` = ENPULSION NANO (D11, D12): 0.9 kg wet added after the reserve, 40 W when firing
   (> 6U average → bursts on battery, sidebar "Change:" line; not in the average load), needs ADCS, ≥1U (Swarm NO-GO),
   best burn-up debris meter, enables the debris dodge, does NOT enable ocean reentry (thrust too low, D05). Price NOT PUBLIC.
 - Launch prep layout: if only one strategy is valid, strategies are a compact row (greyed keep a short reason) and the
-  "🔥 How will it come down?" methods + the docking-plate toggle card are the main cards (3 planet meters + mass/power + 💰).
+  "How will it come down?" methods + the docking-plate toggle card are the main cards (3 planet meters + mass/power + PRICE ? tag).
 - Lost in flight (`scoring.js#retirementAfterLoss`): only natural decay still works ('passive', keeps points). Drag
   sail, broadside, ocean reentry, disposal orbit need a working satellite → 'failed': debris 0/15 + "Lost before it
   could retire: now it is space junk." in Results — unless a docking plate was fitted ('tug': debris kept, budget uncertain).

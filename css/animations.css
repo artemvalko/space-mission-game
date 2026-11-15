@@ -37,7 +37,7 @@
 .an-tower { fill: none; stroke: #bdbdbd; stroke-width: 1.5; }
 .an-tower-line { stroke: #6e6e6e; stroke-width: 1; }
 .an-count { font: 500 64px var(--mono); fill: #fff; letter-spacing: -0.02em; }
-.an-flame-outer { fill: rgba(255, 197, 138, .35); }
+.an-flame-outer { fill: rgba(255, 236, 214, .55); }
 .an-flame-inner { fill: #fff; }
 .an-smoke circle { fill: #2a2a2a; }
 .an-earth-limb { fill: #050505; stroke: rgba(255, 255, 255, .7); stroke-width: 1.5; }
