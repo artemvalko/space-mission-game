@@ -1,8 +1,21 @@
-# Mission Control — Space Mission Design Game
+# Mission Control — Real Satellite Missions Game
 
 **▶ Play it live: https://artemvalko.github.io/space-mission-game/**
 
-Mission Control is an educational browser game: you design a real space mission (a fire-spotting satellite, a lunar relay, a deep-space telescope, a Mars orbiter…), launch it and operate it — while managing mass, power, budget, data and time. Every choice is a trade-off, every outcome is animated and explained in plain English. Play solo or as a team of 2–4 on one screen. Built for a hackathon with plain HTML, CSS and JavaScript — no build step, no libraries.
+Mission Control is an educational browser game. You design **one of three real-world satellite missions**,
+pass the engineering **GO / NO-GO** review, launch it and operate it, while managing mass, power,
+budget and data. Every choice is a trade-off. Every outcome is animated and explained in plain English.
+Play solo or as a team of 2–4 on one screen. Plain HTML, CSS and JavaScript: no build step, no libraries.
+
+## The three missions
+| Mission | Difficulty | What you build | Real mission inspiration |
+|---|---|---|---|
+| 📡 **Connect Remote Sensors** | ★ | A 6U CubeSat in low orbit (~550 km) that stores short messages from remote IoT sensors and forwards them over ground gateways. Model budget $6M. | Sateliot (6U IoT CubeSats by Alén Space) |
+| 🌦️ **Weather Under the Clouds** | ★★ | A 6U CubeSat with a passive 5-channel microwave radiometer + calibration in a sun-synchronous orbit (550–650 km), compared with NASA GPM data. Model budget $18M. | NASA TEMPEST-D and TROPICS |
+| 📍 **Precise Time for Navigation** | ★★★ | One ~700 kg Galileo-class navigation satellite with 4 atomic clocks and an L-band signal in MEO (23,222 km, 56°). Model budget $280M. | ESA Galileo FOC |
+
+Each mission also teaches one **impossible claim**: one low satellite ≠ 24/7 worldwide service; one
+navigation satellite ≠ a 3D position (that needs ≥4 in view); one 18-month CubeSat ≠ a climate trend.
 
 ## How to run locally
 ```bash
@@ -11,28 +24,44 @@ cd space-mission-game
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
-
-## Controls & flow
-- **Mouse / touch**: click cards to choose; hover a card to preview what changes; **Why?** buttons and dotted words explain terms.
-- **Keyboard**: Tab to move, Enter/Space to choose, Esc closes pop-ups.
-- **Flow**: Start → Pick a mission → Size → Science tools → Power → Talking to Earth → (Normal: Brains & steering) → Orbit → Rocket → Final check & 🚀 Launch → Mission (decide on events; Pause / 1× / 4× / Skip ▶▶) → Results.
-- 🔊 in the top bar mutes sound.
+Self-test: `http://localhost:8000/js/engine/resources.test.html` (or `tools/run-tests.sh` headless).
+Animation debug page: `http://localhost:8000/animations.html`.
 
 ## How to play
-1. **Start** — Play solo or as a team (names + roles), Easy or Normal. "How to play" explains it in 30 seconds.
-2. **Pick a mission** — your goal and checklist stay at the top of the screen.
-3. **Build it, one question at a time** — size, science tools (see what each one sees!), power,
-   talking to Earth, (Normal: brains & steering), orbit (with a ground-track map), rocket (with a balance scale).
-4. **Final check** — your satellite (try the exploded view), goals, the Flight Director's report,
-   team votes, then 🚀 LAUNCH.
-5. **Mission** — Go/No-Go poll, factory-to-pad montage, countdown, then your satellite flies. Solar
-   flares, debris and breakdowns stop the clock — decide what to do.
-6. **Results** — grade S–F, what went well and what hurt, tips, badges, pictures from your mission,
-   real missions like yours, compare with your last try, print or share your design.
+1. **Start**: play solo or as a team (names + roles), Easy or Normal.
+2. **Pick a mission**: the goal and checklist stay at the top of the screen.
+3. **Build it, one question per step**: size → mission payload → power → talking to Earth →
+   (Normal: bus systems) → orbit → rocket & adapter → launch prep (tests, licence, disposal plan).
+4. **Final check (Flight Readiness Review)**: 11 hard gates, a full cost breakdown and team votes.
+   A failed gate is **NO-GO**. The review shows what is broken, which card fixes it, and whether
+   another correct design exists. You can still *simulate what would happen* (recorded as a failed mission).
+5. **Mission**: Go/No-Go poll, factory-to-pad montage, countdown, then your satellite flies.
+   Simulated events (solar storms, debris, faults) stop the clock, and you decide what to do.
+6. **Results**: grade, mission KPIs, the lesson, your design vs the real mission, alternative
+   correct architectures, links to real NASA data, badges, compare and share.
 
-The four gauges on the right (💰 Money, ⚖️ Weight, ⚡ Power, 📡 Data) are green when OK, amber when
-tight and red when over. The 🧑‍🚀 Flight Director always tells you the most important thing to fix.
+The four gauges (💰 Money, ⚖️ Mass, ⚡ Power, 📡 Data) are green when OK, amber when tight and red
+when over. 🔊 mutes sound; animations respect "reduce motion".
 
-Sound can be muted with 🔊 in the top bar. Animations respect your system's "reduce motion" setting.
+## Data sources
+**Real data only.** Every number comes from the research document
+[`docs/NASA_Hackathon_Mission_Control_Deep_Research_UA.md`](docs/NASA_Hackathon_Mission_Control_Deep_Research_UA.md)
+(sources checked on 15 November 2026). Each card's *Details* shows a badge and a source link:
+
+- **✔ Real fact**: confirmed by an official source (ESA, NASA, SpaceX, Rocket Lab, CubeSat spec).
+- **🏷 Catalog price**: a public catalog price or spec of one product (not a quote for a mission).
+- **≈ Estimate**: an educational estimate from the research (part breakdowns, mission budgets). Never official.
+- **✉️ Price on request (RFQ)**: not public, so the game never invents one.
+
+Main sources: CubeSat Design Specification (S01), GPS.gov (S02), ESA Galileo (S04, S05, S15, S30),
+NASA TROPICS (S06), NASA/JPL TEMPEST-D (S07), EnduroSat (S08, S09), SpaceX Rideshare / Falcon 9 /
+Capabilities & Services / Falcon Heavy (S11, S12, S14, S21), Rocket Lab Electron (S13), NOAA GOES-R (S16),
+NASA Small Spacecraft SoA (S17), ITU (S20), FCC debris rule (S22), NASA GPM / EONET / DONKI (S23–S26),
+Alén Space / Sateliot (S31), ESA Celeste (S32–S34). The full list with URLs is in the
+in-game **📚 Sources & data honesty** panel and in [`js/data/sources.js`](js/data/sources.js).
+
+Launch reliability percentages are not shown, because there is no honest single number for them.
+Events during the mission are simulated and labelled that way. Real NASA data is shown separately and
+labelled real.
 
 For developers: see [`CLAUDE.md`](CLAUDE.md).

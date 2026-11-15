@@ -161,6 +161,29 @@ function lessonCard(state) {
   ]);
 }
 
+/**
+ * Real NASA data (research §11.2) — kept SEPARATE from the simulated mission output and labelled real.
+ * Static links only: the game never fetches or fakes data (an API key would be needed for live calls).
+ */
+function realDataCard(state, sim) {
+  const items = [];
+  if (state.scenarioId === 'mission_weather_mw') {
+    items.push(h('li', {}, [h('strong', {}, 'NASA GPM IMERG — real precipitation estimates. '),
+      'Your satellite\'s measurements above are simulated; a real mission compares its data with this reference. ',
+      sourceLinks(['S23', 'S24'])]));
+  }
+  if (sim.events.some((e) => e.eventId === 'solar_flare')) {
+    items.push(h('li', {}, [h('strong', {}, 'NASA DONKI — real space weather. '),
+      'Your solar storm was a simulated event; real flares, CMEs and geomagnetic storms are catalogued here. ',
+      sourceLinks(['S26'])]));
+  }
+  items.push(h('li', {}, [h('strong', {}, 'NASA EONET — real natural events (storms, fires…). '), sourceLinks(['S25'])]));
+  return h('section', { class: 'panel' }, [
+    h('h2', {}, ['🌍 Real NASA data', h('span', { class: 'real-tag' }, 'real data — not from your satellite')]),
+    h('ul', { class: 'small' }, items),
+  ]);
+}
+
 /** Other correct architectures for the same goal (info only, sourced). */
 function alternativesCard(state) {
   const alts = alternativeArchitectures(state);
@@ -254,6 +277,7 @@ export function render(container, state, dispatch) {
     renderGallery(state),
     realMissions(state),
     alternativesCard(state),
+    realDataCard(state, sim),
     compare(state),
     actions(state, dispatch),
   );
