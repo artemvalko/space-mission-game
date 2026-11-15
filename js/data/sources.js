@@ -98,6 +98,15 @@ export const SOURCES = [
   { code: 'O54', title: 'Space Inventor — OBC', url: 'https://space-inventor.com/modules/subsystems/guidance-navigation-control/on-board-computer', confirms: '4 independent computers, 160 g, €9,000 MSRP.' },
   { code: 'O55', title: 'NASA SoA 2022 — Deorbit systems (PDF)', url: 'https://nasa.gov/wp-content/uploads/2023/05/13.-soa-deorbit-2022.pdf', confirms: 'Natural decay, drag sails, attitude-raised drag; 5-year post-mission rule.' },
   { code: 'O56', title: 'arXiv 2408.13562 — drag-sail flights', url: 'https://arxiv.org/html/2408.13562v1', confirms: 'Real drag-sail flights (CanX-7 5 m², RemoveDEBRIS 0.35 m²).' },
+  // ── End of life / disposal (DISPOSAL.md, D01–D08)
+  { code: 'D01', title: 'Ferreira et al. 2024 (GRL) + AGU press release — satellite reentry aluminium oxide', url: 'https://doi.org/10.1029/2024GL109280', confirms: 'Simulation: a 250 kg satellite (30% aluminium) makes ~30 kg of aluminium-oxide nanoparticles when it burns up; ~17 t from reentries in 2022; >360 t/yr possible with mega-constellations. Ozone impact still uncertain.' },
+  { code: 'D02', title: 'Phys.org — megaconstellations could jeopardise ozone recovery (2024)', url: 'https://phys.org/news/2024-06-satellite-megaconstellations-jeopardize-recovery-ozone.amp', confirms: 'Aluminium oxides catalyse ozone-destroying chlorine reactions without being used up; up to 30 years to drift down to the ozone layer.' },
+  { code: 'D03', title: 'Murphy et al. 2023 (PNAS) + NOAA CSL news', url: 'https://doi.org/10.1073/pnas.2313374120', confirms: 'Spacecraft metals found in ~10% of stratospheric sulfuric-acid particles; could reach ~50%; effect unknown.' },
+  { code: 'D04', title: 'ESA — Re-entry safety', url: 'https://technology.esa.int/page/re-entry-safety', confirms: 'Casualty risk must be ≤ 1 in 10,000 per reentry; otherwise a controlled reentry over uninhabited areas is required.' },
+  { code: 'D05', title: 'ESA Clean Space blog — controlled reentry and Design for Demise', url: 'https://blogs.esa.int/cleanspace/?p=2306', confirms: 'Controlled reentry needs more propellant and higher-thrust engines; Design for Demise lowers casualty risk.' },
+  { code: 'D06', title: 'Orbital Radar — controlled reentry (reported)', url: 'https://orbitalradar.com/glossary/controlled-reentry', confirms: 'South Pacific Ocean Uninhabited Area near Point Nemo, >2,700 km from land; 263+ spacecraft deorbited there since 1971.' },
+  { code: 'D07', title: 'Astroscale — ELSA-M', url: 'https://astroscale.com/ja/elsa-m/', confirms: 'Docking plates let a future servicer (ELSA-M, demo planned 2026) capture and remove a satellite. Price not public.' },
+  { code: 'D08', title: 'FCC 5-year rule (S22) and NASA SoA deorbit chapter (O55) — reused', url: 'https://regulations.justia.com/regulations/fedreg/2024/08/09/2024-17093.html', confirms: 'Reuses S22 (5-year post-mission disposal rule) and O55 (deorbit methods).' },
 ];
 
 const byCode = new Map(SOURCES.map((s) => [s.code, s]));

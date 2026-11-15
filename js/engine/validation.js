@@ -257,7 +257,16 @@ export function validateDesign(state, resources = computeResources(state)) {
   if (data.status === 'unknown' && data.unmeasured && data.chainOk) {
     add('info', null, 'data', 'comms', 'Data volume not measurable: a rate is not public.', data.explanation);
   }
-  // ── End of life
+  // ── End of life: the retirement strategy must be possible for this orbit and satellite (DISPOSAL.md)
+  const planet = resources.planet;
+  if (planet?.strategyId && planet.whyNot) {
+    add('error', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', planet.whyNot,
+      'Every mission must retire safely: low orbits within 5 years (S22), uncontrolled reentries only if the risk to people is ≤ 1 in 10,000 (D04).', 'Pick a retirement option that fits your orbit.');
+  }
+  if (planet?.valid && planet.groundRisk === 'needs-controlled') {
+    add('caution', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Large satellites must pass the 1-in-10,000 rule.', 'If the casualty risk is higher, uncontrolled reentry is not allowed (D04).');
+  }
+  if (sel.dockingPlate) add('info', null, 'mass', 'launchPrep', 'Docking plate: mass and price not public.', 'Not counted in the mass check; its price makes the budget uncertain (D07).');
   const eol = components.eol;
   if (eol?.id === 'eol_natural_decay' && orbit && ['leo_550', 'sso_550_650', 'leo_550_32deg'].includes(orbit.id)) {
     add('info', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Natural decay from 550+ km may miss the 5-year rule.', 'Higher orbits decay much slower (NASA SoA, O55). The FCC 5-year rule (S22) applies to listed US systems. Not verified with a decay model here.');

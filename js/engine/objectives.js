@@ -42,7 +42,7 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
       'One LEO satellite: a message waits until the next gateway pass — minutes to hours, not instant.'));
     out.push(kpi('power_margin', '⚡', 'Power margin kept', flew && (res.power.reference || (res.power.margin != null && res.power.margin > 0)) && res.battery.status !== 'over',
       res.power.reference ? 'The real satellite\'s power system flew and worked.' : res.power.margin != null ? `Average ${pct(res.power.margin)} spare; battery ${res.battery.status === 'over' ? 'too small' : 'OK in the 35-min shadow'}.` : 'Power not known.'));
-    out.push(kpi('safe_deorbit', '♻️', 'Safe deorbit plan', sel.prep.disposal, sel.prep.disposal ? 'A disposal plan is in place.' : 'No disposal plan.'));
+    out.push(kpi('safe_deorbit', '♻️', 'Safe retirement plan', sel.prep.disposal && res.planet.valid, res.planet.valid ? res.planet.explanation : res.planet.whyNot || 'No disposal plan.'));
   } else if (scenario.id === 'mission_navigation_meo') {
     const thermalOk = inc('thermal');
     const clockName = sel.reference?.clocks ? getInstrument(sel.reference.clocks)?.plainName : sel.instruments.find((i) => i.role === 'atomic_clocks')?.plainName;

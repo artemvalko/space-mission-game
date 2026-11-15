@@ -19,6 +19,7 @@ import { getOrbit } from '../data/orbits.js';
 import { getLauncher, getDeployer, launchPrice } from '../data/launchers.js';
 import { getScenario, variantOf } from '../data/scenarios.js';
 import { INCLUDED_IN_REFERENCE } from '../data/bundles.js';
+import { DISPOSAL_STRATEGIES, DOCKING_PLATE, PLANET_MAX, LOW_ORBITS, HIGH_ORBITS, al2o3Kg, EMISSION_BADGE } from '../data/disposal.js';
 import { getGroundStation, groundServes } from '../data/groundStations.js';
 
 /** Does this downlink serve this kind of data? (`serves` may be a string or a list) */
@@ -56,6 +57,8 @@ export function getSelection(state) {
     included,
     roles,
     variant: variantOf(scenario, d.variantId),
+    disposalId: d.disposalId ?? null,
+    dockingPlate: d.dockingPlate === true,
     satsPerLaunch: d.satsPerLaunch === 2 ? 2 : 1,
     componentList: Object.values(components).filter(Boolean),
     instruments,
@@ -341,7 +344,8 @@ function computeBudget(sel, massKg) {
   const launchCost = launcher ? launchPrice(launcher, massKg, satsPerLaunch) : 0;
   const launchUnknown = launcher != null && launchCost == null;
   const groundUnknown = ground != null && ground.cost == null;
-  const unknownItems = [...items.filter((it) => it.cost == null).map((it) => it.plainName), ...(launchUnknown ? [launcher.plainName] : []), ...(groundUnknown ? [ground.plainName] : [])];
+  const unknownItems = [...items.filter((it) => it.cost == null).map((it) => it.plainName), ...(launchUnknown ? [launcher.plainName] : []), ...(groundUnknown ? [ground.plainName] : []),
+    ...(sel.dockingPlate ? [DOCKING_PLATE.plainName] : [])];
   const uncertain = unknownItems.length > 0;
   const lines = [
     { id: 'hardware', label: 'Satellite hardware (build list)', value: hardware, dataKind: 'model', note: unknownCost.length ? `+ ${unknownCost.length} part${unknownCost.length > 1 ? 's' : ''} with no public price` : '' },
@@ -371,6 +375,69 @@ function computeBudget(sel, massKg) {
   return bar('budget', 'Budget', '$M', used, available, explanation, {
     status, hardware, launch: launchCost, launchUnknown, lines, reserveLeft, plannedReserve, unknownCost, ops: cm.ops, uncertain, unknownItems,
   });
+}
+
+// ─── Planet impact of the end-of-life choice (DISPOSAL.md) ──────────────────
+/** Why a disposal strategy is impossible for this design ('' = valid). */
+export function disposalWhyNot(strategyId, sel) {
+  const { orbit, components, included } = sel;
+  const cube = isCubeSat(components.structure);
+  const high = orbit && HIGH_ORBITS.includes(orbit.id);
+  const hasProp = (!!components.propulsion && !!components.propellant) || included.has('propulsion');
+  if (strategyId === 'disp_leave_in_orbit') {
+    if (orbit && LOW_ORBITS.includes(orbit.id)) return 'Breaks the 5-year rule in low orbit (S22).';
+    if (high && !hasProp) return 'A disposal orbit needs thrusters and propellant.';
+  }
+  if (strategyId === 'disp_controlled_ocean') {
+    if (cube) return 'Needs thrusters + fuel. CubeSats in this game have none (D05).';
+    if (high) return 'Not in our data: needs far more propellant than this design carries.';
+  }
+  if (strategyId === 'disp_burn_up' && high) return 'Air never pulls MEO satellites down.';
+  return '';
+}
+
+/** Default strategy when only the old "disposal plan" flag is set (keeps older designs working). */
+const defaultDisposal = (sel) => (sel.orbit && HIGH_ORBITS.includes(sel.orbit.id) ? 'disp_leave_in_orbit' : 'disp_burn_up');
+
+/** Planet-impact meters (0..max) for one strategy: debris, atmosphere, ground. Game scores, not data. */
+function planetMeters(strategyId, sel, massKg) {
+  const cube = isCubeSat(sel.components.structure);
+  const eol = sel.components.eol?.id;
+  const plate = sel.dockingPlate ? 3 : 0; // a future tug can remove it
+  if (strategyId === 'disp_burn_up') {
+    // Faster decay (ISS orbit, drag sail, broadside) = fewer years as debris first.
+    const fast = sel.orbit?.id === 'iss_400_516' || eol === 'eol_drag_sail' || eol === 'eol_attitude_drag';
+    return { debris: Math.min(PLANET_MAX.debris, (fast ? 12 : 9) + plate), atmosphere: 5, ground: cube ? 10 : 3, groundRisk: cube ? 'ok' : 'needs-controlled', kg: al2o3Kg(massKg) };
+  }
+  if (strategyId === 'disp_controlled_ocean') return { debris: 15, atmosphere: 6, ground: 10, groundRisk: 'ok', kg: al2o3Kg(massKg) };
+  return { debris: Math.min(PLANET_MAX.debris, 3 + plate * (5 / 3)), atmosphere: 15, ground: 10, groundRisk: 'n.a.', kg: 0 };
+}
+
+function computePlanet(sel, mass) {
+  const chosen = sel.disposalId ?? (sel.prep.disposal ? defaultDisposal(sel) : null);
+  const whyNot = chosen ? disposalWhyNot(chosen, sel) : '';
+  const m = chosen ? planetMeters(chosen, sel, mass.used) : null;
+  const options = DISPOSAL_STRATEGIES.map((d) => {
+    const reason = disposalWhyNot(d.id, sel);
+    const pm = planetMeters(d.id, sel, mass.used);
+    return { id: d.id, valid: !reason, reason, ...pm, score: pm.debris + pm.atmosphere + pm.ground };
+  });
+  const best = Math.max(0, ...options.filter((o) => o.valid).map((o) => o.score));
+  const fleet = sel.reference?.fleet ?? null;
+  const score = m && !whyNot ? m.debris + m.atmosphere + m.ground : 0;
+  let explanation = !chosen ? 'Choose how your satellite retires.'
+    : whyNot ? whyNot
+      : chosen === 'disp_leave_in_orbit' ? 'It stays in space: one more object to track, but nothing burns or falls.'
+        : `It burns up: ≈ ${num(m.kg, 1)} kg of aluminium oxide (${EMISSION_BADGE}).`;
+  if (chosen && !whyNot && m.kg && fleet) explanation += ` If all ${fleet} satellites burn up: ≈ ${num(m.kg * fleet, 1)} kg.`;
+  return {
+    key: 'planet', label: 'Planet impact', strategyId: chosen, valid: !!chosen && !whyNot, whyNot,
+    debrisScore: m && !whyNot ? m.debris : 0, atmosphereKg: m ? m.kg : null, groundRisk: m?.groundRisk ?? null,
+    meters: m && !whyNot ? { debris: m.debris, atmosphere: m.atmosphere, ground: m.ground } : null,
+    score, max: PLANET_MAX.debris + PLANET_MAX.atmosphere + PLANET_MAX.ground, best, options,
+    fleet, fleetKg: m && fleet ? m.kg * fleet : null, dockingPlate: sel.dockingPlate,
+    ok: !whyNot, explanation, emissionBadge: EMISSION_BADGE, sources: ['D01', 'D02', 'D03', 'D04', 'D05', 'D06', 'D07', 'S22', 'O55'],
+  };
 }
 
 // ─── Time (no build-time model in the research: only the planning window) ───
@@ -428,8 +495,9 @@ export function computeResources(state) {
   const lifetime = computeLifetime(sel);
   const launch = computeLaunch(sel, mass);
   const science = computePerformance(sel, data);
+  const planet = computePlanet(sel, mass);
   const health = { key: 'health', label: 'Reliability', value: null, ok: true, explanation: 'No reliability percentages: the research has no real numbers for them (§8.6).' };
-  return { mass, power, battery, data, budget, time, lifetime, health, launch, science };
+  return { mass, power, battery, data, budget, time, lifetime, health, launch, science, planet };
 }
 
 export const BAR_KEYS = ['mass', 'power', 'battery', 'data', 'budget'];

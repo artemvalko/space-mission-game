@@ -29,6 +29,8 @@ export const T = {
   TOGGLE_PREP: 'design/togglePrep',
   SET_VARIANT: 'design/setVariant',
   SET_SATS_PER_LAUNCH: 'design/setSatsPerLaunch',
+  SELECT_DISPOSAL: 'design/selectDisposal',
+  TOGGLE_DOCKING_PLATE: 'design/toggleDockingPlate',
   SELECT_POWER_PACK: 'design/selectPowerPack',
   SET_KIT: 'design/setKit',
   CAST_VOTE: 'review/castVote',
@@ -60,6 +62,9 @@ export const togglePrep = (item, value) => ({ type: T.TOGGLE_PREP, item, value }
 export const setVariant = (variantId) => ({ type: T.SET_VARIANT, variantId });
 /** 1 or 2 satellites per launch (only for launchers with `pairs`). */
 export const setSatsPerLaunch = (n) => ({ type: T.SET_SATS_PER_LAUNCH, n });
+/** End-of-life strategy id (data/disposal.js); also ticks the launch-prep disposal plan. */
+export const selectDisposal = (disposalId) => ({ type: T.SELECT_DISPOSAL, disposalId });
+export const toggleDockingPlate = (value) => ({ type: T.TOGGLE_DOCKING_PLATE, value });
 export const selectPowerPack = (packId) => ({ type: T.SELECT_POWER_PACK, packId });
 /** kit: 'standard' (Easy auto kit from the research build list) | null (choose parts manually). */
 export const setKit = (kit) => ({ type: T.SET_KIT, kit });

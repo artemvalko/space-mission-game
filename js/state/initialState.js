@@ -16,6 +16,8 @@ export function emptyDesign() {
     prep: { tests: false, licence: false, disposal: false }, // launch-prep checklist (§11.1)
     variantId: null,    // objective variant (data/scenarios.js variants; null = the first)
     satsPerLaunch: 1,   // 1 or 2 satellites share one launch (Galileo pairs)
+    disposalId: null,   // end-of-life strategy (data/disposal.js); choosing one ticks prep.disposal
+    dockingPlate: false, // optional Astroscale docking plate (D07)
   };
 }
 

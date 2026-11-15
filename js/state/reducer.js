@@ -11,6 +11,7 @@ import { getOrbit } from '../data/orbits.js';
 import { getLauncher, getDeployer } from '../data/launchers.js';
 import { getGroundStation } from '../data/groundStations.js';
 import { getNoGoReason } from '../data/roles.js';
+import { getDisposal } from '../data/disposal.js';
 import { voteStatus } from '../engine/roleGoals.js';
 import { validateDesign, canLaunch } from '../engine/validation.js';
 import { runSimulation } from '../engine/simulation.js';
@@ -178,6 +179,13 @@ export function reducer(state, action) {
       return withDesign(state, { ...state.design, variantId: action.variantId });
     }
 
+    case T.SELECT_DISPOSAL:
+      if (action.disposalId !== null && !getDisposal(action.disposalId)) return state;
+      return withDesign(state, { ...state.design, disposalId: action.disposalId, prep: { ...state.design.prep, disposal: action.disposalId != null } });
+
+    case T.TOGGLE_DOCKING_PLATE:
+      return withDesign(state, { ...state.design, dockingPlate: !!action.value });
+
     case T.SET_SATS_PER_LAUNCH:
       if (action.n !== 1 && action.n !== 2) return state;
       return withDesign(state, { ...state.design, satsPerLaunch: action.n });
@@ -229,6 +237,8 @@ export function reducer(state, action) {
         kit: getKit(d.kit) ? d.kit : null,
         variantId: getScenario(sh.scenarioId)?.variants?.some((v) => v.id === d.variantId) ? d.variantId : null,
         satsPerLaunch: d.satsPerLaunch === 2 ? 2 : 1,
+        disposalId: getDisposal(d.disposalId) ? d.disposalId : null,
+        dockingPlate: d.dockingPlate === true,
       };
       const difficulty = sh.difficulty === 'normal' ? 'normal' : 'easy';
       return withDesign({ ...state, difficulty, scenarioId: sh.scenarioId, screen: 'finalCheck' }, design);

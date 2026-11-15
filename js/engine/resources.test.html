@@ -21,6 +21,7 @@
   <!-- modulepreload:start (all JS modules — parallel fetch; keep in sync when adding modules) -->
   <link rel="modulepreload" href="../../js/data/bundles.js">
   <link rel="modulepreload" href="../../js/data/components.js">
+  <link rel="modulepreload" href="../../js/data/disposal.js">
   <link rel="modulepreload" href="../../js/data/events.js">
   <link rel="modulepreload" href="../../js/data/glossary.js">
   <link rel="modulepreload" href="../../js/data/groundStations.js">
@@ -184,7 +185,8 @@
     section('1 · Real data only: dataKind + sources on every data item');
     {
       const sCodes = SOURCES.filter((s) => s.code.startsWith('S')); const oCodes = SOURCES.filter((s) => s.code.startsWith('O'));
-      check('sources.js lists S01–S34 + O01–O56 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && new Set(SOURCES.map((s) => s.code)).size === 90
+      const dCodes = SOURCES.filter((s) => s.code.startsWith('D'));
+      check('sources.js lists S01–S34 + O01–O56 + D01–D08 (unique codes, URLs)', sCodes.length === 34 && oCodes.length === 56 && dCodes.length === 8 && new Set(SOURCES.map((s) => s.code)).size === 98
         && sCodes.every((s, i) => s.code === `S${String(i + 1).padStart(2, '0')}`) && oCodes.every((s, i) => s.code === `O${String(i + 1).padStart(2, '0')}`) && SOURCES.every((s) => /^https:\/\//.test(s.url)));
       const items = [...COMPONENTS, ...INSTRUMENTS, ...ORBITS, ...LAUNCHERS, ...DEPLOYERS, ...GROUND_STATIONS, ...SCENARIOS, ...REAL_MISSIONS];
       const bad = items.filter((it) => !['fact', 'catalog', 'model', 'reported'].includes(it.dataKind) || !Array.isArray(it.sources) || it.sources.some((c) => !getSource(c)));
@@ -521,6 +523,38 @@
       check('GNSS-RO needs no calibration module (but its mass is not public → cannot verify)', !payloadNeeds(getSelection(make(W, (d) => ({ ...d, instrumentIds: ['wx_gnss_ro'] })))).needed.includes('calibration'));
       passes('weather with an OBC-with-GNSS replacing the sun/orbit sensors', make(W, withParts({ computer: 'obc_es_gnss', sensors: 'none' })));
       check('research radiometer + Electron to 32°: over the $18M budget (real consequence, objective fails — not a NO-GO)', go(make(W, (d) => ({ ...d, orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }))) && computeResources(make(W, (d) => ({ ...d, orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }))).budget.status === 'over');
+    }
+
+    // ═══ 11. End of life: three ways to retire (DISPOSAL.md) ═══════════════════
+    await tick();
+    section('11 · End of life: burn up / ocean / leave in orbit');
+    {
+      const disp = (st, id, extra = {}) => ({ ...st, design: { ...st.design, disposalId: id, prep: { ...st.design.prep, disposal: true }, ...extra } });
+      const commsLeave = disp(make(C), 'disp_leave_in_orbit');
+      check('leave-in-orbit in LEO → NO-GO (breaks the 5-year rule, S22)', gatesFailed(commsLeave).includes('legal_safety_disposal_plan_pass') && /5-year rule/.test(errorsOf(commsLeave).map((e) => e.message).join(' ')));
+      const ocean = computeResources(make(C)).planet.options.find((o) => o.id === 'disp_controlled_ocean');
+      check('controlled ocean reentry is greyed for CubeSats ("Needs thrusters + fuel")', !ocean.valid && /Needs thrusters \+ fuel/.test(ocean.reason) && gatesFailed(disp(make(C), 'disp_controlled_ocean')).includes('legal_safety_disposal_plan_pass'));
+      const navLeave = disp(make(N), 'disp_leave_in_orbit');
+      check('MEO navigation: disposal orbit with its own thrusters is valid; burn-up and ocean are greyed', go(navLeave) && computeResources(navLeave).planet.valid
+        && /Air never pulls MEO/.test(computeResources(make(N)).planet.options.find((o) => o.id === 'disp_burn_up').reason)
+        && /Not in our data/.test(computeResources(make(N)).planet.options.find((o) => o.id === 'disp_controlled_ocean').reason));
+      check('MEO disposal orbit without thrusters/propellant → NO-GO', computeResources(disp(make(N, withParts({ propulsion: 'none', propellant: 'none' })), 'disp_leave_in_orbit')).planet.options.find((o) => o.id === 'disp_leave_in_orbit').valid === false);
+      check('GPS III reference build: its included propulsion allows the disposal orbit', go(disp(ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' }), 'disp_leave_in_orbit')));
+      const burn = computeResources(disp(make(C), 'disp_burn_up')).planet;
+      check('emission formula: 6U 8.68 kg × 0.30 × 0.40 → ≈ 1.0 kg aluminium oxide (science estimate)', near(burn.atmosphereKg, 1.0419, 0.001) && /Ferreira 2024/.test(burn.emissionBadge) && /1 kg of aluminium oxide/.test(burn.explanation), `${burn.atmosphereKg}`);
+      check('formula constant is exactly 0.12 per kg (D01: 30 kg Al₂O₃ from a 250 kg, 30%-aluminium satellite)', near(computeResources(disp(make(W), 'disp_burn_up')).planet.atmosphereKg, 9.89 * 0.12, 1e-6));
+      const swarm = computeResources(disp(ref(C, 'ref_swarm_spacebee'), 'disp_burn_up')).planet;
+      check('constellation multiplier: Swarm 0.4 kg → 0.048 kg each, ×150 sats ≈ 7.2 kg', near(swarm.atmosphereKg, 0.048, 1e-6) && near(swarm.fleetKg, 7.2, 1e-6) && /If all 150 satellites burn up/.test(swarm.explanation));
+      check('TROPICS fleet of 4: 5.4 kg × 0.12 × 4 ≈ 2.6 kg', near(computeResources(disp(ref(W, 'ref_tropics_3u'), 'disp_burn_up')).planet.fleetKg, 2.592, 1e-6));
+      check('leaving it in orbit emits nothing but keeps debris (debris score lowest)', computeResources(navLeave).planet.atmosphereKg === 0 && computeResources(navLeave).planet.debrisScore < burn.debrisScore);
+      const all = [C, W, N].flatMap((sid) => [false, true].flatMap((plate) => computeResources(disp(make(sid), null, { dockingPlate: plate })).planet.options));
+      check('no option ever scores 40/40 (every choice is a compromise)', all.every((o) => o.score < 40), `max ${Math.max(...all.map((o) => o.score))}`);
+      check('every mission has at least one valid retirement option', [C, W, N].every((sid) => computeResources(make(sid)).planet.options.some((o) => o.valid)));
+      const plate = computeResources(disp(make(N), 'disp_leave_in_orbit', { dockingPlate: true }));
+      check('docking plate: debris score improves; its price makes the budget uncertain (never guessed)', plate.planet.debrisScore > computeResources(navLeave).planet.debrisScore && plate.budget.uncertain && plate.budget.unknownItems.some((n) => /Docking plate/.test(n)));
+      check('older designs with only the "disposal plan" tick still work (default strategy per orbit)', computeResources(make(C)).planet.strategyId === 'disp_burn_up' && computeResources(make(N)).planet.strategyId === 'disp_leave_in_orbit' && go(make(C)) && go(make(N)));
+      const r1 = reducer(make(C), A.selectDisposal('disp_burn_up'));
+      check('choosing a strategy ticks the old prep.disposal flag', r1.design.prep.disposal === true && r1.design.disposalId === 'disp_burn_up');
     }
 
     const summary = document.getElementById('summary');

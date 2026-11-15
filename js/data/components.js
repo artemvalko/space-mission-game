@@ -245,7 +245,7 @@ export const COMPONENTS = [
   {
     id: 'ref_tropics_3u', heritage: 'TROPICS', category: 'structure', icon: '🌀', plainName: 'TROPICS 3U (real)', name: 'NASA TROPICS — whole satellite, 3U', formFactor: 'cubesat', units: 3, maxMassKg: 6,
     mass: null, cost: null, missions: ['mission_weather_mw'], dataKind: 'fact', sources: ['O32', 'O33', 'O34'], ref: 'options §3.1–3.2',
-    reference: { totalMassKg: 5.4, massText: '5.34–5.4 kg', payloadRoles: ['mw_radiometer', 'calibration'], sensor: 'wx_tropics_radiometer', powerW: 15 },
+    reference: { totalMassKg: 5.4, massText: '5.34–5.4 kg', payloadRoles: ['mw_radiometer', 'calibration'], sensor: 'wx_tropics_radiometer', powerW: 15, fleet: 4 },
     oneLiner: '12 channels in 3U; spins at 30 rpm.', why: 'A complete flown weather satellite — you use its real total mass.',
   },
   {
