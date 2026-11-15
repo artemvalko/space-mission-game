@@ -13,7 +13,9 @@ import { CATEGORY_PLAIN, isCubeSat } from '../data/components.js';
 import { ROLE_INFO } from '../data/instruments.js';
 import { payloadWhyNot } from '../data/scenarios.js';
 import { GROUND_WHY_NOT, groundServes } from '../data/groundStations.js';
-import { computeResources, getSelection } from './resources.js';
+import { computeResources, getSelection, payloadNeeds } from './resources.js';
+import { getComponent } from '../data/components.js';
+import { getInstrument } from '../data/instruments.js';
 import { kg, num, pct, money, watts } from '../utils/format.js';
 
 export const SEVERITY_ORDER = { error: 0, warning: 1, caution: 2, todo: 3, info: 4 };
@@ -47,7 +49,7 @@ export function validateDesign(state, resources = computeResources(state)) {
   const add = (severity, gate, resource, step, message, why = '', fix = '', alternative = null) =>
     out.push({ severity, gate, resource, step, message, why, fix, alternative });
   const sel = getSelection(state);
-  const { orbit, launcher, deployer, ground, scenario, components, instruments, left, prep } = sel;
+  const { orbit, launcher, deployer, ground, scenario, components, instruments, left, prep, reference, included } = sel;
 
   if (!scenario) {
     add('todo', null, 'design', 'pickMission', 'Pick a mission to begin.');
@@ -55,15 +57,15 @@ export function validateDesign(state, resources = computeResources(state)) {
   }
   const { mass, power, battery, data, budget } = resources;
   const structure = components.structure;
-  const roles = new Set(instruments.map((i) => i.role));
+  const { missing: missingRoles } = payloadNeeds(sel);
 
   // ── To do (in step order) — never errors
   if (!structure) add('todo', 'spacecraft_size_mass_volume_compatible', 'design', 'size', 'Choose how big your satellite is.');
-  if (!instruments.length) add('todo', 'mandatory_payload_complete', 'design', 'science', 'Choose the mission payload.');
-  const unchosen = (cats) => cats.filter((c) => !components[c] && !left.has(c));
+  if (!instruments.length && !reference) add('todo', 'mandatory_payload_complete', 'design', 'science', 'Choose the mission payload.');
+  const unchosen = (cats) => cats.filter((c) => !components[c] && !left.has(c) && !included.has(c));
   if (unchosen(['power', 'battery']).length) add('todo', 'power_peak_and_average_pass', 'design', 'power', 'Choose solar wings and a battery.');
   if (unchosen(scenario.requiredBus.filter((c) => STEP_FOR_CATEGORY[c] === 'comms')).length || !ground) add('todo', 'communications_link_pass', 'design', 'comms', 'Choose the radios and a ground segment.');
-  const busTodo = unchosen(scenario.requiredBus.filter((c) => STEP_FOR_CATEGORY[c] === 'brains'));
+  const busTodo = unchosen(scenario.requiredBus.filter((c) => STEP_FOR_CATEGORY[c] === 'brains' && !(c === 'sensors' && components.computer?.providesGnss)));
   if (busTodo.length) add('todo', 'bus_support_complete', 'design', 'brains', 'Choose the bus systems.', `Still open: ${busTodo.map((c) => CATEGORY_PLAIN[c].plainName.toLowerCase()).join(', ')}.`);
   if (!orbit) add('todo', 'orbit_service_compatible', 'design', 'orbit', 'Choose an orbit.');
   if (!launcher || !deployer) add('todo', 'launcher_trajectory_compatible', 'design', 'rocket', 'Choose a rocket and an adapter.');
@@ -95,12 +97,24 @@ export function validateDesign(state, resources = computeResources(state)) {
         : 'A Galileo node needs a ~700 kg bus, not a CubeSat.',
       wantCube ? `Bigger is not better: mass, launch and money all grow for nothing. The research build is ${SIZE_NAME[scenario.size]}.` : 'A CubeSat (max 24 kg) cannot carry four atomic clocks and an L-band payload — the navigation payload alone is ~178 kg in our build.',
       `Pick ${SIZE_NAME[scenario.size]} on the Size step.`, wantCube ? null : 'A small-satellite navigation DEMO exists (ESA Celeste, 12U) — but it is a different mission.');
-    } else if (cube && structure.units !== 6 && scenario.size === '6u') {
-      add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'size', structure.units < 6
-        ? `${plain(structure)} is too small: max ${kg(structure.maxMassKg)}, ${structure.units}U.`
-        : `${plain(structure)} is valid, but not in our research data.`,
-      structure.units < 6 ? 'The mission build needs more mass and volume than a 3U allows (CubeSat spec, S01).' : 'Our research only models a 6U build. Real data only: we never invent a frame mass or price.',
-      'Pick CubeSat 6U.', structure.units < 6 && scenario.id === 'mission_weather_mw' ? 'NASA TROPICS uses 3U CubeSats — with a different, smaller radiometer and a constellation.' : null);
+    }
+    // (Other CubeSat sizes are valid when their mass and volume fit — checked below with real data.)
+    if (reference && !structure.missions.includes(scenario.id)) {
+      add('error', 'spacecraft_size_mass_volume_compatible', 'design', 'size', `${plain(structure)} was built for another job.`,
+        'A reference build is a complete real satellite: its payload does a different mission.', 'Pick a reference build or frame for this mission.');
+    }
+    if (reference) {
+      const extras = instruments.filter((i) => i.flewOn !== structure.id);
+      if (extras.length) add('error', 'mandatory_payload_complete', 'science', 'science', `${plain(structure)} is complete: remove the extra payload.`,
+        `A reference build already carries its own payload. Extra: ${extras.map(plain).join(', ')}. Only add-ons that really flew on it can be added.`, 'Remove the extra payload, or build part by part.');
+      if (reference.licensingNote) add('caution', 'legal_safety_disposal_plan_pass', 'legal', 'launchPrep', 'Tiny satellites are hard to track: licensing risk.', reference.licensingNote);
+    }
+    if (mass.cannotVerify?.length) {
+      const refs = ['ref_swarm_spacebee', 'ref_astrocast_3u', 'ref_sateliot_6u', 'ref_tropics_3u', 'ref_raincube_6u', 'ref_gps_iii'].filter((id) => getComponent(id).missions.includes(scenario.id)).map((id) => getComponent(id).plainName);
+      add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'size', `Mass cannot be verified: ${mass.cannotVerify[0]} has no public mass.`,
+        `We never guess a mass. Not public: ${mass.cannotVerify.join(', ')}. Without it the dispenser and rocket limits cannot be checked.`,
+        'Pick parts with a public mass, or a Reference build (a real satellite\'s total mass).',
+        refs.length ? `Reference builds with a public total mass: ${refs.join(', ')}.` : null);
     }
     if (mass.misfits.length) {
       add('error', 'spacecraft_size_mass_volume_compatible', 'mass', 'science', `${mass.misfits.length} part(s) are the wrong size for this frame.`,
@@ -121,24 +135,28 @@ export function validateDesign(state, resources = computeResources(state)) {
   } else if (mass.status === 'caution') {
     add('caution', 'spacecraft_size_mass_volume_compatible', 'mass', 'rocket', `Mass is near the limit (${pct(mass.ratio)}).`, mass.explanation);
   }
-  if (mass.unknown.length) {
-    add('info', null, 'mass', 'science', 'Some items have no mass or price in our data.', 'They are counted as 0. Real data only: we never invent them.');
+  if (mass.estimated?.length) {
+    add('info', null, 'mass', 'science', '≈ IoT radio mass estimated from the research SDR class.', 'Its real mass is not public; the research gives a same-class estimate.');
   }
 
   // ── Gate: mandatory payload + no useless payload
-  if (instruments.length) {
+  if (instruments.length || reference) {
     for (const ins of instruments) {
+      if (ins.cancelled) add('error', 'mandatory_payload_complete', 'science', 'science', `${plain(ins)} was cancelled and never flew.`, ins.why, `Remove the ${plain(ins).toLowerCase()}.`);
+      if (ins.flewOn && ins.flewOn.startsWith('ref_') && reference?.payloadRoles && structure.id === ins.flewOn) continue;
+      if (ins.demo) add('caution', 'mandatory_payload_complete', 'science', 'science', `${plain(ins)}: new technology demo — extra risk.`, ins.why);
       const why = payloadWhyNot(scenario, ins);
       if (why) add('error', 'mandatory_payload_complete', 'science', 'science', `${plain(ins)}: ${why}`,
         'It does not serve this mission. A bigger or extra instrument cannot replace the one the mission physically needs.', `Remove the ${plain(ins).toLowerCase()}.`);
     }
-    for (const role of scenario.requiredRoles) {
-      if (!roles.has(role)) {
+    for (const role of missingRoles) {
+      {
         const info = ROLE_INFO[role];
         const msg = role === 'atomic_clocks' ? 'No precise on-board time: add the atomic clocks.'
           : role === 'iot_transceiver' ? 'Commands work, but it does not receive users\' messages.'
             : role === 'calibration' ? 'No calibration: the temperatures cannot be trusted.'
-              : `Missing: the ${info.plainName.toLowerCase()}.`;
+              : role === 'atmo_sensor' ? 'No atmosphere sensor: add a radiometer, radar or GNSS-RO.'
+                : `Missing: the ${info.plainName.toLowerCase()}.`;
         add('error', 'mandatory_payload_complete', 'science', 'science', msg,
           role === 'atomic_clocks' ? 'No precise reference time → no navigation signal (applies to this MEO Galileo-class build).' : role === 'iot_transceiver' ? 'TT&C is not the commercial service payload.' : 'This part does the mission itself.',
           `Add the ${info.plainName.toLowerCase()} on the Mission payload step.`,
@@ -148,8 +166,10 @@ export function validateDesign(state, resources = computeResources(state)) {
   }
 
   // ── Gate: bus complete
+  const gnssObc = !!components.computer?.providesGnss; // an OBC with GNSS replaces the separate position sensor
   for (const cat of scenario.requiredBus) {
-    if (left.has(cat)) {
+    if (cat === 'sensors' && gnssObc) continue;
+    if (left.has(cat) && !included.has(cat)) {
       const info = CATEGORY_PLAIN[cat];
       add('error', cat === 'battery' ? 'battery_eclipse_pass' : 'bus_support_complete', cat === 'battery' ? 'battery' : 'design', STEP_FOR_CATEGORY[cat],
         `${info.plainName} missing: ${info.noneWhy ?? 'the satellite cannot work without it.'}`,
@@ -198,6 +218,9 @@ export function validateDesign(state, resources = computeResources(state)) {
     if (power.generation == null) {
       add('error', 'power_peak_and_average_pass', 'power', 'power', 'This small array was not built for this orbit.',
         `A ${watts(components.power.arrayW)} CubeSat array is not a power system for ${plain(orbit)}. A 6U with 38 W cannot simply move to a far orbit without a new architecture.`, 'Fly the orbit the build was designed for.');
+    } else if (power.payloadPeakOk === false) {
+      add('error', 'power_peak_and_average_pass', 'power', 'power', `${plain(getInstrument(power.hungry))} needs ${num(power.hungryW, 1)} W; array gives ${num(components.power.arrayW, 1)} W.`,
+        `${power.explanation} Even in full sunlight this array cannot run it. RainCube used deployable wings and ran its radar in bursts — after losing a power tracker, only ~40 min at a time (O36).`, 'Use deployable solar wings.');
     } else if (power.used > power.generation + 1e-9) {
       add('error', 'power_peak_and_average_pass', 'power', 'power', `Power short: needs ${num(power.used, 1)} W, makes ${num(power.generation, 1)} W.`,
         power.explanation, 'Use a bigger array or an orbit with more sunlight.');
@@ -206,6 +229,10 @@ export function validateDesign(state, resources = computeResources(state)) {
     } else if (power.margin != null && power.margin < 0.1) {
       add('caution', 'power_peak_and_average_pass', 'power', 'power', `Power is tight: ${pct(power.margin)} spare.`, power.explanation);
     }
+  }
+  if (components.power?.fitsUnits && structure?.units && !components.power.fitsUnits.includes(structure.units)) {
+    add('error', 'spacecraft_size_mass_volume_compatible', 'power', 'power', `${plain(components.power)} does not fit a ${structure.units}U frame.`,
+      'Solar panels are made for one CubeSat size.', 'Pick the array made for your frame.');
   }
   // ── Gate: battery in eclipse
   if (components.battery && battery.needWh != null && battery.needWh > battery.usable) {
@@ -220,9 +247,30 @@ export function validateDesign(state, resources = computeResources(state)) {
     data.explanation, data.kind === 'gb' ? 'Use the S-band science downlink and the science station.' : 'Complete the chain on the Talking to Earth / Mission payload steps.');
   }
 
+  const dl = components.downlink;
+  if (dl?.requiresComms && components.comms?.id !== dl.requiresComms) {
+    add('error', 'communications_link_pass', 'data', 'comms', 'Reuse needs the S-band transceiver as your control radio.', 'One radio can only do both jobs if it is installed.', 'Pick the S-band transceiver as the control radio.');
+  }
+  if (dl?.needsXband) {
+    add('caution', null, 'data', 'comms', 'X-band is overkill here and needs X-band ground.', `150 Mbps is far more than IoT bytes or a radiometer's ~8 kbps (O16) need. X-band ground stations cost more${ground?.xband ? ' — your ground segment has X-band.' : ' — check that your ground segment has X-band (AWS does).'}`);
+  }
+  if (data.status === 'unknown' && data.unmeasured && data.chainOk) {
+    add('info', null, 'data', 'comms', 'Data volume not measurable: a rate is not public.', data.explanation);
+  }
+  // ── End of life
+  const eol = components.eol;
+  if (eol?.id === 'eol_natural_decay' && orbit && ['leo_550', 'sso_550_650', 'leo_550_32deg'].includes(orbit.id)) {
+    add('caution', 'legal_safety_disposal_plan_pass', 'legal', 'brains', 'Natural decay from 550+ km may miss the 5-year rule.', 'Higher orbits decay much slower (NASA SoA, O55). The FCC 5-year rule (S22) applies to listed US systems. Not verified with a decay model here.');
+  }
+  if (eol?.needsAdcs && !components.adcs && !included.has('adcs')) {
+    add('error', 'legal_safety_disposal_plan_pass', 'legal', 'brains', 'Turning broadside needs a pointing system.', eol.why, 'Add an ADCS.');
+  }
+
   // ── Budget (not a hard gate: the mission objective "on budget" will fail)
   if (budget.status === 'over') {
     add('warning', null, 'budget', 'rocket', `${money(budget.used - budget.available)} over the model budget.`, budget.explanation, 'Choose cheaper options; check the launch line.');
+  } else if (budget.uncertain) {
+    add('caution', null, 'budget', 'rocket', `Budget uncertain: ${budget.unknownItems.length} item${budget.unknownItems.length > 1 ? 's have' : ' has'} no public price.`, `${budget.unknownItems.join(', ')}. Real engineers would request a quote (RFQ). Not a fail, and never a guess.`);
   } else if (budget.status === 'caution') {
     add('caution', null, 'budget', 'rocket', `Eating into the reserve: ${money(budget.reserveLeft)} left.`, `The research plan keeps ${money(budget.plannedReserve)}. ${budget.explanation}`);
   }

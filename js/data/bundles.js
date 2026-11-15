@@ -3,6 +3,9 @@
 
 import { getComponent, costFor, isCubeSat, M_COMMS, M_NAV, M_WX } from './components.js';
 
+/** Bus categories that come with a reference build (a complete real satellite). */
+export const INCLUDED_IN_REFERENCE = ['power', 'battery', 'comms', 'downlink', 'computer', 'adcs', 'thermal', 'sensors', 'harness', 'propulsion', 'propellant'];
+
 // Power packs = solar array + EPS + battery. 'solar_only' is the "power_only_peak" trap (§7.3).
 export const POWER_PACKS = [
   { id: 'pack_6u_60', formFactor: 'cubesat', icon: '🔋', plainName: '6U power pack · 60 Wh', parts: { power: 'eps_solar_6u', battery: 'battery_6u_60wh' }, missions: [M_COMMS], oneLiner: 'Wings + 60 Wh battery.', about: 'Fold-out wings + 60 Wh battery (communications build).' },
@@ -18,8 +21,8 @@ export const KITS = [
   {
     id: 'standard', plainName: 'Standard bus kit (from the research build)',
     byMission: {
-      [M_COMMS]: { computer: 'obc_6u', adcs: 'adcs_6u', thermal: 'thermal_6u', sensors: 'gnss_receiver_bus', harness: 'harness_mech_6u', propulsion: 'none', propellant: 'none' },
-      [M_WX]: { computer: 'obc_weather', adcs: 'adcs_weather', thermal: 'thermal_weather', sensors: 'sun_orbit_sensors', harness: 'harness_misc_weather', propulsion: 'none', propellant: 'none' },
+      [M_COMMS]: { computer: 'obc_6u', adcs: 'adcs_6u', thermal: 'thermal_6u', sensors: 'gnss_receiver_bus', harness: 'harness_mech_6u', propulsion: 'none', propellant: 'none', eol: 'eol_natural_decay' },
+      [M_WX]: { computer: 'obc_weather', adcs: 'adcs_weather', thermal: 'thermal_weather', sensors: 'sun_orbit_sensors', harness: 'harness_misc_weather', propulsion: 'none', propellant: 'none', eol: 'eol_natural_decay' },
       [M_NAV]: { computer: 'obc_rad_hard', adcs: 'adcs_precision_meo', thermal: 'thermal_meo', sensors: 'none', harness: 'integration_harness_meo', propulsion: 'prop_meo_stationkeeping', propellant: 'propellant_meo' },
     },
   },
@@ -40,6 +43,12 @@ export function bundleTotals(parts, scenarioId) {
 export function applyBundles(design, scenarioId) {
   const components = { ...design.components };
   const structure = getComponent(components.structure);
+  // A reference build (complete real satellite) brings its own bus: no packs or kits.
+  if (structure?.reference) {
+    for (const cat of INCLUDED_IN_REFERENCE) components[cat] = null;
+    if (design.kit) components.eol = components.eol ?? KITS[0].byMission[scenarioId]?.eol ?? null;
+    return { ...design, components };
+  }
   const cube = structure ? isCubeSat(structure) : null;
   let powerPack = design.powerPack;
   const pack = getPowerPack(powerPack);

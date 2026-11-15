@@ -60,12 +60,24 @@ export const EVENTS = [
   },
   {
     id: 'launch_delay', title: 'Launch delay', phase: 'prelaunch', perYear: 0.2,
+    realStory: { mission_weather_mw: 'This really happened to TROPICS: the first two satellites were lost on 12 Jun 2022 when an Astra rocket stage shut down early (O34). Not a probability — a real story.' },
     description: 'A sensor on the rocket shows a strange reading during the countdown.',
     choices: [
       { label: 'Stand down and investigate', effects: { delayMonths: 3, reserveShare: 0.25 },
         explanation: 'Safety first: the delay costs time and reserve, but the launch is safe.' },
       { label: 'Launch anyway with a waiver', effects: { damage: 1 },
         explanation: 'You keep the schedule, but the shaking may have weakened the satellite.' },
+    ],
+  },
+  {
+    id: 'radar_power', title: 'Radar power limit', phase: 'orbit', perYear: 0.4, requiresRole: 'precip_radar',
+    realPhenomenon: 'This really happened to RainCube: after losing a power tracker it could only run its radar ~40 min at a time (O36).',
+    description: 'One power tracker failed. The radar can no longer run at full power for long.',
+    choices: [
+      { label: 'Run the radar in short bursts', effects: { performance: 0.95 },
+        explanation: 'You keep measuring rain, but only in ~40-minute bursts.' },
+      { label: 'Push it at full power', effects: { damage: 1 },
+        explanation: 'More rain profiles today, but the batteries are stressed — the satellite is weaker.' },
     ],
   },
   {
@@ -82,4 +94,4 @@ export const EVENTS = [
 
 const byId = new Map(EVENTS.map((e) => [e.id, e]));
 export const getEvent = (id) => (id ? byId.get(id) ?? null : null);
-export const eventApplies = (ev, scenarioId) => !ev.missions || ev.missions.includes(scenarioId);
+export const eventApplies = (ev, scenarioId, roles = null) => (!ev.missions || ev.missions.includes(scenarioId)) && (!ev.requiresRole || !!roles?.has(ev.requiresRole));

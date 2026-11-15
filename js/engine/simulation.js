@@ -159,7 +159,7 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
   }
 
   // ── Pre-launch (simulated)
-  for (const ev of EVENTS.filter((e) => e.phase === 'prelaunch' && eventApplies(e, scenarioId))) {
+  for (const ev of EVENTS.filter((e) => e.phase === 'prelaunch' && eventApplies(e, scenarioId, sel.roles))) {
     if (rng() < ev.perYear && !decide(ev, 0)) return result();
   }
 
@@ -170,7 +170,7 @@ export function runSimulation(state, seed, decisions = [], opts = {}) {
 
   // ── Operations
   const payloadWorks = !noGo; // a NO-GO payload design flies but cannot do the mission
-  const orbitEvents = EVENTS.filter((e) => e.phase === 'orbit' && eventApplies(e, scenarioId));
+  const orbitEvents = EVENTS.filter((e) => e.phase === 'orbit' && eventApplies(e, scenarioId, sel.roles));
   while (month < plannedMonths) {
     month += 1;
     for (const ev of orbitEvents) {

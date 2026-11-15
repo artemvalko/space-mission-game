@@ -14,6 +14,8 @@ export function emptyDesign() {
     powerPack: null,   // Easy: power pack id (data/bundles.js) → sets solar array + battery
     kit: null,         // Easy: 'standard' → bus kit from the research build list
     prep: { tests: false, licence: false, disposal: false }, // launch-prep checklist (§11.1)
+    variantId: null,    // objective variant (data/scenarios.js variants; null = the first)
+    satsPerLaunch: 1,   // 1 or 2 satellites share one launch (Galileo pairs)
   };
 }
 

@@ -5,8 +5,8 @@ const fromB64Url = (b64) => decodeURIComponent(escape(atob(b64.replace(/-/g, '+'
 
 /** { scenarioId, difficulty, design } → "d=…" hash fragment (without '#'). */
 export function encodeDesign(state) {
-  const { components, instrumentIds, orbitId, launcherId, deployerId, groundId, powerPack, kit, prep } = state.design;
-  const payload = { v: 1, s: state.scenarioId, df: state.difficulty, d: { components, instrumentIds, orbitId, launcherId, deployerId, groundId, powerPack, kit, prep } };
+  const { components, instrumentIds, orbitId, launcherId, deployerId, groundId, powerPack, kit, prep, variantId, satsPerLaunch } = state.design;
+  const payload = { v: 1, s: state.scenarioId, df: state.difficulty, d: { components, instrumentIds, orbitId, launcherId, deployerId, groundId, powerPack, kit, prep, variantId, satsPerLaunch } };
   return `d=${toB64Url(JSON.stringify(payload))}`;
 }
 

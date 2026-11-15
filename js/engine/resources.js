@@ -17,7 +17,8 @@ import { COMPONENT_CATEGORIES, NONE, getComponent, costFor, isCubeSat } from '..
 import { getInstrument } from '../data/instruments.js';
 import { getOrbit } from '../data/orbits.js';
 import { getLauncher, getDeployer, launchPrice } from '../data/launchers.js';
-import { getScenario } from '../data/scenarios.js';
+import { getScenario, variantOf } from '../data/scenarios.js';
+import { INCLUDED_IN_REFERENCE } from '../data/bundles.js';
 import { getGroundStation, groundServes } from '../data/groundStations.js';
 
 /** Does this downlink serve this kind of data? (`serves` may be a string or a list) */
@@ -42,18 +43,47 @@ export function getSelection(state) {
     if (id === NONE) left.add(cat);
     components[cat] = getComponent(id);
   }
+  const instruments = (d.instrumentIds ?? []).map(getInstrument).filter(Boolean);
+  // Reference build = a complete real satellite: its bus + payload are "included".
+  const reference = components.structure?.reference ?? null;
+  const included = new Set(reference ? INCLUDED_IN_REFERENCE : []);
+  const roles = new Set([...instruments.map((i) => i.role), ...(reference?.payloadRoles ?? [])]);
+  const scenario = getScenario(state.scenarioId);
   return {
     components,
     left,
+    reference,
+    included,
+    roles,
+    variant: variantOf(scenario, d.variantId),
+    satsPerLaunch: d.satsPerLaunch === 2 ? 2 : 1,
     componentList: Object.values(components).filter(Boolean),
-    instruments: (d.instrumentIds ?? []).map(getInstrument).filter(Boolean),
+    instruments,
     orbit: getOrbit(d.orbitId),
     launcher: getLauncher(d.launcherId),
     deployer: getDeployer(d.deployerId),
     ground: getGroundStation(d.groundId),
-    scenario: getScenario(state.scenarioId),
+    scenario,
     prep: { ...DEFAULT_PREP, ...(d.prep ?? {}) },
   };
+}
+
+/** Mass of a part: its own, or the "≈ same class" research estimate (IoT radios); null = NOT PUBLIC. */
+export const massOf = (it) => (it.mass != null ? it.mass : it.massClassOf ? getInstrument(it.massClassOf)?.mass ?? null : null);
+
+/**
+ * The payload roles this design must have, and which are missing.
+ * Weather: any atmosphere sensor; a passive radiometer (part build) also needs calibration — radar and
+ * GNSS-RO do not (options §3.1: GNSS-RO "needs no calibration").
+ */
+export function payloadNeeds(sel) {
+  const { scenario, instruments, reference, roles } = sel;
+  if (!scenario) return { needed: [], missing: [] };
+  const needed = [...scenario.requiredRoles];
+  const sensors = [...instruments.filter((i) => i.sensor), ...(reference?.sensor ? [getInstrument(reference.sensor)] : [])];
+  if (needed.includes('atmo_sensor') && instruments.some((i) => i.sensor && i.passive) && !reference) needed.push('calibration');
+  const has = (r) => (r === 'atmo_sensor' ? sensors.length > 0 || [...roles].some((x) => ['mw_radiometer', 'precip_radar', 'gnss_ro'].includes(x)) : roles.has(r));
+  return { needed, missing: needed.filter((r) => !has(r)), sensors };
 }
 
 function barStatus(used, available) {
@@ -83,18 +113,28 @@ export function launcherReach(launcher, orbit) {
 }
 
 function computeMass(sel) {
-  const { componentList, instruments, components, launcher, orbit } = sel;
-  const items = [...componentList, ...instruments];
-  const unknown = items.filter((it) => it.mass == null);
-  const parts = round(items.reduce((a, it) => a + (it.mass ?? 0), 0));
+  const { componentList, instruments, components, launcher, orbit, reference, satsPerLaunch } = sel;
   const structure = components.structure;
+  // Reference build: the real total mass replaces part-by-part mass; add-ons that flew on it are inside it.
+  const items = reference
+    ? [...componentList.filter((c) => c !== structure), ...instruments.filter((i) => i.flewOn !== structure.id)]
+    : [...componentList, ...instruments];
+  const unknown = items.filter((it) => massOf(it) == null && it.formFactor !== 'any');
+  const distractorUnknown = items.filter((it) => massOf(it) == null && it.formFactor === 'any');
+  const estimated = items.filter((it) => it.mass == null && massOf(it) != null);
+  const parts = round(items.reduce((a, it) => a + (massOf(it) ?? 0), 0) + (reference?.totalMassKg ?? 0));
   const cube = isCubeSat(structure);
-  const reserveFraction = structure ? (structure.reserveFraction ?? (cube ? MASS_RESERVE_6U : 0)) : 0;
+  const reserveFraction = structure && !reference ? (structure.reserveFraction ?? (cube ? MASS_RESERVE_6U : 0)) : 0;
   const reserve = round(parts * reserveFraction);
   const total = round(parts + reserve);
   const propellant = components.propellant?.mass ?? 0;
-  const limit = structure ? (cube ? structure.maxMassKg : structure.targetMassKg ?? null) : null;
-  const { reaches, capacity } = launcherReach(launcher, orbit);
+  const limit = structure ? (cube ? structure.maxMassKg ?? null : structure.targetMassKg ?? null) : null;
+  const { reaches, capacity: cap1 } = launcherReach(launcher, orbit);
+  // Two satellites on one launch share its capacity.
+  const capacity = cap1 != null && launcher?.pairs && satsPerLaunch === 2 ? cap1 / 2 : cap1;
+  // "Cannot verify": a part with no public mass, or a frame with no public limit (never guessed).
+  const cannotVerify = unknown.map((u) => u.plainName);
+  if (structure && cube && !reference && structure.maxMassKg == null) cannotVerify.push(`${structure.plainName} mass limit`);
 
   // Volume: only volumes the research gives (the radiometer is ~4U, S07).
   const payloadUnits = instruments.reduce((a, i) => a + (i.volumeU ?? 0), 0);
@@ -106,7 +146,9 @@ function computeMass(sel) {
   if (capacity != null && (available == null || capacity < available)) available = capacity;
   const blocked = reaches === false;
 
-  const breakdown = reserveFraction > 0
+  const breakdown = reference
+    ? `Real total mass of ${structure.plainName.replace(' (real)', '')}: ${reference.massText}.${items.length ? ` Plus your extra parts ${kg(parts - reference.totalMassKg)}.` : ''}`
+    : reserveFraction > 0
     ? `Parts ${kg(parts)} + ${pct(reserveFraction)} design reserve ${kg(reserve)} = ${kg(total)} checked.`
     : `Launch mass ${kg(total)} (includes ${kg(propellant)} of the satellite's own propellant — no extra 15% on top).`;
   let explanation = breakdown;
@@ -115,13 +157,19 @@ function computeMass(sel) {
   if (blocked) explanation += ` ${launcher.plainName} cannot deliver to ${orbit.plainName}.`;
   else if (capacity != null) explanation += ` ${launcher.plainName} headline capacity to this orbit: ${kg(capacity)}.`;
   else if (reaches) explanation += ` ${launcher.plainName} reaches this orbit; there is no single published capacity number for it, so the ${cube ? 'dispenser' : 'contracted profile'} sets the limit.`;
-  if (unknown.length) explanation += ` Not in our data (counted as 0): ${unknown.map((u) => u.plainName).join(', ')}.`;
+  if (cannotVerify.length) explanation += ` Cannot verify: no public mass for ${cannotVerify.join(', ')} — we never guess it.`;
+  if (estimated.length) explanation += ` ≈ Estimated with the research SDR class mass: ${estimated.map((u) => u.plainName).join(', ')}.`;
+  if (distractorUnknown.length) explanation += ` No mass in our data: ${distractorUnknown.map((u) => u.plainName).join(', ')}.`;
   if (!volume.ok) explanation += ` ⚠ The payload needs ${volume.used}U but the frame has only ${volume.available}U.`;
 
   // A large bus is checked against the model launch-mass target: at or below it is fine (not "tight").
-  const status = !cube && structure && available === limit && limit != null && total <= limit + 1e-9 ? 'ok' : undefined;
+  let status = !cube && structure && available === limit && limit != null && total <= limit + 1e-9 ? 'ok' : undefined;
+  if (cannotVerify.length && !blocked) status = 'unknown';
+  // A flown reference satellite with no published dispenser/limit: its real total flew → not a failure.
+  if (reference && available == null && !cannotVerify.length && !blocked) status = 'ok';
   return bar('mass', 'Mass', 'kg', total, available, explanation, {
     status, blocked, parts, reserve, reserveFraction, propellant, limit, capacity, reaches, unknown: unknown.map((u) => u.id),
+    cannotVerify, estimated: estimated.map((u) => u.id), reference: !!reference,
     dry: parts - propellant, volume, misfits: misfits.map((m) => m.id),
     payload: { used: payloadUnits, available: structure?.units ?? null, ok: volume.ok },
   });
@@ -129,11 +177,18 @@ function computeMass(sel) {
 
 // ─── Power (§8.2) ────────────────────────────────────────────────────────────
 function computePower(sel) {
-  const { components, orbit, scenario, left } = sel;
+  const { components, orbit, scenario, left, reference, instruments } = sel;
   const pm = scenario?.powerModel ?? null;
   const load = pm?.avgLoadW ?? 0;
   const peak = pm?.peakLoadW ?? null;
   const src = components.power;
+  if (reference) {
+    return bar('power', 'Power', 'W', null, null,
+      `${components.structure.plainName}: its own real power system flew and worked${reference.powerW ? ` (${watts(reference.powerW)} satellite)` : ''}. The research gives no array/load split for it, so we do not recompute it.`,
+      { consumption: null, generation: null, peak: null, peakOk: null, margin: null, status: 'ok', reference: true });
+  }
+  // The most power-hungry payload must fit what the array gives in full sunlight (duty-cycled).
+  const hungry = instruments.filter((i) => i.powerW != null).sort((a, b) => b.powerW - a.powerW)[0] ?? null;
   if (!src) {
     return bar('power', 'Power', 'W', load || null, null,
       `Planned average load: ${watts(load)}${pm ? ' (mission duty-cycle model)' : ''}. Choose a solar array.`,
@@ -153,17 +208,20 @@ function computePower(sel) {
     explanation = `Up to ${watts(src.arrayW)} in full sunlight. Pick an orbit to see how long it sits in Earth's shadow.`;
   }
   explanation += ` Planned average load: ${watts(load)} — modes take turns (duty cycle), it is not the sum of all peaks.`;
-  const peakOk = peak == null ? null : peak <= src.arrayW;
-  if (peak != null) explanation += ` Peak load ${watts(peak)} vs array ${watts(src.arrayW)}: ${peakOk ? 'OK' : 'too high'}.`;
+  const payloadPeakOk = hungry ? hungry.powerW <= src.arrayW : null;
+  const peakOk = peak == null ? payloadPeakOk : peak <= src.arrayW && payloadPeakOk !== false;
+  if (peak != null) explanation += ` Peak load ${watts(peak)} vs array ${watts(src.arrayW)}: ${peak <= src.arrayW ? 'OK' : 'too high'}.`;
+  if (hungry) explanation += ` ${hungry.plainName} draws ${watts(hungry.powerW)} when on; the array gives up to ${watts(src.arrayW)} in full sun${payloadPeakOk ? ' — it runs in bursts (duty cycle).' : ' — not enough even in full sunlight.'}`;
   if (generation != null && load > generation) explanation += ` You are ${num(load - generation, 2)} W short.`;
   const margin = generation ? 1 - load / generation : null;
   const status = generation == null ? 'unknown' : peakOk === false ? 'over' : undefined;
-  return bar('power', 'Power', 'W', load, generation, explanation, { consumption: load, generation, peak, peakOk, margin, status });
+  return bar('power', 'Power', 'W', load, generation, explanation, { consumption: load, generation, peak, peakOk, payloadPeakOk, hungry: hungry?.id ?? null, hungryW: hungry?.powerW ?? null, margin, status });
 }
 
 // ─── Battery (§8.2) ──────────────────────────────────────────────────────────
 function computeBattery(sel, load) {
-  const { orbit, components, left } = sel;
+  const { orbit, components, left, reference } = sel;
+  if (reference) return bar('battery', 'Battery', 'Wh', null, null, 'Included in the real satellite — its battery flew and worked.', { needWh: null, usable: null, status: 'ok', reference: true });
   const battery = components.battery;
   const eclipseH = orbit?.eclipseMinutes != null ? orbit.eclipseMinutes / 60 : null;
   const needWh = eclipseH != null ? round(load * eclipseH, 4) : null;
@@ -190,50 +248,72 @@ function computeBattery(sel, load) {
 const SERVE_NAME = { iot: 'IoT gateways', gnss: 'GNSS monitoring network', weather: 'science receiving station' };
 
 function computeData(sel) {
-  const { scenario, components, instruments, ground, orbit, left } = sel;
+  const { scenario, components, instruments, ground, orbit, left, roles } = sel;
   const kind = scenario?.data.kind ?? 'gb';
-  const roles = new Set(instruments.map((i) => i.role));
   const groundOk = ground ? groundServes(ground, scenario?.groundServes) : null;
   const groundBlocked = groundOk === false;
   const base = { kind, groundOk, contactHours: ground?.contactHoursPerDay ?? null };
 
   if (kind === 'gb') {
     const dl = components.downlink;
-    const generated = roles.has('mw_radiometer') ? scenario.data.generatedGBperDay : 0;
+    const sensors = instruments.filter((i) => i.sensor);
+    // Only the research radiometer has a data model (1–2 GB/day). Other sensors' rates are not public.
+    const modelled = sensors.some((i) => i.id === 'payload_mw_radiometer');
+    const rateUnknown = sel.reference || sensors.some((i) => i.id !== 'payload_mw_radiometer');
+    const generated = modelled && !rateUnknown ? scenario.data.generatedGBperDay : rateUnknown ? null : 0;
     let downlink = null;
-    let explanation = roles.has('mw_radiometer') ? `The radiometer makes about ${scenario.data.generatedText}.` : 'No radiometer — no measurements to send yet.';
-    if (groundBlocked) {
+    let explanation = modelled && !rateUnknown ? `The radiometer makes about ${scenario.data.generatedText}.` : rateUnknown ? 'Data rate of this sensor is not public — the link cannot be measured, only checked for a complete chain.' : 'No atmosphere sensor — no measurements to send yet.';
+    if (sel.reference) {
+      const ok = groundOk === true;
+      return bar('data', 'Data', 'GB/day', null, null, `${explanation} The real satellite's downlink is included.${ok ? '' : ' Pick a ground segment that receives science data.'}`,
+        { ...base, status: groundBlocked ? 'blocked' : ok ? 'ok' : 'unknown', blocked: groundBlocked, generated: null, downlink: null, lostFraction: 0, deliveredFraction: null, chainOk: ok, rateUnknown: true });
+    }
+    if (dl?.requiresComms && components.comms?.id !== dl.requiresComms) {
+      downlink = 0;
+      explanation += ` ${dl.plainName} only works if the S-band transceiver is your control radio.`;
+    } else if (groundBlocked) {
       downlink = 0;
       explanation += ` The ${ground.plainName} cannot receive or process weather measurements.`;
     } else if (left.has('downlink')) {
       downlink = 0;
       explanation += ' No science downlink: the data stays on board.';
-    } else if (dl && ground && dl.rateMbps) {
-      const hours = ground.contactHoursPerDay ?? 0;
+    } else if (dl && ground && dl.rateMbps && ground.contactHoursPerDay != null) {
+      const hours = ground.contactHoursPerDay;
       downlink = round((dl.rateMbps * hours * 3600) / 8 / 1000, 4);
-      explanation += ` ${num(dl.rateMbps)} Mbps × ${num(hours)} h of contact per day × 3600 / 8 / 1000 = ${gbDay(downlink)} — in theory, before protocol overheads, re-sends and station availability (the real figure is lower).`;
+      explanation += ` ${num(dl.rateMbps, 3)} Mbps × ${num(hours)} h of contact per day × 3600 / 8 / 1000 = ${gbDay(downlink)} — in theory, before protocol overheads, re-sends and station availability (the real figure is lower).`;
+    } else if (dl && ground) {
+      explanation += ` ${ground.plainName}: contact time per day is not public, so the daily volume cannot be computed.`;
     } else {
       explanation += ' Pick the science downlink and the ground station to see how much reaches Earth.';
     }
+    if (dl?.needsXband) explanation += ' X-band: far faster than this data needs, and it needs an X-band ground station.';
     const lostFraction = downlink != null && generated > 0 ? Math.max(0, 1 - downlink / generated) : 0;
-    return bar('data', 'Data', 'GB/day', generated, downlink, explanation, { ...base, blocked: groundBlocked, generated, downlink, lostFraction, deliveredFraction: generated > 0 && downlink != null ? Math.min(1, downlink / generated) : null });
+    const chainOk = !!dl && !left.has('downlink') && groundOk === true && !(dl.requiresComms && components.comms?.id !== dl.requiresComms);
+    const unmeasured = (generated == null || downlink == null) && !!dl && !!ground;
+    let status;
+    if (unmeasured && !groundBlocked) status = chainOk ? 'unknown' : 'over';
+    return bar('data', 'Data', 'GB/day', generated, downlink, explanation, { ...base, status, blocked: groundBlocked, generated, downlink, lostFraction, chainOk, rateUnknown: generated == null, unmeasured,
+      deliveredFraction: generated > 0 && downlink != null ? Math.min(1, downlink / generated) : null });
   }
 
   // Packets (IoT) or navigation broadcast: judged as a complete chain, not GB/day.
+  const inc = (cat) => sel.included.has(cat);
+  const dl = components.downlink;
+  const dlOk = inc('downlink') || (downlinkServes(dl, 'iot') && !(dl.requiresComms && components.comms?.id !== dl.requiresComms));
   const chain = kind === 'packets'
     ? [
       ['IoT radio + antennas', roles.has('iot_transceiver') && roles.has('iot_antenna')],
-      ['packet memory (computer)', !!components.computer?.storesPackets],
-      ['packet downlink', downlinkServes(components.downlink, 'iot')],
+      ['packet memory (computer)', inc('computer') || !!components.computer?.storesPackets],
+      ['packet downlink', dlOk],
       ['IoT gateways on Earth', groundOk === true],
     ]
     : [
       ['navigation signal + L-band antenna', roles.has('nav_signal') && roles.has('nav_antenna')],
-      ['C-band uplink + S-band control', components.comms?.id === 'ttc_c_s_band'],
+      ['C-band uplink + S-band control', inc('comms') || components.comms?.id === 'ttc_c_s_band'],
       ['GNSS monitoring + time uplink on Earth', groundOk === true],
     ];
   const missing = chain.filter(([, ok]) => !ok).map(([name]) => name);
-  const chosen = !!ground && (kind === 'packets' ? !!components.downlink || left.has('downlink') : !!components.comms);
+  const chosen = !!ground && (kind === 'packets' ? !!components.downlink || left.has('downlink') || inc('downlink') : !!components.comms || inc('comms'));
   const chainOk = missing.length === 0;
   let explanation = kind === 'packets'
     ? 'IoT messages are bytes, not photos: the satellite stores packets during passes and dumps them over a gateway. '
@@ -250,20 +330,26 @@ function computeData(sel) {
 
 // ─── Budget (research cost tables §3.5, §4.6, §5.5) ─────────────────────────
 function computeBudget(sel, massKg) {
-  const { componentList, instruments, launcher, deployer, ground, scenario, prep } = sel;
+  const { componentList, instruments, launcher, deployer, ground, scenario, prep, reference, satsPerLaunch } = sel;
   const sid = scenario?.id;
   const cm = scenario?.costModel ?? { ait: 0, licensing: 0, ops: 0, reserve: 0 };
-  const items = [...componentList, ...instruments];
-  const hardware = round(items.reduce((a, it) => a + costFor(it, sid), 0));
+  // Add-ons that flew on a reference satellite are part of it (its price is not public either way).
+  const items = [...componentList, ...instruments.filter((i) => !(reference && i.flewOn === sel.components.structure.id))];
+  const hardware = round(items.reduce((a, it) => a + (costFor(it, sid) ?? 0), 0));
+  // NOT PUBLIC prices: never guessed. They make the budget "uncertain" (not a fail).
   const unknownCost = items.filter((it) => it.cost == null).map((it) => it.id);
-  const launchCost = launcher ? launchPrice(launcher, massKg) : 0;
+  const launchCost = launcher ? launchPrice(launcher, massKg, satsPerLaunch) : 0;
   const launchUnknown = launcher != null && launchCost == null;
+  const groundUnknown = ground != null && ground.cost == null;
+  const unknownItems = [...items.filter((it) => it.cost == null).map((it) => it.plainName), ...(launchUnknown ? [launcher.plainName] : []), ...(groundUnknown ? [ground.plainName] : [])];
+  const uncertain = unknownItems.length > 0;
   const lines = [
-    { id: 'hardware', label: 'Satellite hardware (build list)', value: hardware, dataKind: 'model' },
+    { id: 'hardware', label: 'Satellite hardware (build list)', value: hardware, dataKind: 'model', note: unknownCost.length ? `+ ${unknownCost.length} part${unknownCost.length > 1 ? 's' : ''} with no public price` : '' },
     { id: 'ait', label: 'Design, software, assembly & tests (AIT)', value: prep.tests ? cm.ait : 0, dataKind: 'model', note: prep.tests ? '' : 'tests not planned yet' },
-    { id: 'launch', label: 'Launch service', value: launchUnknown ? null : launchCost, dataKind: launcher ? (launcher.costType === 'published' ? 'catalog' : launcher.costType === 'rfq' ? 'rfq' : 'model') : 'model', note: launchUnknown ? 'price on request (RFQ) — not counted' : '' },
+    { id: 'launch', label: 'Launch service', value: launchUnknown ? null : launchCost, dataKind: launcher ? ({ published: 'catalog', rfq: 'rfq', reported: 'reported' }[launcher.costType] ?? 'model') : 'model',
+      note: launchUnknown ? 'price on request (RFQ) — not counted' : launcher?.pairs && satsPerLaunch === 2 ? 'half of one launch: 2 satellites share it' : '' },
     { id: 'deployer', label: 'Dispenser / adapter & integration', value: deployer?.cost ?? 0, dataKind: 'model', note: deployer?.costNote ?? '' },
-    { id: 'ground', label: 'Ground segment', value: ground?.cost ?? 0, dataKind: 'model' },
+    { id: 'ground', label: 'Ground segment', value: groundUnknown ? null : ground?.cost ?? 0, dataKind: groundUnknown ? 'rfq' : 'model', note: groundUnknown ? 'price not public — not counted' : '' },
     { id: 'licensing', label: 'Frequency licence, regulation, EMC', value: prep.licence ? cm.licensing : 0, dataKind: 'model', note: prep.licence ? '' : 'licence not planned yet' },
     { id: 'ops', label: 'Operations', value: scenario ? cm.ops : 0, dataKind: 'model' },
   ];
@@ -280,9 +366,10 @@ function computeBudget(sel, massKg) {
       : ` That is ${money(used - available)} over the ${money(available)} model budget.`;
   }
   if (launchUnknown) explanation += ` ${launcher.plainName} has no public price — the launch line is "not comparable on cost".`;
+  if (uncertain) explanation += ` Budget uncertain: ${unknownItems.length} item${unknownItems.length > 1 ? 's have' : ' has'} no public price (${unknownItems.join(', ')}). Real engineers would request a quote (RFQ).`;
   explanation += ' All budget lines are educational estimates, not real quotes.';
   return bar('budget', 'Budget', '$M', used, available, explanation, {
-    status, hardware, launch: launchCost, launchUnknown, lines, reserveLeft, plannedReserve, unknownCost, ops: cm.ops,
+    status, hardware, launch: launchCost, launchUnknown, lines, reserveLeft, plannedReserve, unknownCost, ops: cm.ops, uncertain, unknownItems,
   });
 }
 
@@ -318,14 +405,14 @@ function computeLaunch(sel, mass) {
 
 /** Planned mission readiness (0–1): share of the mission's required payload roles + service chain present. */
 function computePerformance(sel, data) {
-  const { scenario, instruments } = sel;
+  const { scenario } = sel;
   if (!scenario) return { key: 'science', label: 'Mission performance', value: 0, required: 1, ok: false, explanation: 'Pick a mission.' };
-  const roles = new Set(instruments.map((i) => i.role));
-  const have = scenario.requiredRoles.filter((r) => roles.has(r)).length;
-  const payloadShare = have / scenario.requiredRoles.length;
-  const chain = data.deliveredFraction ?? 0;
+  const { needed, missing } = payloadNeeds(sel);
+  const have = needed.length - missing.length;
+  const payloadShare = needed.length ? have / needed.length : 0;
+  const chain = data.deliveredFraction ?? (data.chainOk ? 1 : 0);
   const value = round(payloadShare * (data.status === 'unknown' ? 1 : chain));
-  const explanation = `Mission payload ${have} of ${scenario.requiredRoles.length} required parts; data/service chain ${data.status === 'unknown' ? 'not chosen yet' : pct(chain)}.`;
+  const explanation = `Mission payload ${have} of ${needed.length} required parts; data/service chain ${data.status === 'unknown' ? 'not measured' : pct(chain)}.`;
   return { key: 'science', label: 'Mission performance', value, required: 1, ok: value >= 1 - 1e-9, explanation, payloadShare };
 }
 

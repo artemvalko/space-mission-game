@@ -63,7 +63,7 @@ export const SCENARIOS = [
     objective: 'A 6U CubeSat in SSO 550–650 km: ≥90% of planned observations valid, calibration OK, ≥95% of valid data delivered, for 18–24 months.',
     realInspiration: 'NASA TEMPEST-D (6U) and TROPICS (3U)',
     budgetM: 18.00, deadlineMonths: null, minMonths: 18, simMonths: 24,
-    size: '6u', requiredRoles: ['mw_radiometer', 'calibration'],
+    size: '6u', requiredRoles: ['atmo_sensor'], // + calibration when a passive radiometer is chosen (engine/resources.js payloadNeeds)
     requiredBus: ['structure', 'power', 'battery', 'comms', 'downlink', 'computer', 'adcs', 'thermal', 'sensors', 'harness'],
     recommendedOrbits: ['sso_550_650'], allowedOrbits: ['sso_550_650', 'leo_550', 'leo_550_32deg', 'iss_400_516'],
     variants: [

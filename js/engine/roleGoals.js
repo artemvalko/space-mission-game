@@ -28,9 +28,9 @@ const CHECKS = {
   engineer_margins(ctx) {
     const { res, sel } = ctx;
     const cube = isCubeSat(sel.components.structure);
-    const massOk = res.mass.available != null && (cube || !res.mass.limit ? 1 - res.mass.used / res.mass.available >= MARGIN_GOAL : res.mass.used <= res.mass.limit + 1e-9);
+    const massOk = res.mass.status !== 'unknown' && res.mass.available != null && (cube || !res.mass.limit ? 1 - res.mass.used / res.mass.available >= MARGIN_GOAL : res.mass.used <= res.mass.limit + 1e-9);
     const powerMargin = res.power.margin;
-    const thermal = !!sel.components.thermal;
+    const thermal = !!sel.components.thermal || sel.included.has('thermal');
     const met = massOk && powerMargin != null && powerMargin >= MARGIN_GOAL && thermal;
     const massText = res.mass.available == null ? 'unknown' : cube || !res.mass.limit ? pct(1 - res.mass.used / res.mass.available) : res.mass.used <= res.mass.limit ? 'within the 700 kg target' : 'over the target';
     return { met, reason: `Mass margin ${massText}, power margin ${powerMargin == null ? 'unknown' : pct(powerMargin)} (need 10%), thermal control ${thermal ? '✓' : '✗'}.` };
@@ -47,7 +47,9 @@ const CHECKS = {
   // Flight dynamics: orbit + launch + link.
   flight_data_orbit(ctx) {
     const { res, scenario, sel, state } = ctx;
-    const recommended = !!sel.orbit && scenario.recommendedOrbits.includes(sel.orbit.id);
+    // "Recommended" follows the chosen objective variant when it has an orbit preference.
+    const orbitFit = sel.variant?.fit.find((f) => f.dim === 'orbit');
+    const recommended = !!sel.orbit && (orbitFit ? orbitFit.map[sel.orbit.id] === 1 : scenario.recommendedOrbits.includes(sel.orbit.id));
     const issues = validateDesign(state, res);
     const launchOk = !!sel.launcher && !issues.some((i) => i.severity === 'error' && ['launcher_trajectory_compatible', 'launch_adapter_compatible'].includes(i.gate));
     const linkOk = res.data.status === 'ok';

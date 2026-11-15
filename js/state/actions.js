@@ -27,6 +27,8 @@ export const T = {
   SELECT_GROUND: 'design/selectGround',
   SELECT_DEPLOYER: 'design/selectDeployer',
   TOGGLE_PREP: 'design/togglePrep',
+  SET_VARIANT: 'design/setVariant',
+  SET_SATS_PER_LAUNCH: 'design/setSatsPerLaunch',
   SELECT_POWER_PACK: 'design/selectPowerPack',
   SET_KIT: 'design/setKit',
   CAST_VOTE: 'review/castVote',
@@ -54,6 +56,10 @@ export const selectGround = (groundId) => ({ type: T.SELECT_GROUND, groundId });
 export const selectDeployer = (deployerId) => ({ type: T.SELECT_DEPLOYER, deployerId });
 /** item: 'tests' | 'licence' | 'disposal' (launch-prep checklist); value: true/false. */
 export const togglePrep = (item, value) => ({ type: T.TOGGLE_PREP, item, value });
+/** Objective variant id (data/scenarios.js `variants`). */
+export const setVariant = (variantId) => ({ type: T.SET_VARIANT, variantId });
+/** 1 or 2 satellites per launch (only for launchers with `pairs`). */
+export const setSatsPerLaunch = (n) => ({ type: T.SET_SATS_PER_LAUNCH, n });
 export const selectPowerPack = (packId) => ({ type: T.SELECT_POWER_PACK, packId });
 /** kit: 'standard' (Easy auto kit from the research build list) | null (choose parts manually). */
 export const setKit = (kit) => ({ type: T.SET_KIT, kit });

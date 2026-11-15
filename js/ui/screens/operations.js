@@ -64,6 +64,7 @@ function askChoice(ev, pending) {
       h('div', { class: 'event-when' }, pending.month === 0 ? 'Before launch' : `Month ${pending.month}`),
       h('h2', {}, [ev.title, h('span', { class: 'simulated-tag' }, 'simulated event')]),
       h('p', { class: 'event-desc' }, describe(ev, pending)),
+      ev.realStory?.[state.scenarioId] && h('p', { class: 'small muted' }, ['📖 ', ev.realStory[state.scenarioId]]),
       ev.realPhenomenon && h('p', { class: 'small muted' }, ['🌍 ', ev.realPhenomenon, ev.id === 'solar_flare' ? [' ', h('a', { href: 'https://api.nasa.gov/', target: '_blank', rel: 'noopener noreferrer' }, 'NASA DONKI')] : '']),
       flight && h('p', { class: 'owner-badge' }, `👤 ${flight.name} (${role.name}) decides — others can advise.`),
       h('div', { class: 'event-choices' }, ev.choices.map((c, i) => h('button', {

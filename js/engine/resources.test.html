@@ -109,11 +109,11 @@
   <div id="out"></div>
 
   <script type="module">
-    import { computeResources, getSelection } from './resources.js';
+    import { computeResources, getSelection, payloadNeeds } from './resources.js';
     import { validateDesign, hasBlockingErrors, canLaunch, gateStatus, GATES } from './validation.js';
     import { runSimulation } from './simulation.js';
     import { scoreMission, marginQuality, weightsFor, gradeFor, DISPOSAL_BONUS } from './scoring.js';
-    import { evaluateObjectives, satelliteSuccess, constellationStatus, checkClaim } from './objectives.js';
+    import { evaluateObjectives, satelliteSuccess, constellationStatus, checkClaim, variantFit } from './objectives.js';
     import { describeOutcome } from './outcome.js';
     import { evaluateRoleGoals, voteStatus } from './roleGoals.js';
     import { attemptRecord } from './attempt.js';
@@ -429,6 +429,106 @@
       check('ground tracks: SSO reaches the poles (>80°), LEO illustration ≤ 52°, MEO tilted 56°', maxLat(trackPoints('sso_550_650')) > 80 && maxLat(trackPoints('leo_550')) <= 51.7 && near(maxLat(trackPoints('meo_gnss')), 56, 0.3));
       check('balance scale: fits → rocket side, over → satellite side', scaleAngle(8.68, 12) < 0 && scaleAngle(13, 12) === 16 && scaleAngle(5, null) === 0);
       check('end of life: LEO/SSO deorbit, MEO/GEO move out of the busy orbit', endOfLifeKind('leo_550') === 'deorbit' && endOfLifeKind('sso_550_650') === 'deorbit' && endOfLifeKind('meo_gnss') === 'graveyard');
+    }
+
+    // ═══ 10. More real options (docs/OPTIONS_RESEARCH.md) ═════════════════════
+    await tick();
+    section('10 · More options: several PASS builds, thresholds, unknown values, reference builds');
+    const ref = (sid, refId, extra = {}) => make(sid, (d) => ({ ...d, components: { ...emptyDesign().components, structure: refId, eol: d.components.eol ?? null }, instrumentIds: [], ...extra }));
+    const variant = (st, v) => ({ ...st, design: { ...st.design, variantId: v } });
+    const go = (st) => canLaunch(validateDesign(st));
+    const passes = (label, st) => {
+      const s = sim(st);
+      const ok = go(st) && s.outcome === 'success' && satelliteSuccess(evaluateObjectives(st, s));
+      check(`PASS build — ${label}`, ok, `${s.outcome}; fit ${variantFit(st).value.toFixed(2)}; ${errorsOf(st).map((e) => e.message).join(' | ')}`);
+      return ok;
+    };
+    {
+      // ── Builds per mission × objective variant (≥2 each)
+      const commsBuilds = {
+        cheapest: [['Swarm SpaceBEE (real 0.4 kg) · LEO · rideshare', ref(C, 'ref_swarm_spacebee')], ['Astrocast 3U (real 4.5 kg) · SSO · rideshare', ref(C, 'ref_astrocast_3u', { orbitId: 'sso_550_650' })]],
+        phone_chips: [['Sateliot 6U (real 10 kg) · LEO', ref(C, 'ref_sateliot_6u')], ['research 6U + NB-IoT NTN radio', make(C, (d) => ({ ...d, instrumentIds: ['iot_nbiot_ntn', 'ant_iot_deploy'] }))]],
+        licensed: [['Astrocast 3U (real) · LEO', ref(C, 'ref_astrocast_3u')], ['research 6U + L-band radio', make(C, (d) => ({ ...d, instrumentIds: ['iot_lband', 'ant_iot_deploy'] }))]],
+      };
+      const wxRadar12u = make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u' }, instrumentIds: ['wx_raincube_radar'] }));
+      const weatherBuilds = {
+        global_humidity: [['research 6U radiometer · SSO', make(W)], ['TROPICS 3U (real) · SSO (like the TROPICS Pathfinder)', ref(W, 'ref_tropics_3u')], ['research radiometer in a real 12U XL frame', make(W, withParts({ structure: 'str_cube_12u' }))]],
+        hurricanes: [['TROPICS 3U (real) · 32° · Electron', ref(W, 'ref_tropics_3u', { orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' })], ['TEMPEST-D-style radiometer from the ISS (51.6°), like the real TEMPEST-D', make(W, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' }))]],
+        rain_inside: [['RainCube 6U (real 12 kg) · ISS deploy', ref(W, 'ref_raincube_6u', { orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' })], ['RainCube radar in a 12U XL part build · SSO', wxRadar12u]],
+      };
+      const gps = ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200' });
+      const navBuilds = {
+        galileo: [['Galileo FOC · Falcon 9 · 1 per launch', make(N)], ['Galileo FOC · Falcon 9 · 2 per launch', make(N, (d) => ({ ...d, satsPerLaunch: 2 }))], ['Galileo FOC · Ariane 62', make(N, (d) => ({ ...d, launcherId: 'lv_ariane62' }))]],
+        gps: [['GPS III (real 3,681 kg) · MEO 20,200 km · Falcon 9', gps], ['GPS III + laser retroreflector (flew on SV09/SV10)', ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200', instrumentIds: ['nav_lra'] })], ['GPS III + DRAFS demo clock (SV10)', ref(N, 'ref_gps_iii', { orbitId: 'meo_gps_20200', instrumentIds: ['clk_drafs_demo'] })]],
+      };
+      for (const [sid, table] of [[C, commsBuilds], [W, weatherBuilds], [N, navBuilds]]) {
+        for (const [v, builds] of Object.entries(table)) {
+          const n = builds.filter(([label, st]) => passes(`${sid} · ${v}: ${label}`, variant(st, v))).length;
+          check(`${sid} · "${v}": at least 2 distinct PASS builds`, n >= 2, `${n} PASS`);
+        }
+      }
+      // ── Variant fit changes mission performance only (never a failure)
+      const fitBest = variantFit(variant(weatherBuilds.hurricanes[0][1], 'hurricanes')).value;
+      const fitSub = variantFit(variant(make(W), 'hurricanes')).value;
+      check('variant fit: TROPICS 3U at 32° is the best fit for "Watch hurricanes often"; SSO radiometer is valid but lower', fitBest === 1 && fitSub < 1 && go(variant(make(W), 'hurricanes')), `${fitBest} vs ${fitSub}`);
+      const sBest = scoreMission(variant(make(W), 'global_humidity'), sim(make(W))); const sSub = scoreMission(variant(make(W), 'rain_inside'), sim(make(W)));
+      check('a sub-optimal variant fit lowers only the Mission performance part', sSub.parts.find((p) => p.id === 'science').points < sBest.parts.find((p) => p.id === 'science').points
+        && ['objectives', 'efficiency', 'survivability'].every((id) => sSub.parts.find((p) => p.id === id).points === sBest.parts.find((p) => p.id === id).points) && sSub.outcome === 'success');
+
+      // ── Battery thresholds (real EnduroSat EPS numbers vs the research 8.75 Wh need)
+      const eps1 = computeResources(make(C, withParts({ battery: 'bat_eps1' })));
+      check('EPS I (10.2 Wh): 6.12 Wh usable < 8.75 Wh needed → battery gate FAIL', near(eps1.battery.available, 6.12) && gatesFailed(make(C, withParts({ battery: 'bat_eps1' }))).includes('battery_eclipse_pass'));
+      const eps1p = computeResources(make(C, withParts({ battery: 'bat_eps1plus' })));
+      check('EPS I+ (20.4 Wh): 12.24 Wh usable ≥ 8.75 (comms) and ≥ 9.92 (weather) → passes thinly', near(eps1p.battery.available, 12.24) && go(make(C, withParts({ battery: 'bat_eps1plus' }))) && go(make(W, withParts({ battery: 'bat_eps1plus' }))));
+      const eps2 = computeResources(make(C, withParts({ battery: 'bat_eps2' })));
+      check('EPS II (84 Wh): 50.4 Wh usable — big margin, +0.98 kg vs EPS I+ (before reserve)', near(eps2.battery.available, 50.4) && near(eps2.mass.parts - eps1p.mass.parts, 0.982) && go(make(C, withParts({ battery: 'bat_eps2' }))));
+
+      // ── Solar thresholds
+      const fixedC = computeResources(make(C, withParts({ power: 'pwr_6u_fixed' })));
+      check('6U fixed panel: 19.2 × 0.60 × 0.80 = 9.22 W < 15 W comms load → power gate FAIL', near(fixedC.power.available, 9.216) && gatesFailed(make(C, withParts({ power: 'pwr_6u_fixed' }))).includes('power_peak_and_average_pass'));
+      check('6U deployable wings: 38.4 W → 18.43 W average → comms GO', go(make(C, withParts({ power: 'pwr_6u_deploy' }))));
+      const radarFixed = make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_12u', power: 'pwr_6u_fixed' }, instrumentIds: ['wx_raincube_radar'] }));
+      check('RainCube radar (22 W) on a 19.2 W fixed panel → NO-GO even in full sunlight', errorsOf(radarFixed).some((e) => /needs 22 W; array gives 19.2 W/.test(e.message)) && /40 min/.test(errorsOf(radarFixed).find((e) => /22 W/.test(e.message))?.why ?? ''), errorsOf(radarFixed).map((e) => e.message).join(' | '));
+      check('RainCube radar on deployable wings runs in bursts (duty cycle) → GO', go(wxRadar12u) && computeResources(wxRadar12u).power.payloadPeakOk === true);
+      check('the radar-power event (real RainCube story) can only happen with a radar', EVENTS.find((e) => e.id === 'radar_power').requiresRole === 'precip_radar');
+      check('3U deployable wings do not fit a 6U frame', gatesFailed(make(C, withParts({ power: 'pwr_3u_deploy' }))).includes('spacecraft_size_mass_volume_compatible'));
+
+      // ── Unknown prices → uncertain budget (amber, not a fail, never a guess)
+      const nb = make(C, (d) => ({ ...d, instrumentIds: ['iot_nbiot_ntn', 'ant_iot_deploy'] }));
+      const nbRes = computeResources(nb);
+      check('NOT PUBLIC price → budget "uncertain" (not over, not guessed); RFQ caution; still GO', nbRes.budget.uncertain && nbRes.budget.unknownItems.includes('5G NB-IoT NTN') && nbRes.budget.status !== 'over'
+        && validateDesign(nb).some((i) => i.severity === 'caution' && /Budget uncertain/.test(i.message)) && go(nb));
+      const nbScore = scoreMission(nb, sim(nb));
+      check('uncertain budget: cost efficiency uses known items only; results say "request a quote (RFQ)"', /request a quote/.test(nbScore.parts.find((p) => p.id === 'efficiency').why) && nbScore.stats.budgetUncertain);
+      check('≈ estimate: the NB-IoT radio uses the research SDR class mass (1.50 kg), shown as estimated', near(nbRes.mass.parts, 7.55) && nbRes.mass.estimated.includes('iot_nbiot_ntn'));
+      const iss = computeResources(make(C, (d) => ({ ...d, orbitId: 'iss_400_516', launcherId: 'lv_iss_deploy' })));
+      check('NOT PUBLIC renders as unknown — never as 0 (ISS launch line is null, not $0)', iss.budget.lines.find((l) => l.id === 'launch').value === null && iss.budget.uncertain);
+      const el = computeResources(make(C, (d) => ({ ...d, launcherId: 'lv_electron_kickstage' })));
+      check('📰 Electron reported ~$7.5M is counted: comms goes over its $6M model budget (warning, not NO-GO)', near(el.budget.launch, 7.5) && el.budget.status === 'over' && go(make(C, (d) => ({ ...d, launcherId: 'lv_electron_kickstage' }))));
+
+      // ── Reference builds: real total mass instead of part-by-part mass
+      const tr = computeResources(ref(W, 'ref_tropics_3u'));
+      check('TROPICS reference build: real total 5.4 kg, no extra 15%, checked against the 3U 6 kg limit', tr.mass.used === 5.4 && tr.mass.reserve === 0 && tr.mass.available === 6 && tr.mass.status === 'ok');
+      check('RainCube reference build: 12 kg — exactly at the 6U limit (tight, but GO)', computeResources(ref(W, 'ref_raincube_6u')).mass.used === 12 && computeResources(ref(W, 'ref_raincube_6u')).mass.status === 'caution');
+      check('GPS III reference build: 3,681 kg real launch mass', computeResources(gps).mass.used === 3681);
+      const trParts = make(W, (d) => ({ ...d, components: { ...d.components, structure: 'str_cube_3u' }, instrumentIds: ['wx_tropics_radiometer'] }));
+      const cv = errorsOf(trParts).find((e) => /cannot be verified/.test(e.message));
+      check('TROPICS radiometer part by part: mass NOT PUBLIC → "cannot verify" NO-GO, offering the reference build', !!cv && /TROPICS 3U \(real\)/.test(cv.alternative ?? ''));
+      check('6U XL frame (mass not public) → cannot verify; drag sail (mass not public) → cannot verify', errorsOf(make(C, withParts({ structure: 'str_es_6u_xl' }))).some((e) => /cannot be verified/.test(e.message)) && errorsOf(make(C, withParts({ eol: 'eol_drag_sail' }))).some((e) => /cannot be verified/.test(e.message)));
+      check('a reference build is complete: extra payload → NO-GO', errorsOf(ref(C, 'ref_sateliot_6u', { instrumentIds: ['payload_iot_sdr'] })).some((e) => /is complete/.test(e.message)));
+      check('a reference build for another mission → NO-GO', gatesFailed(ref(C, 'ref_tropics_3u')).includes('spacecraft_size_mass_volume_compatible'));
+      check('laser retroreflector on the Galileo part build: mass NOT PUBLIC → cannot verify (it only flew inside GPS III)', errorsOf(make(N, (d) => ({ ...d, instrumentIds: [...d.instrumentIds, 'nav_lra'] }))).some((e) => /cannot be verified/.test(e.message)));
+      check('Swarm: licensing caution (FCC refused the first licence in 2017)', validateDesign(ref(C, 'ref_swarm_spacebee')).some((i) => /hard to track/.test(i.message)));
+
+      // ── Launch pairs, X-band, reuse, CIRAS
+      check('2 Galileo satellites per launch halve the launch cost per satellite ($90M → $45M)', near(computeResources(make(N)).budget.launch, 90) && near(computeResources(make(N, (d) => ({ ...d, satsPerLaunch: 2 }))).budget.launch, 45));
+      const xb = make(W, withParts({ downlink: 'dl_es_xband_tx' }));
+      check('X-band transmitter: "overkill" caution with an X-band ground note — not a fail', validateDesign(xb).some((i) => i.severity === 'caution' && /overkill/.test(i.message)) && !gatesFailed(xb).includes('communications_link_pass'));
+      check('reusing the S-band transceiver as downlink needs it as the control radio', gatesFailed(make(C, withParts({ downlink: 'dl_reuse_sband_trx' }))).includes('communications_link_pass') && go(make(C, withParts({ comms: 'ttc_es_sband_trx', downlink: 'dl_reuse_sband_trx' }))));
+      check('CIRAS (cancelled) → NO-GO with an honest reason', errorsOf(make(W, (d) => ({ ...d, instrumentIds: ['wx_ciras_ir', ...d.instrumentIds] }))).some((e) => /cancelled/.test(e.message)));
+      check('GNSS-RO needs no calibration module (but its mass is not public → cannot verify)', !payloadNeeds(getSelection(make(W, (d) => ({ ...d, instrumentIds: ['wx_gnss_ro'] })))).needed.includes('calibration'));
+      passes('weather with an OBC-with-GNSS replacing the sun/orbit sensors', make(W, withParts({ computer: 'obc_es_gnss', sensors: 'none' })));
+      check('research radiometer + Electron to 32°: over the $18M budget (real consequence, objective fails — not a NO-GO)', go(make(W, (d) => ({ ...d, orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }))) && computeResources(make(W, (d) => ({ ...d, orbitId: 'leo_550_32deg', launcherId: 'lv_electron_kickstage' }))).budget.status === 'over');
     }
 
     const summary = document.getElementById('summary');

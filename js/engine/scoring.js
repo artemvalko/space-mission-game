@@ -12,7 +12,7 @@
 //           insights: { good[], bad[] }, tips[], stats }
 
 import { computeResources, getSelection } from './resources.js';
-import { evaluateObjectives, satelliteSuccess } from './objectives.js';
+import { evaluateObjectives, satelliteSuccess, variantFit } from './objectives.js';
 import { evaluateRoleGoals, voteStatus } from './roleGoals.js';
 import { isCubeSat } from '../data/components.js';
 import { getEvent } from '../data/events.js';
@@ -65,7 +65,9 @@ export function scoreMission(state, sim) {
   // ── Mission performance: KPIs met + simulated service availability
   const kpis = objectives.filter((o) => o.kpi);
   const kpiShare = kpis.length ? kpis.filter((o) => o.met).length / kpis.length : 0;
-  const performance = flew ? clamp01(kpiShare * 0.7 + (s.serviceFraction ?? 0) * 0.3) : 0;
+  // The chosen objective variant scales mission performance only (a less suitable build is not a failure).
+  const fit = variantFit(state);
+  const performance = flew ? clamp01((kpiShare * 0.7 + (s.serviceFraction ?? 0) * 0.3) * (0.6 + 0.4 * fit.value)) : 0;
 
   // ── Objectives (all, incl. budget / schedule / service period)
   const objMet = objectives.filter((o) => o.met).length;
@@ -76,10 +78,11 @@ export function scoreMission(state, sim) {
   const budgetLeft = (scenario.budgetM - spent) / scenario.budgetM;
   const cube = isCubeSat(sel.components.structure);
   const massMargin = res.mass.available ? 1 - res.mass.used / res.mass.available : -1;
-  const massQ = cube || !res.mass.limit ? marginQuality(massMargin) : (res.mass.used <= res.mass.limit + 1e-9 ? 1 : 0);
-  const powerMargin = res.power.margin ?? -1;
+  const massQ = res.mass.reference && res.mass.available == null ? 0.5 // flown satellite, no published limit: unknown
+    : cube || !res.mass.limit ? marginQuality(massMargin) : (res.mass.used <= res.mass.limit + 1e-9 ? 1 : 0);
+  const powerMargin = res.power.margin ?? (res.power.reference ? null : -1);
   const terms = [massQ, marginQuality(powerMargin)];
-  if (!res.budget.launchUnknown) terms.push(marginQuality(budgetLeft)); // RFQ price: no penalty, no bonus
+  if (!res.budget.uncertain) terms.push(marginQuality(budgetLeft)); // NOT PUBLIC price: score known items only — no penalty, no bonus
   const efficiency = terms.reduce((a, b) => a + b, 0) / terms.length;
 
   // ── Survivability: how long it worked, not lost, not weakened
@@ -100,9 +103,9 @@ export function scoreMission(state, sim) {
 
   const raw = { science: performance, objectives: objectivesScore, efficiency, survivability, teamwork };
   const WHY = {
-    science: flew ? `${kpis.filter((o) => o.met).length} of ${kpis.length} mission KPIs met; simulated service ${pct(s.serviceFraction ?? 0)} of the planned time.` : 'The satellite never reached its orbit, so the mission delivered nothing.',
+    science: flew ? `${kpis.filter((o) => o.met).length} of ${kpis.length} mission KPIs met; simulated service ${pct(s.serviceFraction ?? 0)} of the planned time${fit.variant ? `; fit for "${fit.variant.label}" ${pct(fit.value)}` : ''}.` : 'The satellite never reached its orbit, so the mission delivered nothing.',
     objectives: `${objMet} of ${objectives.length} mission objectives met.`,
-    efficiency: `Budget left ${res.budget.launchUnknown ? 'not comparable (launch RFQ)' : pct(budgetLeft)}, mass margin ${cube || !res.mass.limit ? pct(Math.max(massMargin, -1)) : res.mass.used <= res.mass.limit ? 'within the 700 kg target' : 'over the target'}, power margin ${pct(Math.max(powerMargin, -1))}. Best: 10–30% spare.`,
+    efficiency: `Budget left ${res.budget.uncertain ? 'uncertain (prices not public — real engineers would request a quote)' : pct(budgetLeft)}, mass margin ${cube || !res.mass.limit ? pct(Math.max(massMargin, -1)) : res.mass.used <= res.mass.limit ? 'within the 700 kg target' : 'over the target'}, power margin ${pct(Math.max(powerMargin, -1))}. Best: 10–30% spare.`,
     survivability: flew ? `Worked ${pct(lasted)} of the planned time${sim.outcome === 'lost' ? '; the satellite was lost' : ''}${s.damage ? '; it was weakened by a risky choice' : ''}.` : 'It never reached orbit.',
     teamwork: state.mode === 'team' ? `${goalsMet} of ${personalGoals.length} personal goals met${votes.unanimous ? ' + unanimous Go bonus' : ''}.` : 'Solo game — this weight is shared by the other parts.',
   };
@@ -116,7 +119,8 @@ export function scoreMission(state, sim) {
   let total = Math.max(0, Math.min(1000, parts.reduce((a, p) => a + p.points, 0)));
   if (sim.noGo) total = Math.min(total, 340); // a NO-GO design is a failed mission
 
-  const stats = { spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives) };
+  const stats = { spent, budgetLeft, massMargin, powerMargin, kpiShare, serviceFraction: s.serviceFraction ?? 0, lostFraction: res.data.lostFraction ?? 0, satelliteSuccess: satelliteSuccess(objectives),
+    variantFit: fit.value, variantId: fit.variant?.id ?? null, budgetUncertain: !!res.budget.uncertain, unknownPrices: res.budget.unknownItems ?? [] };
   return {
     total,
     grade: sim.noGo ? 'F' : gradeFor(total, sim.outcome),
@@ -140,7 +144,8 @@ function insights(sim, res, sel, st, objectives) {
   const { scenario } = sel;
   if (sim.noGo) bad.push({ w: 2, text: 'NO-GO design: only simulated.' });
   if (st.budgetLeft < 0) bad.push({ w: 1, text: `${money(-st.budgetLeft * scenario.budgetM)} over budget.` });
-  else if (!res.budget.launchUnknown) good.push({ w: 0.4, text: `${money(scenario.budgetM - st.spent)} reserve left.` });
+  else if (res.budget.uncertain) bad.push({ w: 0.35, text: `Budget uncertain: ${st.unknownPrices.length} price${st.unknownPrices.length > 1 ? 's' : ''} not public (RFQ).` });
+  else good.push({ w: 0.4, text: `${money(scenario.budgetM - st.spent)} reserve left.` });
   if (res.power.margin != null) {
     if (st.powerMargin < 0) bad.push({ w: 0.9, text: `Power short: ${watts(res.power.used)} needed, ${watts(res.power.available)} made.` });
     else if (st.powerMargin < 0.1) bad.push({ w: 0.3, text: `Only ${pct(st.powerMargin)} spare power.` });

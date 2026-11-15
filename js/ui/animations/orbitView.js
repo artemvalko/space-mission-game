@@ -26,7 +26,7 @@ const MAX_IMAGES = 6;
 const SEC_PER_MONTH = 0.32; // at 1×
 // Station directions (degrees around Earth) — illustration only.
 const STATIONS = { gs_iot_gateways: [-90, 50], gs_gnss_monitoring: [-150, -90, -30, 30, 90, 150], gs_weather_science: [-90] };
-const EVENT_ICON = { hardware_failure: '🔧', solar_flare: '☀️', debris: '☄️', budget_cut: '💸', launch_delay: '⏱', rare_storm: '🌀' };
+const EVENT_ICON = { hardware_failure: '🔧', solar_flare: '☀️', debris: '☄️', budget_cut: '💸', launch_delay: '⏱', rare_storm: '🌀', radar_power: '🌧️' };
 
 // Earth radius 34 px for MEO/GEO so the orbit fits at TRUE relative scale (MEO = 4.64 Earth radii);
 // low orbits are drawn with a bigger Earth so they stay readable (LEO hugs the surface).

@@ -38,6 +38,17 @@ function changeStructure(design, structureId) {
   const now = getComponent(structureId);
   const components = { ...design.components, structure: structureId };
   if (!now) return { ...design, components };
+  // A reference build is a complete real satellite: its bus and payload come with it
+  // (only add-ons that really flew on it stay).
+  if (now.reference) {
+    return { ...design, components, instrumentIds: design.instrumentIds.filter((id) => getInstrument(id)?.flewOn === now.id), powerPack: null };
+  }
+  const was = getComponent(design.components.structure);
+  if (was?.reference) {
+    // Leaving a reference build: start the part-by-part bus from scratch.
+    for (const cat of COMPONENT_CATEGORIES) if (cat !== 'structure' && cat !== 'eol') components[cat] = null;
+    return { ...design, components, instrumentIds: [] };
+  }
   for (const cat of COMPONENT_CATEGORIES) {
     const c = getComponent(components[cat]);
     if (cat !== 'structure' && c && c.formFactor !== now.formFactor) components[cat] = null;
@@ -161,6 +172,16 @@ export function reducer(state, action) {
       if (action.deployerId !== null && !getDeployer(action.deployerId)) return state;
       return withDesign(state, { ...state.design, deployerId: action.deployerId });
 
+    case T.SET_VARIANT: {
+      const sc = getScenario(state.scenarioId);
+      if (!sc?.variants?.some((v) => v.id === action.variantId)) return state;
+      return withDesign(state, { ...state.design, variantId: action.variantId });
+    }
+
+    case T.SET_SATS_PER_LAUNCH:
+      if (action.n !== 1 && action.n !== 2) return state;
+      return withDesign(state, { ...state.design, satsPerLaunch: action.n });
+
     case T.TOGGLE_PREP:
       if (!PREP_ITEMS.includes(action.item)) return state;
       return withDesign(state, { ...state.design, prep: { ...state.design.prep, [action.item]: !!action.value } });
@@ -206,6 +227,8 @@ export function reducer(state, action) {
         groundId: getGroundStation(d.groundId) ? d.groundId : null,
         powerPack: getPowerPack(d.powerPack) ? d.powerPack : null,
         kit: getKit(d.kit) ? d.kit : null,
+        variantId: getScenario(sh.scenarioId)?.variants?.some((v) => v.id === d.variantId) ? d.variantId : null,
+        satsPerLaunch: d.satsPerLaunch === 2 ? 2 : 1,
       };
       const difficulty = sh.difficulty === 'normal' ? 'normal' : 'easy';
       return withDesign({ ...state, difficulty, scenarioId: sh.scenarioId, screen: 'finalCheck' }, design);

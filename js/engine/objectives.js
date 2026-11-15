@@ -7,8 +7,8 @@
 //   weather: valid radiometer samples ≥90%, calibration, data delivered ≥95%, coverage, reference comparison
 // Plus: service period, model budget, schedule.
 
-import { ROLE_INFO } from '../data/instruments.js';
-import { computeResources, getSelection, downlinkServes } from './resources.js';
+import { ROLE_INFO, getInstrument } from '../data/instruments.js';
+import { computeResources, getSelection, downlinkServes, payloadNeeds } from './resources.js';
 import { money, months, pct } from '../utils/format.js';
 
 const MIN_VISIBLE_FOR_3D = 4; // research §1.1 / §4.5 (fact, S02)
@@ -16,8 +16,7 @@ const MIN_VISIBLE_FOR_3D = 4; // research §1.1 / §4.5 (fact, S02)
 /** Design-level facts every KPI needs. */
 function designFacts(state, res) {
   const sel = getSelection(state);
-  const roles = new Set(sel.instruments.map((i) => i.role));
-  return { sel, roles, scenario: sel.scenario, res };
+  return { sel, roles: sel.roles, scenario: sel.scenario, res };
 }
 
 const kpi = (id, icon, label, met, why) => ({ id, icon, label, met: !!met, why, kpi: true });
@@ -27,6 +26,8 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
   if (!scenario) return [];
   const s = sim.summary;
   const flew = sim.reachedOrbit && sim.outcome !== 'lost';
+  const inc = (cat) => sel.included.has(cat) || !!sel.components[cat];
+  const allowed = (o) => !!o && scenario.allowedOrbits.includes(o.id);
   const avail = s.serviceFraction ?? 0; // simulated share of the planned months with full service
   const out = [];
 
@@ -35,34 +36,42 @@ export function evaluateObjectives(state, sim, res = computeResources(state)) {
     const delivery = flew && chain ? avail : 0;
     out.push(kpi('packet_delivery', '📨', 'Packets delivered ≥95%', delivery >= scenario.data.target,
       `Simulated: ${pct(delivery)} of accepted test packets delivered (target 95%).${chain ? '' : ' The store-and-forward chain is incomplete.'}`));
-    out.push(kpi('ground_contact', '📡', 'Ground contact (gateway passes)', flew && res.data.groundOk === true && downlinkServes(sel.components.downlink, 'iot'),
+    out.push(kpi('ground_contact', '📡', 'Ground contact (gateway passes)', flew && res.data.groundOk === true && (sel.included.has('downlink') || downlinkServes(sel.components.downlink, 'iot')),
       res.data.groundOk ? 'Gateways collect the stored packets on each pass.' : 'No IoT gateway receives the packets.'));
     out.push(kpi('latency', '⏱️', 'Latency reported honestly', flew && chain,
       'One LEO satellite: a message waits until the next gateway pass — minutes to hours, not instant.'));
-    out.push(kpi('power_margin', '⚡', 'Power margin kept', flew && res.power.margin != null && res.power.margin > 0 && res.battery.status !== 'over',
-      res.power.margin != null ? `Average ${pct(res.power.margin)} spare; battery ${res.battery.status === 'over' ? 'too small' : 'OK in the 35-min shadow'}.` : 'Power not known.'));
+    out.push(kpi('power_margin', '⚡', 'Power margin kept', flew && (res.power.reference || (res.power.margin != null && res.power.margin > 0)) && res.battery.status !== 'over',
+      res.power.reference ? 'The real satellite\'s power system flew and worked.' : res.power.margin != null ? `Average ${pct(res.power.margin)} spare; battery ${res.battery.status === 'over' ? 'too small' : 'OK in the 35-min shadow'}.` : 'Power not known.'));
     out.push(kpi('safe_deorbit', '♻️', 'Safe deorbit plan', sel.prep.disposal, sel.prep.disposal ? 'A disposal plan is in place.' : 'No disposal plan.'));
   } else if (scenario.id === 'mission_navigation_meo') {
-    const thermalOk = !!sel.components.thermal;
+    const thermalOk = inc('thermal');
+    const clockName = sel.reference?.clocks ? getInstrument(sel.reference.clocks)?.plainName : sel.instruments.find((i) => i.role === 'atomic_clocks')?.plainName;
     out.push(kpi('clock_reference', '⏱️', 'Clock reference OK', flew && roles.has('atomic_clocks') && thermalOk,
-      roles.has('atomic_clocks') ? `Four clocks with spares${thermalOk ? ', kept at a stable temperature' : ' — but no thermal control'}.` : 'No atomic clocks: no precise reference time.'));
+      roles.has('atomic_clocks') ? `${clockName ?? 'Atomic clocks'}${thermalOk ? ', kept at a stable temperature' : ' — but no thermal control'}.` : 'No atomic clocks: no precise reference time.'));
     out.push(kpi('ranging_signal', '〰️', 'Ranging signal OK', flew && roles.has('nav_signal') && roles.has('nav_antenna') && roles.has('atomic_clocks'),
       `Simulated signal availability ${pct(flew ? avail : 0)}.`));
-    out.push(kpi('orbit_known', '🧭', 'Orbit achieved and known', flew && sel.orbit?.id === 'meo_gnss' && res.data.groundOk === true,
-      sel.orbit?.id === 'meo_gnss' ? 'MEO 23,222 km reached; monitoring stations track it.' : 'Not in the Galileo MEO orbit.'));
+    const lra = roles.has('lra');
+    out.push(kpi('orbit_known', '🧭', 'Orbit achieved and known', flew && allowed(sel.orbit) && res.data.groundOk === true,
+      allowed(sel.orbit) ? `${sel.orbit.plainName} reached; monitoring stations track it${lra ? ' — and lasers measure it to under 1 cm (LRA)' : ''}.` : 'Not in a navigation MEO orbit.'));
     out.push(kpi('nav_message', '🛰️', 'Navigation message uploaded', flew && res.data.chainOk,
       res.data.chainOk ? 'The ground uploads clock and orbit corrections; the satellite broadcasts them.' : `Chain incomplete: ${res.data.missing?.join(', ')}.`));
   } else {
-    const valid = flew && roles.has('mw_radiometer') && roles.has('calibration') ? avail : 0;
+    const { missing } = payloadNeeds(sel);
+    const sensorOk = !missing.includes('atmo_sensor');
+    const calOk = !missing.includes('calibration');
+    const valid = flew && sensorOk && calOk ? avail : 0;
     out.push(kpi('valid_samples', '🌦️', 'Valid observations ≥90%', valid >= scenario.data.validTarget,
       `Simulated: ${pct(valid)} of planned observations valid (target 90%).`));
-    out.push(kpi('calibration', '🎚️', 'Calibration OK', flew && roles.has('calibration') && !!sel.components.thermal,
-      roles.has('calibration') ? 'On-board calibration + stable temperatures.' : 'No calibration: absolute temperatures cannot be trusted.'));
-    const delivered = flew ? res.data.deliveredFraction ?? 0 : 0;
+    const needsCal = payloadNeeds(sel).needed.includes('calibration');
+    out.push(kpi('calibration', '🎚️', 'Calibration OK', flew && calOk && inc('thermal'),
+      !needsCal ? (sel.reference ? 'Part of the flown instrument.' : 'This sensor needs no separate calibration module (radar / GNSS-RO).') : roles.has('calibration') ? 'On-board calibration + stable temperatures.' : 'No calibration: absolute temperatures cannot be trusted.'));
+    const measured = res.data.deliveredFraction;
+    const delivered = flew ? measured ?? (res.data.chainOk ? 1 : 0) : 0;
     out.push(kpi('data_delivered', '📶', 'Data delivered ≥95%', delivered >= scenario.data.deliveredTarget,
-      `The link can send ${pct(delivered)} of the daily data (theoretical, before overheads).`));
-    out.push(kpi('coverage', '🌍', 'Coverage', flew && sel.orbit?.id === 'sso_550_650' && !!sel.components.sensors,
-      sel.orbit?.id === 'sso_550_650' ? 'SSO gives wide, regular coverage; sensors geolocate every sample.' : 'Not the SSO geometry this mission asked for.'));
+      measured != null ? `The link can send ${pct(measured)} of the daily data (theoretical, before overheads).` : res.data.chainOk ? 'Not measured: a data rate or contact time is not public — the downlink chain is complete.' : 'No working downlink chain.'));
+    const COVER = { sso_550_650: 'SSO: the whole Earth at the same local time.', leo_550_32deg: '32°: frequent tropical revisits, no poles.', iss_400_516: 'ISS orbit: no poles; decays sooner.', leo_550: 'LEO: covers the latitudes of its tilt.' };
+    out.push(kpi('coverage', '🌍', 'Coverage', flew && allowed(sel.orbit) && (sel.included.has('sensors') || !!sel.components.sensors || !!sel.components.computer?.providesGnss),
+      allowed(sel.orbit) ? `${COVER[sel.orbit.id] ?? ''} Samples are geolocated.` : 'Not an orbit this mission can use.'));
     out.push(kpi('reference_comparison', '📊', 'Compared with NASA GPM', flew && res.data.groundOk === true && delivered > 0,
       'The processing chain compares the (simulated) measurements with the real NASA GPM IMERG reference.'));
   }
@@ -126,3 +135,24 @@ export function checkClaim(state, claimId) {
 }
 
 export { ROLE_INFO };
+
+/**
+ * How well this design fits the chosen objective variant (0–1). Only the mission-performance part of
+ * the score uses it: a physically valid but less suitable build is never a failure.
+ */
+export function variantFit(state) {
+  const sel = getSelection(state);
+  const v = sel.variant;
+  if (!v) return { value: 1, variant: null, parts: [] };
+  const sensor = sel.instruments.find((i) => i.sensor)?.id ?? sel.reference?.sensor ?? null;
+  const language = sel.reference?.language ?? sel.instruments.find((i) => i.role === 'iot_transceiver')?.language ?? null;
+  const clockId = sel.reference?.clocks ?? sel.instruments.find((i) => i.role === 'atomic_clocks')?.id ?? null;
+  const clock = clockId === 'clock_phm_rubidium_4' ? 'phm_rafs' : clockId ? getInstrument(clockId)?.clockType ?? null : null;
+  const pick = { orbit: sel.orbit?.id, sensor, structure: sel.components.structure?.id, language, clock };
+  const parts = v.fit.map((f) => {
+    const option = pick[f.dim] ?? null;
+    return { dim: f.dim, option, factor: option != null && f.map[option] != null ? f.map[option] : f.other };
+  });
+  const value = parts.length ? parts.reduce((a, p) => a + p.factor, 0) / parts.length : 1;
+  return { value, variant: v, parts };
+}
